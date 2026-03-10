@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,29 +10,37 @@ import logoLvfc from '@/assets/logo-lvfc.png';
 
 export default function Login() {
   const navigate = useNavigate();
+  const { signIn, user } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Redirect if already logged in
+  if (user) {
+    navigate('/dashboard', { replace: true });
+    return null;
+  }
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
-    // TODO: Replace with Supabase auth
-    // Temporary demo logic
-    setTimeout(() => {
-      setLoading(false);
+    const { error } = await signIn(email, password);
+    setLoading(false);
+
+    if (error) {
+      setError('Email o contraseña incorrectos');
+    } else {
       navigate('/dashboard');
-    }, 800);
+    }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm space-y-6">
-        {/* Logo + Title */}
         <div className="flex flex-col items-center gap-3">
           <img
             src={logoLvfc}
@@ -48,7 +57,6 @@ export default function Login() {
           </div>
         </div>
 
-        {/* Login Card */}
         <Card className="shadow-lg border-border">
           <CardHeader className="pb-4">
             <p className="text-sm text-muted-foreground text-center">
