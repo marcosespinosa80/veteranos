@@ -196,8 +196,9 @@ export default function Jugadores() {
                   <TableHead className="hidden md:table-cell">Equipo</TableHead>
                   <TableHead className="hidden lg:table-cell">Categoría</TableHead>
                   <TableHead className="hidden lg:table-cell">Fecha Nac.</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead className="w-12" />
+                    <TableHead>Estado</TableHead>
+                    <TableHead className="hidden sm:table-cell">Delegado</TableHead>
+                    <TableHead className="w-12" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -214,6 +215,13 @@ export default function Jugadores() {
                       <Badge variant="outline" className={estadoColors[j.estado] || ''}>
                         {estadoLabels[j.estado] || j.estado}
                       </Badge>
+                    </TableCell>
+                    <TableCell className="hidden sm:table-cell">
+                      {j.es_delegado ? (
+                        <Badge variant="outline" className="bg-accent/15 text-accent-foreground border-accent/30 text-xs">
+                          Delegado
+                        </Badge>
+                      ) : '—'}
                     </TableCell>
                     <TableCell>
                       <Button size="icon" variant="ghost" onClick={() => openEdit(j)}>
