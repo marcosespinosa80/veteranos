@@ -27,6 +27,12 @@ const App = () => (
             <Route path="/dashboard" element={
               <ProtectedRoute><DashboardPage /></ProtectedRoute>
             } />
+            <Route path="/equipos" element={
+              <ProtectedRoute><EquiposPage /></ProtectedRoute>
+            } />
+            <Route path="/jugadores" element={
+              <ProtectedRoute><JugadoresPage /></ProtectedRoute>
+            } />
             
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
