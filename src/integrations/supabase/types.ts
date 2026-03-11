@@ -254,17 +254,17 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "equipos_delegado_1_fkey"
+            foreignKeyName: "equipos_delegado_1_jugador_fkey"
             columns: ["delegado_1"]
             isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "jugadores"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "equipos_delegado_2_fkey"
+            foreignKeyName: "equipos_delegado_2_jugador_fkey"
             columns: ["delegado_2"]
             isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "jugadores"
             referencedColumns: ["id"]
           },
         ]
@@ -278,6 +278,7 @@ export type Database = {
           direccion: string | null
           dni: string
           equipo_id: string | null
+          es_delegado: boolean
           estado: Database["public"]["Enums"]["estado_jugador"]
           fecha_nacimiento: string
           foto_url: string | null
@@ -294,6 +295,7 @@ export type Database = {
           direccion?: string | null
           dni: string
           equipo_id?: string | null
+          es_delegado?: boolean
           estado?: Database["public"]["Enums"]["estado_jugador"]
           fecha_nacimiento: string
           foto_url?: string | null
@@ -310,6 +312,7 @@ export type Database = {
           direccion?: string | null
           dni?: string
           equipo_id?: string | null
+          es_delegado?: boolean
           estado?: Database["public"]["Enums"]["estado_jugador"]
           fecha_nacimiento?: string
           foto_url?: string | null
