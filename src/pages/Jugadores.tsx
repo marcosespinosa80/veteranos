@@ -196,8 +196,9 @@ export default function Jugadores() {
                   <TableHead className="hidden md:table-cell">Equipo</TableHead>
                   <TableHead className="hidden lg:table-cell">Categoría</TableHead>
                   <TableHead className="hidden lg:table-cell">Fecha Nac.</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead className="w-12" />
+                    <TableHead>Estado</TableHead>
+                    <TableHead className="hidden sm:table-cell">Delegado</TableHead>
+                    <TableHead className="w-12" />
                 </TableRow>
               </TableHeader>
               <TableBody>
