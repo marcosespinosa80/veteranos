@@ -7,6 +7,8 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import Login from "./pages/Login";
 import DashboardPage from "./pages/DashboardPage";
+import EquiposPage from "./pages/EquiposPage";
+import JugadoresPage from "./pages/JugadoresPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
