@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -37,21 +37,24 @@ export default function Equipos() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('equipos')
-        .select('*, delegado1:profiles!equipos_delegado_1_fkey(nombre, apellido), delegado2:profiles!equipos_delegado_2_fkey(nombre, apellido)')
+        .select('*, delegado1:jugadores!equipos_delegado_1_jugador_fkey(id, nombre, apellido), delegado2:jugadores!equipos_delegado_2_jugador_fkey(id, nombre, apellido)')
         .order('nombre_equipo');
       if (error) throw error;
       return data;
     },
   });
 
-  const { data: delegados = [] } = useQuery({
-    queryKey: ['delegados'],
-    enabled: isAdmin,
+  // Fetch jugadores for the team being edited (for delegate selection)
+  const { data: jugadoresDelEquipo = [] } = useQuery({
+    queryKey: ['jugadores-equipo', editingId],
+    enabled: isAdmin && !!editingId,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('profiles')
-        .select('id, nombre, apellido')
-        .eq('activo', true);
+        .from('jugadores')
+        .select('id, nombre, apellido, estado, es_delegado')
+        .eq('equipo_id', editingId!)
+        .eq('estado', 'habilitado')
+        .order('apellido');
       if (error) throw error;
       return data;
     },
@@ -91,6 +94,7 @@ export default function Equipos() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['equipos'] });
+      queryClient.invalidateQueries({ queryKey: ['jugadores'] });
       setDialogOpen(false);
       setEditingId(null);
       setForm(emptyForm);
@@ -117,6 +121,10 @@ export default function Equipos() {
   const filtered = equipos.filter((e: any) =>
     e.nombre_equipo.toLowerCase().includes(search.toLowerCase())
   );
+
+  // Filter available jugadores for delegate selectors (exclude the other selected delegate)
+  const availableForDelegado1 = jugadoresDelEquipo.filter(j => j.id !== form.delegado_2);
+  const availableForDelegado2 = jugadoresDelEquipo.filter(j => j.id !== form.delegado_1);
 
   return (
     <div className="space-y-4">
@@ -151,8 +159,8 @@ export default function Equipos() {
                 <TableRow>
                   <TableHead>Equipo</TableHead>
                   <TableHead className="hidden md:table-cell">Cancha</TableHead>
-                  <TableHead className="hidden sm:table-cell">Delegado 1</TableHead>
-                  <TableHead className="hidden lg:table-cell">Delegado 2</TableHead>
+                  <TableHead className="hidden sm:table-cell">Delegado Titular</TableHead>
+                  <TableHead className="hidden lg:table-cell">Delegado Suplente</TableHead>
                   <TableHead className="text-center">Jugadores</TableHead>
                   <TableHead>Estado</TableHead>
                   {isAdmin && <TableHead className="w-12" />}
@@ -171,10 +179,10 @@ export default function Equipos() {
                       {eq.cancha || '—'}
                     </TableCell>
                     <TableCell className="hidden sm:table-cell text-sm">
-                      {eq.delegado1 ? `${eq.delegado1.nombre} ${eq.delegado1.apellido}` : '—'}
+                      {eq.delegado1 ? `${eq.delegado1.apellido}, ${eq.delegado1.nombre}` : '—'}
                     </TableCell>
                     <TableCell className="hidden lg:table-cell text-sm">
-                      {eq.delegado2 ? `${eq.delegado2.nombre} ${eq.delegado2.apellido}` : '—'}
+                      {eq.delegado2 ? `${eq.delegado2.apellido}, ${eq.delegado2.nombre}` : '—'}
                     </TableCell>
                     <TableCell className="text-center">
                       <div className="flex items-center justify-center gap-1 text-sm">
@@ -208,7 +216,7 @@ export default function Equipos() {
           <DialogHeader>
             <DialogTitle>{editingId ? 'Editar Equipo' : 'Nuevo Equipo'}</DialogTitle>
             <DialogDescription>
-              {editingId ? 'Modificá los datos del equipo.' : 'Completá los datos para crear un nuevo equipo.'}
+              {editingId ? 'Modificá los datos del equipo.' : 'Completá los datos para crear un nuevo equipo. Los delegados se asignan después de crear el equipo.'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -220,30 +228,46 @@ export default function Equipos() {
               <Label htmlFor="cancha">Cancha</Label>
               <Input id="cancha" value={form.cancha} onChange={(e) => setForm({ ...form, cancha: e.target.value })} />
             </div>
-            <div className="space-y-2">
-              <Label>Delegado 1</Label>
-              <Select value={form.delegado_1 || 'none'} onValueChange={(v) => setForm({ ...form, delegado_1: v === 'none' ? null : v })}>
-                <SelectTrigger><SelectValue placeholder="Sin asignar" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Sin asignar</SelectItem>
-                  {delegados.map((d) => (
-                    <SelectItem key={d.id} value={d.id}>{d.nombre} {d.apellido}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Delegado 2</Label>
-              <Select value={form.delegado_2 || 'none'} onValueChange={(v) => setForm({ ...form, delegado_2: v === 'none' ? null : v })}>
-                <SelectTrigger><SelectValue placeholder="Sin asignar" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Sin asignar</SelectItem>
-                  {delegados.map((d) => (
-                    <SelectItem key={d.id} value={d.id}>{d.nombre} {d.apellido}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+
+            {/* Delegate selectors: only shown when editing (team must exist to have players) */}
+            {editingId && (
+              <>
+                <div className="space-y-2">
+                  <Label>Delegado Titular</Label>
+                  {jugadoresDelEquipo.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">No hay jugadores habilitados en este equipo.</p>
+                  ) : (
+                    <Select value={form.delegado_1 || 'none'} onValueChange={(v) => setForm({ ...form, delegado_1: v === 'none' ? null : v })}>
+                      <SelectTrigger><SelectValue placeholder="Sin asignar" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Sin asignar</SelectItem>
+                        {availableForDelegado1.map((j) => (
+                          <SelectItem key={j.id} value={j.id}>{j.apellido}, {j.nombre}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label>Delegado Suplente</Label>
+                  {jugadoresDelEquipo.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">No hay jugadores habilitados en este equipo.</p>
+                  ) : (
+                    <Select value={form.delegado_2 || 'none'} onValueChange={(v) => setForm({ ...form, delegado_2: v === 'none' ? null : v })}>
+                      <SelectTrigger><SelectValue placeholder="Sin asignar" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Sin asignar</SelectItem>
+                        {availableForDelegado2.map((j) => (
+                          <SelectItem key={j.id} value={j.id}>{j.apellido}, {j.nombre}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">Solo se muestran jugadores habilitados del equipo.</p>
+              </>
+            )}
+
             <div className="space-y-2">
               <Label>Estado</Label>
               <Select value={form.estado} onValueChange={(v) => setForm({ ...form, estado: v as 'activo' | 'inactivo' })}>

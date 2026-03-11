@@ -216,6 +216,13 @@ export default function Jugadores() {
                         {estadoLabels[j.estado] || j.estado}
                       </Badge>
                     </TableCell>
+                    <TableCell className="hidden sm:table-cell">
+                      {j.es_delegado ? (
+                        <Badge variant="outline" className="bg-accent/15 text-accent-foreground border-accent/30 text-xs">
+                          Delegado
+                        </Badge>
+                      ) : '—'}
+                    </TableCell>
                     <TableCell>
                       <Button size="icon" variant="ghost" onClick={() => openEdit(j)}>
                         <Pencil className="w-4 h-4" />
