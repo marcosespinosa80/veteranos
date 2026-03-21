@@ -35,6 +35,12 @@ const App = () => (
             <Route path="/jugadores" element={
               <ProtectedRoute><JugadoresPage /></ProtectedRoute>
             } />
+            <Route path="/listas-buena-fe" element={
+              <ProtectedRoute><ListasBuenaFePage /></ProtectedRoute>
+            } />
+            <Route path="/pases" element={
+              <ProtectedRoute><PasesPage /></ProtectedRoute>
+            } />
             
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
