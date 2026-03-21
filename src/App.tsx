@@ -9,6 +9,8 @@ import Login from "./pages/Login";
 import DashboardPage from "./pages/DashboardPage";
 import EquiposPage from "./pages/EquiposPage";
 import JugadoresPage from "./pages/JugadoresPage";
+import ListasBuenaFePage from "./pages/ListasBuenaFePage";
+import PasesPage from "./pages/PasesPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();

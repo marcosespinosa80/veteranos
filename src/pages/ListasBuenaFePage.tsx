@@ -1,4 +1,4 @@
-import DashboardLayout from '@/components/layout/DashboardLayout';
+import { DashboardLayout } from '@/components/layout/DashboardLayout';
 import ListasBuenaFe from './ListasBuenaFe';
 
 export default function ListasBuenaFePage() {
