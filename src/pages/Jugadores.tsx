@@ -90,7 +90,7 @@ export default function Jugadores() {
         apellido: data.apellido.trim(),
         dni: data.dni.trim(),
         fecha_nacimiento: data.fecha_nacimiento,
-        equipo_id: data.equipo_id || null,
+        equipo_id: isDelegado ? (profile?.equipo_id || null) : (data.equipo_id || null),
         telefono: data.telefono.trim() || null,
         direccion: data.direccion.trim() || null,
         estado: data.estado,
