@@ -16,7 +16,7 @@ function ValidarCarnet() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('carnets')
-        .select('*, jugador:jugadores(id, nombre, apellido, dni, estado, foto_url, equipo:equipos(nombre_equipo), categoria:categorias(nombre_categoria))')
+        .select('*, jugador:jugadores(id, nombre, apellido, dni, estado, foto_url, equipo:equipos!jugadores_equipo_id_fkey(nombre_equipo), categoria:categorias(nombre_categoria))')
         .eq('qr_token', token!)
         .single();
       if (error) throw error;
