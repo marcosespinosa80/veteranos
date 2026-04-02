@@ -53,8 +53,8 @@ export default function Jugadores() {
   const isAdmin = role === 'admin_general' || role === 'admin_comun';
   const isDelegado = role === 'delegado';
 
-  const { data: jugadores = [], isLoading } = useQuery({
-    queryKey: ['jugadores'],
+  const { data: jugadores = [], isLoading, error } = useQuery({
+    queryKey: ['jugadores', user?.id, role, profile?.equipo_id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('jugadores')
