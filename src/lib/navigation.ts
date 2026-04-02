@@ -9,7 +9,7 @@ export interface NavItem {
 
 export const navigationItems: NavItem[] = [
   {
-    title: 'Dashboard',
+    title: 'Panel de Control',
     href: '/dashboard',
     icon: 'LayoutDashboard',
     roles: ['admin_general', 'admin_comun', 'delegado', 'arbitro', 'tribunal'],
