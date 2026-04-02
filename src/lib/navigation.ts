@@ -45,8 +45,8 @@ export const navigationItems: NavItem[] = [
     roles: ['admin_general', 'admin_comun', 'delegado'],
   },
   {
-    title: 'Boletines',
-    href: '/boletines',
+    title: 'Boletines (Admin)',
+    href: '/admin/boletines',
     icon: 'FileText',
     roles: ['admin_general', 'admin_comun'],
   },

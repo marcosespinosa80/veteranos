@@ -42,7 +42,7 @@ const estadoLabels: Record<string, string> = {
 };
 
 export default function Jugadores() {
-  const { role } = useAuth();
+  const { role, profile } = useAuth();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [filterEquipo, setFilterEquipo] = useState<string>('all');
@@ -51,6 +51,7 @@ export default function Jugadores() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<JugadorForm>(emptyForm);
   const isAdmin = role === 'admin_general' || role === 'admin_comun';
+  const isDelegado = role === 'delegado';
 
   const { data: jugadores = [], isLoading } = useQuery({
     queryKey: ['jugadores'],
