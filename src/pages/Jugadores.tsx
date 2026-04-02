@@ -116,7 +116,7 @@ export default function Jugadores() {
     },
   });
 
-  const openCreate = () => { setForm(emptyForm); setEditingId(null); setDialogOpen(true); };
+  const openCreate = () => { setForm({ ...emptyForm, equipo_id: isDelegado ? (profile?.equipo_id || null) : null }); setEditingId(null); setDialogOpen(true); };
   const openEdit = (j: any) => {
     setForm({
       nombre: j.nombre,
