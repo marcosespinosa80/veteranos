@@ -265,13 +265,17 @@ export default function Jugadores() {
             </div>
             <div className="space-y-2">
               <Label>Equipo</Label>
-              <Select value={form.equipo_id || 'none'} onValueChange={(v) => setForm({ ...form, equipo_id: v === 'none' ? null : v })}>
-                <SelectTrigger><SelectValue placeholder="Sin equipo" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Sin equipo</SelectItem>
-                  {equipos.map((e) => <SelectItem key={e.id} value={e.id}>{e.nombre_equipo}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              {isDelegado ? (
+                <Input value={equipos.find(e => e.id === profile?.equipo_id)?.nombre_equipo || 'Tu equipo'} disabled />
+              ) : (
+                <Select value={form.equipo_id || 'none'} onValueChange={(v) => setForm({ ...form, equipo_id: v === 'none' ? null : v })}>
+                  <SelectTrigger><SelectValue placeholder="Sin equipo" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sin equipo</SelectItem>
+                    {equipos.map((e) => <SelectItem key={e.id} value={e.id}>{e.nombre_equipo}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Estado</Label>
