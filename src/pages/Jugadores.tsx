@@ -42,7 +42,7 @@ const estadoLabels: Record<string, string> = {
 };
 
 export default function Jugadores() {
-  const { role, profile } = useAuth();
+  const { role, user, loading, profile } = useAuth();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [filterEquipo, setFilterEquipo] = useState<string>('all');
@@ -53,8 +53,8 @@ export default function Jugadores() {
   const isAdmin = role === 'admin_general' || role === 'admin_comun';
   const isDelegado = role === 'delegado';
 
-  const { data: jugadores = [], isLoading } = useQuery({
-    queryKey: ['jugadores'],
+  const { data: jugadores = [], isLoading, error } = useQuery({
+    queryKey: ['jugadores', user?.id, role, profile?.equipo_id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('jugadores')
@@ -63,6 +63,7 @@ export default function Jugadores() {
       if (error) throw error;
       return data;
     },
+    enabled: !loading && !!user,
   });
 
   const { data: equipos = [] } = useQuery({
