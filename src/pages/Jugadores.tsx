@@ -42,7 +42,7 @@ const estadoLabels: Record<string, string> = {
 };
 
 export default function Jugadores() {
-  const { role, profile } = useAuth();
+  const { role, user, loading, profile } = useAuth();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [filterEquipo, setFilterEquipo] = useState<string>('all');
