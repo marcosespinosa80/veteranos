@@ -12,7 +12,7 @@ export default function DashboardPage() {
     <DashboardLayout
       userRole={userRole}
       userName={userName}
-      pageTitle="Dashboard"
+      pageTitle="Panel de Control"
       onLogout={signOut}
     >
       <Dashboard />
