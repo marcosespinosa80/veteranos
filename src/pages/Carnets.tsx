@@ -36,7 +36,7 @@ export default function Carnets() {
     queryFn: async () => {
       const { data: jugadores, error } = await supabase
         .from('jugadores')
-        .select('id, nombre, apellido, dni, estado, foto_url, equipo:equipos(nombre_equipo), categoria:categorias(nombre_categoria)')
+        .select('id, nombre, apellido, dni, estado, foto_url, equipo:equipos!jugadores_equipo_id_fkey(nombre_equipo), categoria:categorias(nombre_categoria)')
         .or(`dni.ilike.%${search}%,apellido.ilike.%${search}%`)
         .order('apellido')
         .limit(20);
