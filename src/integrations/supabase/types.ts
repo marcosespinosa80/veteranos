@@ -147,44 +147,6 @@ export type Database = {
         }
         Relationships: []
       }
-      certificados_medicos: {
-        Row: {
-          archivo_url: string | null
-          created_at: string
-          estado: Database["public"]["Enums"]["estado_certificado"]
-          fecha_emision: string
-          fecha_vencimiento: string
-          id: string
-          jugador_id: string
-        }
-        Insert: {
-          archivo_url?: string | null
-          created_at?: string
-          estado?: Database["public"]["Enums"]["estado_certificado"]
-          fecha_emision: string
-          fecha_vencimiento: string
-          id?: string
-          jugador_id: string
-        }
-        Update: {
-          archivo_url?: string | null
-          created_at?: string
-          estado?: Database["public"]["Enums"]["estado_certificado"]
-          fecha_emision?: string
-          fecha_vencimiento?: string
-          id?: string
-          jugador_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "certificados_medicos_jugador_id_fkey"
-            columns: ["jugador_id"]
-            isOneToOne: false
-            referencedRelation: "jugadores"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       equipo_categoria: {
         Row: {
           categoria_id: string
@@ -646,7 +608,6 @@ export type Database = {
         | "arbitro"
         | "tribunal"
       estado_carnet: "activo" | "inactivo"
-      estado_certificado: "vigente" | "vencido" | "anulado"
       estado_equipo: "activo" | "inactivo"
       estado_item_lista: "incluido" | "baja"
       estado_jugador: "habilitado" | "no_habilitado" | "expulsado"
@@ -800,7 +761,6 @@ export const Constants = {
         "tribunal",
       ],
       estado_carnet: ["activo", "inactivo"],
-      estado_certificado: ["vigente", "vencido", "anulado"],
       estado_equipo: ["activo", "inactivo"],
       estado_item_lista: ["incluido", "baja"],
       estado_jugador: ["habilitado", "no_habilitado", "expulsado"],
