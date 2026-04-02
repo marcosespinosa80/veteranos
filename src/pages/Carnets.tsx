@@ -8,18 +8,20 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Search, CreditCard, RefreshCw, QrCode } from 'lucide-react';
+import { Search, CreditCard, RefreshCw, QrCode, Users } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 export default function Carnets() {
-  const { role } = useAuth();
+  const { role, user, loading } = useAuth();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [selectedJugador, setSelectedJugador] = useState<any>(null);
+  const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
+  const [bulkResult, setBulkResult] = useState<{ creados: number; existentes: number; errores: number } | null>(null);
   const isAdmin = role === 'admin_general' || role === 'admin_comun';
 
   const { data: carnetsData = [], isLoading } = useQuery({
-    queryKey: ['carnets'],
+    queryKey: ['carnets', user?.id, role],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('carnets')
@@ -28,31 +30,34 @@ export default function Carnets() {
       if (error) throw error;
       return data;
     },
+    enabled: !loading && !!user,
   });
 
-  const { data: jugadoresSinCarnet = [] } = useQuery({
-    queryKey: ['jugadores-sin-carnet', search],
-    enabled: search.length >= 2,
+  const { data: jugadoresBusqueda = [] } = useQuery({
+    queryKey: ['jugadores-busqueda-carnet', search],
+    enabled: search.length >= 2 && isAdmin,
     queryFn: async () => {
-      const { data: jugadores, error } = await supabase
+      const { data, error } = await supabase
         .from('jugadores')
         .select('id, nombre, apellido, dni, estado, foto_url, equipo:equipos!jugadores_equipo_id_fkey(nombre_equipo), categoria:categorias(nombre_categoria)')
         .or(`dni.ilike.%${search}%,apellido.ilike.%${search}%`)
         .order('apellido')
         .limit(20);
       if (error) throw error;
-      const carnetJugadorIds = new Set(carnetsData.map((c: any) => c.jugador_id));
-      return (jugadores || []).filter((j: any) => !carnetJugadorIds.has(j.id));
+      return data || [];
     },
   });
 
+  // Merge search results with carnet status
+  const carnetMap = new Map(carnetsData.map((c: any) => [c.jugador_id, c]));
+
   const generateMutation = useMutation({
-    mutationFn: async (jugadorId: string) => {
-      const codigo = `CARNET-${Date.now().toString(36).toUpperCase()}`;
+    mutationFn: async (jugador: { id: string; dni: string }) => {
+      const codigo = `LVFC-${jugador.dni}`;
       const hoy = new Date();
-      const hasta = new Date(hoy.getFullYear(), 11, 31);
+      const hasta = new Date(hoy.getFullYear() + 1, hoy.getMonth(), hoy.getDate());
       const { error } = await supabase.from('carnets').insert({
-        jugador_id: jugadorId,
+        jugador_id: jugador.id,
         codigo,
         vigencia_desde: hoy.toISOString().slice(0, 10),
         vigencia_hasta: hasta.toISOString().slice(0, 10),
@@ -62,8 +67,8 @@ export default function Carnets() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['carnets'] });
-      queryClient.invalidateQueries({ queryKey: ['jugadores-sin-carnet'] });
-      toast({ title: 'Carnet generado' });
+      queryClient.invalidateQueries({ queryKey: ['jugadores-busqueda-carnet'] });
+      toast({ title: 'Carnet generado correctamente' });
     },
     onError: (err: Error) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
   });
@@ -71,7 +76,7 @@ export default function Carnets() {
   const renewMutation = useMutation({
     mutationFn: async (carnetId: string) => {
       const hoy = new Date();
-      const hasta = new Date(hoy.getFullYear(), 11, 31);
+      const hasta = new Date(hoy.getFullYear() + 1, hoy.getMonth(), hoy.getDate());
       const { error } = await supabase.from('carnets').update({
         vigencia_desde: hoy.toISOString().slice(0, 10),
         vigencia_hasta: hasta.toISOString().slice(0, 10),
@@ -99,6 +104,56 @@ export default function Carnets() {
     onError: (err: Error) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
   });
 
+  const bulkGenerateMutation = useMutation({
+    mutationFn: async () => {
+      // Get all habilitados
+      const { data: habilitados, error: hErr } = await supabase
+        .from('jugadores')
+        .select('id, dni')
+        .eq('estado', 'habilitado');
+      if (hErr) throw hErr;
+
+      // Get existing carnet jugador_ids
+      const { data: existingCarnets, error: cErr } = await supabase
+        .from('carnets')
+        .select('jugador_id');
+      if (cErr) throw cErr;
+
+      const existingSet = new Set((existingCarnets || []).map((c: any) => c.jugador_id));
+      const sinCarnet = (habilitados || []).filter((j: any) => !existingSet.has(j.id));
+
+      let creados = 0;
+      let errores = 0;
+      const existentes = (habilitados || []).length - sinCarnet.length;
+
+      if (sinCarnet.length > 0) {
+        const hoy = new Date();
+        const hasta = new Date(hoy.getFullYear() + 1, hoy.getMonth(), hoy.getDate());
+        const rows = sinCarnet.map((j: any) => ({
+          jugador_id: j.id,
+          codigo: `LVFC-${j.dni}`,
+          vigencia_desde: hoy.toISOString().slice(0, 10),
+          vigencia_hasta: hasta.toISOString().slice(0, 10),
+          estado: 'activo' as const,
+        }));
+
+        const { error: iErr, data: inserted } = await supabase.from('carnets').insert(rows).select('id');
+        if (iErr) throw iErr;
+        creados = inserted?.length || 0;
+      }
+
+      return { creados, existentes, errores };
+    },
+    onSuccess: (result) => {
+      setBulkResult(result);
+      queryClient.invalidateQueries({ queryKey: ['carnets'] });
+      queryClient.invalidateQueries({ queryKey: ['jugadores-busqueda-carnet'] });
+    },
+    onError: (err: Error) => {
+      toast({ title: 'Error en generación masiva', description: err.message, variant: 'destructive' });
+    },
+  });
+
   const filtered = carnetsData.filter((c: any) => {
     if (!search) return true;
     const j = c.jugador;
@@ -114,26 +169,45 @@ export default function Carnets() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input placeholder="Buscar por DNI o apellido..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
         </div>
+        {isAdmin && (
+          <Button onClick={() => { setBulkResult(null); setBulkDialogOpen(true); }} variant="outline" className="shrink-0">
+            <Users className="w-4 h-4 mr-1" /> Generar carnets masivo
+          </Button>
+        )}
       </div>
 
-      {/* Jugadores sin carnet (resultados de búsqueda) */}
-      {isAdmin && search.length >= 2 && jugadoresSinCarnet.length > 0 && (
+      {/* Search results with generate/renew actions */}
+      {isAdmin && search.length >= 2 && jugadoresBusqueda.length > 0 && (
         <Card>
           <CardContent className="p-3">
-            <p className="text-xs font-medium text-muted-foreground mb-2">Jugadores sin carnet:</p>
+            <p className="text-xs font-medium text-muted-foreground mb-2">Resultados de búsqueda:</p>
             <div className="space-y-2">
-              {jugadoresSinCarnet.map((j: any) => (
-                <div key={j.id} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
-                  <div>
-                    <span className="font-medium text-sm">{j.apellido}, {j.nombre}</span>
-                    <span className="text-xs text-muted-foreground ml-2">DNI {j.dni}</span>
-                    <span className="text-xs text-muted-foreground ml-2">{j.equipo?.nombre_equipo || 'Sin equipo'}</span>
+              {jugadoresBusqueda.map((j: any) => {
+                const existingCarnet = carnetMap.get(j.id);
+                return (
+                  <div key={j.id} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
+                    <div>
+                      <span className="font-medium text-sm">{j.apellido}, {j.nombre}</span>
+                      <span className="text-xs text-muted-foreground ml-2">DNI {j.dni}</span>
+                      <span className="text-xs text-muted-foreground ml-2">{(j.equipo as any)?.nombre_equipo || 'Sin equipo'}</span>
+                      {existingCarnet && (
+                        <Badge variant="outline" className="ml-2 text-xs bg-primary/15 text-primary border-primary/30">
+                          Tiene carnet
+                        </Badge>
+                      )}
+                    </div>
+                    {existingCarnet ? (
+                      <Button size="sm" variant="outline" onClick={() => renewMutation.mutate(existingCarnet.id)} disabled={renewMutation.isPending}>
+                        <RefreshCw className="w-3 h-3 mr-1" /> Renovar carnet
+                      </Button>
+                    ) : (
+                      <Button size="sm" onClick={() => generateMutation.mutate({ id: j.id, dni: j.dni })} disabled={generateMutation.isPending}>
+                        <CreditCard className="w-3 h-3 mr-1" /> Generar carnet
+                      </Button>
+                    )}
                   </div>
-                  <Button size="sm" onClick={() => generateMutation.mutate(j.id)} disabled={generateMutation.isPending}>
-                    <CreditCard className="w-3 h-3 mr-1" /> Generar
-                  </Button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </CardContent>
         </Card>
@@ -241,6 +315,52 @@ export default function Carnets() {
                   />
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">Código: {selectedJugador.codigo}</p>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Generate Dialog */}
+      <Dialog open={bulkDialogOpen} onOpenChange={setBulkDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Generación masiva de carnets</DialogTitle>
+            <DialogDescription>
+              Se crearán carnets para todos los jugadores habilitados que aún no tengan uno.
+            </DialogDescription>
+          </DialogHeader>
+          {bulkResult ? (
+            <div className="space-y-3">
+              <div className="rounded-lg border p-4 space-y-2">
+                <p className="text-sm font-medium">Resumen:</p>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="rounded-md bg-primary/10 p-3">
+                    <p className="text-2xl font-bold text-primary">{bulkResult.creados}</p>
+                    <p className="text-xs text-muted-foreground">Creados</p>
+                  </div>
+                  <div className="rounded-md bg-muted p-3">
+                    <p className="text-2xl font-bold">{bulkResult.existentes}</p>
+                    <p className="text-xs text-muted-foreground">Ya existían</p>
+                  </div>
+                  <div className="rounded-md bg-destructive/10 p-3">
+                    <p className="text-2xl font-bold text-destructive">{bulkResult.errores}</p>
+                    <p className="text-xs text-muted-foreground">Errores</p>
+                  </div>
+                </div>
+              </div>
+              <Button className="w-full" onClick={() => setBulkDialogOpen(false)}>Cerrar</Button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Vigencia: desde hoy hasta dentro de 1 año.
+              </p>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => setBulkDialogOpen(false)}>Cancelar</Button>
+                <Button onClick={() => bulkGenerateMutation.mutate()} disabled={bulkGenerateMutation.isPending}>
+                  {bulkGenerateMutation.isPending ? 'Generando...' : 'Generar carnets'}
+                </Button>
               </div>
             </div>
           )}
