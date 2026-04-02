@@ -63,6 +63,7 @@ export default function Jugadores() {
       if (error) throw error;
       return data;
     },
+    enabled: !loading && !!user,
   });
 
   const { data: equipos = [] } = useQuery({
