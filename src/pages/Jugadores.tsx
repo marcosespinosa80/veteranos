@@ -42,7 +42,7 @@ const estadoLabels: Record<string, string> = {
 };
 
 export default function Jugadores() {
-  const { role } = useAuth();
+  const { role, profile } = useAuth();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [filterEquipo, setFilterEquipo] = useState<string>('all');
@@ -51,6 +51,7 @@ export default function Jugadores() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<JugadorForm>(emptyForm);
   const isAdmin = role === 'admin_general' || role === 'admin_comun';
+  const isDelegado = role === 'delegado';
 
   const { data: jugadores = [], isLoading } = useQuery({
     queryKey: ['jugadores'],
@@ -89,7 +90,7 @@ export default function Jugadores() {
         apellido: data.apellido.trim(),
         dni: data.dni.trim(),
         fecha_nacimiento: data.fecha_nacimiento,
-        equipo_id: data.equipo_id || null,
+        equipo_id: isDelegado ? (profile?.equipo_id || null) : (data.equipo_id || null),
         telefono: data.telefono.trim() || null,
         direccion: data.direccion.trim() || null,
         estado: data.estado,
@@ -115,7 +116,7 @@ export default function Jugadores() {
     },
   });
 
-  const openCreate = () => { setForm(emptyForm); setEditingId(null); setDialogOpen(true); };
+  const openCreate = () => { setForm({ ...emptyForm, equipo_id: isDelegado ? (profile?.equipo_id || null) : null }); setEditingId(null); setDialogOpen(true); };
   const openEdit = (j: any) => {
     setForm({
       nombre: j.nombre,
@@ -264,13 +265,17 @@ export default function Jugadores() {
             </div>
             <div className="space-y-2">
               <Label>Equipo</Label>
-              <Select value={form.equipo_id || 'none'} onValueChange={(v) => setForm({ ...form, equipo_id: v === 'none' ? null : v })}>
-                <SelectTrigger><SelectValue placeholder="Sin equipo" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Sin equipo</SelectItem>
-                  {equipos.map((e) => <SelectItem key={e.id} value={e.id}>{e.nombre_equipo}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              {isDelegado ? (
+                <Input value={equipos.find(e => e.id === profile?.equipo_id)?.nombre_equipo || 'Tu equipo'} disabled />
+              ) : (
+                <Select value={form.equipo_id || 'none'} onValueChange={(v) => setForm({ ...form, equipo_id: v === 'none' ? null : v })}>
+                  <SelectTrigger><SelectValue placeholder="Sin equipo" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sin equipo</SelectItem>
+                    {equipos.map((e) => <SelectItem key={e.id} value={e.id}>{e.nombre_equipo}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Estado</Label>

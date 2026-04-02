@@ -11,6 +11,11 @@ import EquiposPage from "./pages/EquiposPage";
 import JugadoresPage from "./pages/JugadoresPage";
 import ListasBuenaFePage from "./pages/ListasBuenaFePage";
 import PasesPage from "./pages/PasesPage";
+import BoletinesPublicPage from "./pages/BoletinesPublicPage";
+import BoletinesAdminPage from "./pages/BoletinesAdminPage";
+import CarnetsPage from "./pages/CarnetsPage";
+import ValidarCarnetPage from "./pages/ValidarCarnetPage";
+import UsuariosPage from "./pages/UsuariosPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +31,10 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             
+            {/* Public */}
+            <Route path="/boletines" element={<BoletinesPublicPage />} />
+
+            {/* Protected */}
             <Route path="/dashboard" element={
               <ProtectedRoute><DashboardPage /></ProtectedRoute>
             } />
@@ -40,6 +49,18 @@ const App = () => (
             } />
             <Route path="/pases" element={
               <ProtectedRoute><PasesPage /></ProtectedRoute>
+            } />
+            <Route path="/carnets" element={
+              <ProtectedRoute><CarnetsPage /></ProtectedRoute>
+            } />
+            <Route path="/validar/:token" element={
+              <ProtectedRoute><ValidarCarnetPage /></ProtectedRoute>
+            } />
+            <Route path="/admin/boletines" element={
+              <ProtectedRoute><BoletinesAdminPage /></ProtectedRoute>
+            } />
+            <Route path="/usuarios" element={
+              <ProtectedRoute><UsuariosPage /></ProtectedRoute>
             } />
             
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
