@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getNavigationForRole, getRoleLabel, type UserRole } from '@/lib/navigation';
+import { ROUTE_MODULE_MAP } from '@/lib/modules';
+import { usePermissions } from '@/hooks/usePermissions';
 import logoLvfc from '@/assets/logo-lvfc.png';
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -37,6 +39,14 @@ export function AppSidebar({ userRole, userName, onLogout }: AppSidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
   const navItems = getNavigationForRole(userRole);
+  const { hasModule } = usePermissions();
+
+  // Filter nav items by module permissions
+  const filteredItems = navItems.filter((item) => {
+    const moduleKey = ROUTE_MODULE_MAP[item.href];
+    if (!moduleKey) return true; // No module mapping = always show
+    return hasModule(moduleKey);
+  });
 
   return (
     <aside
@@ -58,7 +68,7 @@ export function AppSidebar({ userRole, userName, onLogout }: AppSidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-1">
-        {navItems.map((item) => {
+        {filteredItems.map((item) => {
           const Icon = iconMap[item.icon];
           const isActive = location.pathname === item.href || location.pathname.startsWith(item.href + '/');
           return (
