@@ -323,6 +323,35 @@ export default function Jugadores() {
               {editingId ? 'Modificá los datos del jugador.' : 'Completá los datos para registrar un nuevo jugador.'}
             </DialogDescription>
           </DialogHeader>
+          {/* Photo upload */}
+          <div className="flex items-center gap-4 pb-2">
+            <div className="relative w-20 h-24 bg-muted rounded-lg flex items-center justify-center overflow-hidden shrink-0 border">
+              {fotoPreview ? (
+                <img src={fotoPreview} alt="Foto" className="w-full h-full object-cover" />
+              ) : (
+                <User className="w-8 h-8 text-muted-foreground" />
+              )}
+            </div>
+            <div className="space-y-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+              <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+                <Upload className="w-3 h-3 mr-1" /> {fotoPreview ? 'Cambiar foto' : 'Subir foto'}
+              </Button>
+              {fotoFile && (
+                <Button type="button" variant="ghost" size="sm" onClick={() => { setFotoFile(null); setFotoPreview(editingId ? (jugadores.find((j: any) => j.id === editingId)?.foto_url || null) : null); }}>
+                  <X className="w-3 h-3 mr-1" /> Quitar
+                </Button>
+              )}
+              <p className="text-xs text-muted-foreground">JPG o PNG, máx 5 MB</p>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="nombre">Nombre *</Label>
