@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Pencil, Search, Filter } from 'lucide-react';
+import { Plus, Pencil, Search, Filter, Upload, X, User } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 interface JugadorForm {
@@ -51,6 +51,9 @@ export default function Jugadores() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<JugadorForm>(emptyForm);
   const [categoriaPreview, setCategoriaPreview] = useState<string>('');
+  const [fotoFile, setFotoFile] = useState<File | null>(null);
+  const [fotoPreview, setFotoPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const isAdmin = role === 'admin_general' || role === 'admin_comun';
   const isDelegado = role === 'delegado';
 
@@ -106,9 +109,34 @@ export default function Jugadores() {
     calcular();
   }, [form.fecha_nacimiento, categorias]);
 
+  const uploadFoto = async (jugadorId: string, file: File): Promise<string> => {
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+    const path = `jugadores/${jugadorId}.${ext}`;
+    const { error: uploadError } = await supabase.storage
+      .from('fotos-jugadores')
+      .upload(path, file, { upsert: true, contentType: file.type });
+    if (uploadError) throw uploadError;
+    const { data: urlData } = supabase.storage.from('fotos-jugadores').getPublicUrl(path);
+    return `${urlData.publicUrl}?t=${Date.now()}`;
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast({ title: 'Solo se permiten imágenes', variant: 'destructive' });
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: 'La imagen no puede superar 5 MB', variant: 'destructive' });
+      return;
+    }
+    setFotoFile(file);
+    setFotoPreview(URL.createObjectURL(file));
+  };
+
   const saveMutation = useMutation({
     mutationFn: async (data: JugadorForm & { id?: string }) => {
-      // Do NOT send categoria_id — the trigger assigns it automatically
       const payload = {
         nombre: data.nombre.trim(),
         apellido: data.apellido.trim(),
@@ -119,21 +147,34 @@ export default function Jugadores() {
         direccion: data.direccion.trim() || null,
         estado: data.estado,
       };
+
+      let jugadorId = data.id;
+
       if (data.id) {
         const { error } = await supabase.from('jugadores').update(payload).eq('id', data.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from('jugadores').insert(payload);
+        const { data: inserted, error } = await supabase.from('jugadores').insert(payload).select('id').single();
         if (error) throw error;
+        jugadorId = inserted.id;
+      }
+
+      if (fotoFile && jugadorId) {
+        const fotoUrl = await uploadFoto(jugadorId, fotoFile);
+        const { error: updateError } = await supabase.from('jugadores').update({ foto_url: fotoUrl }).eq('id', jugadorId);
+        if (updateError) throw updateError;
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['jugadores'] });
       queryClient.invalidateQueries({ queryKey: ['jugador-counts'] });
+      queryClient.invalidateQueries({ queryKey: ['carnets'] });
       setDialogOpen(false);
       setEditingId(null);
       setForm(emptyForm);
       setCategoriaPreview('');
+      setFotoFile(null);
+      setFotoPreview(null);
       toast({ title: editingId ? 'Jugador actualizado' : 'Jugador creado' });
     },
     onError: (err: Error) => {
@@ -145,6 +186,8 @@ export default function Jugadores() {
     setForm({ ...emptyForm, equipo_id: isDelegado ? (profile?.equipo_id || null) : null });
     setEditingId(null);
     setCategoriaPreview('');
+    setFotoFile(null);
+    setFotoPreview(null);
     setDialogOpen(true);
   };
 
@@ -160,6 +203,8 @@ export default function Jugadores() {
       estado: j.estado,
     });
     setCategoriaPreview(j.categoria?.nombre_categoria || 'Sin categoría');
+    setFotoFile(null);
+    setFotoPreview(j.foto_url || null);
     setEditingId(j.id);
     setDialogOpen(true);
   };
@@ -278,6 +323,35 @@ export default function Jugadores() {
               {editingId ? 'Modificá los datos del jugador.' : 'Completá los datos para registrar un nuevo jugador.'}
             </DialogDescription>
           </DialogHeader>
+          {/* Photo upload */}
+          <div className="flex items-center gap-4 pb-2">
+            <div className="relative w-20 h-24 bg-muted rounded-lg flex items-center justify-center overflow-hidden shrink-0 border">
+              {fotoPreview ? (
+                <img src={fotoPreview} alt="Foto" className="w-full h-full object-cover" />
+              ) : (
+                <User className="w-8 h-8 text-muted-foreground" />
+              )}
+            </div>
+            <div className="space-y-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+              <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+                <Upload className="w-3 h-3 mr-1" /> {fotoPreview ? 'Cambiar foto' : 'Subir foto'}
+              </Button>
+              {fotoFile && (
+                <Button type="button" variant="ghost" size="sm" onClick={() => { setFotoFile(null); setFotoPreview(editingId ? (jugadores.find((j: any) => j.id === editingId)?.foto_url || null) : null); }}>
+                  <X className="w-3 h-3 mr-1" /> Quitar
+                </Button>
+              )}
+              <p className="text-xs text-muted-foreground">JPG o PNG, máx 5 MB</p>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="nombre">Nombre *</Label>
