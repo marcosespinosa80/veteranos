@@ -109,9 +109,34 @@ export default function Jugadores() {
     calcular();
   }, [form.fecha_nacimiento, categorias]);
 
+  const uploadFoto = async (jugadorId: string, file: File): Promise<string> => {
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+    const path = `jugadores/${jugadorId}.${ext}`;
+    const { error: uploadError } = await supabase.storage
+      .from('fotos-jugadores')
+      .upload(path, file, { upsert: true, contentType: file.type });
+    if (uploadError) throw uploadError;
+    const { data: urlData } = supabase.storage.from('fotos-jugadores').getPublicUrl(path);
+    return `${urlData.publicUrl}?t=${Date.now()}`;
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast({ title: 'Solo se permiten imágenes', variant: 'destructive' });
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: 'La imagen no puede superar 5 MB', variant: 'destructive' });
+      return;
+    }
+    setFotoFile(file);
+    setFotoPreview(URL.createObjectURL(file));
+  };
+
   const saveMutation = useMutation({
     mutationFn: async (data: JugadorForm & { id?: string }) => {
-      // Do NOT send categoria_id — the trigger assigns it automatically
       const payload = {
         nombre: data.nombre.trim(),
         apellido: data.apellido.trim(),
@@ -122,21 +147,34 @@ export default function Jugadores() {
         direccion: data.direccion.trim() || null,
         estado: data.estado,
       };
+
+      let jugadorId = data.id;
+
       if (data.id) {
         const { error } = await supabase.from('jugadores').update(payload).eq('id', data.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from('jugadores').insert(payload);
+        const { data: inserted, error } = await supabase.from('jugadores').insert(payload).select('id').single();
         if (error) throw error;
+        jugadorId = inserted.id;
+      }
+
+      if (fotoFile && jugadorId) {
+        const fotoUrl = await uploadFoto(jugadorId, fotoFile);
+        const { error: updateError } = await supabase.from('jugadores').update({ foto_url: fotoUrl }).eq('id', jugadorId);
+        if (updateError) throw updateError;
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['jugadores'] });
       queryClient.invalidateQueries({ queryKey: ['jugador-counts'] });
+      queryClient.invalidateQueries({ queryKey: ['carnets'] });
       setDialogOpen(false);
       setEditingId(null);
       setForm(emptyForm);
       setCategoriaPreview('');
+      setFotoFile(null);
+      setFotoPreview(null);
       toast({ title: editingId ? 'Jugador actualizado' : 'Jugador creado' });
     },
     onError: (err: Error) => {
@@ -148,6 +186,8 @@ export default function Jugadores() {
     setForm({ ...emptyForm, equipo_id: isDelegado ? (profile?.equipo_id || null) : null });
     setEditingId(null);
     setCategoriaPreview('');
+    setFotoFile(null);
+    setFotoPreview(null);
     setDialogOpen(true);
   };
 
@@ -163,6 +203,8 @@ export default function Jugadores() {
       estado: j.estado,
     });
     setCategoriaPreview(j.categoria?.nombre_categoria || 'Sin categoría');
+    setFotoFile(null);
+    setFotoPreview(j.foto_url || null);
     setEditingId(j.id);
     setDialogOpen(true);
   };
