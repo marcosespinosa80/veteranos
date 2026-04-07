@@ -1,14 +1,14 @@
-import { useNavigate, useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import {
   Menubar,
-  MenubarMenu,
-  MenubarTrigger,
   MenubarContent,
   MenubarItem,
+  MenubarMenu,
   MenubarSeparator,
+  MenubarTrigger,
 } from '@/components/ui/menubar';
-import { usePermissions } from '@/hooks/usePermissions';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePermissions } from '@/hooks/usePermissions';
 import type { ModuleKey } from '@/lib/modules';
 import { cn } from '@/lib/utils';
 
@@ -53,7 +53,6 @@ const menuGroups: MenuGroup[] = [
 ];
 
 export function TopMenu() {
-  const navigate = useNavigate();
   const location = useLocation();
   const { hasModule } = usePermissions();
   const { role } = useAuth();
@@ -61,16 +60,13 @@ export function TopMenu() {
   const isAdminRole = role === 'admin_general' || role === 'admin_comun';
 
   const canAccessItem = (item: MenuItem): boolean => {
-    // Placeholder pages: only admins
     if (item.placeholder) return isAdminRole;
-    // Module-based check
     if (item.moduleKey) return hasModule(item.moduleKey);
     return true;
   };
 
-  const isGroupActive = (group: MenuGroup): boolean => {
-    return group.items.some((item) => location.pathname === item.href);
-  };
+  const isGroupActive = (group: MenuGroup): boolean =>
+    group.items.some((item) => location.pathname === item.href);
 
   const visibleGroups = menuGroups
     .map((group) => ({
@@ -82,38 +78,41 @@ export function TopMenu() {
   if (visibleGroups.length === 0) return null;
 
   return (
-    <Menubar className="border-0 bg-transparent p-0 h-auto space-x-0 rounded-none">
+    <Menubar className="h-auto space-x-0 rounded-none border-0 bg-transparent p-0">
       {visibleGroups.map((group) => (
         <MenubarMenu key={group.title}>
           <MenubarTrigger
             className={cn(
-              'px-4 py-1.5 text-xs font-semibold tracking-wider cursor-pointer rounded-sm',
-              'text-muted-foreground hover:text-foreground hover:bg-accent',
+              'cursor-pointer rounded-sm px-4 py-1.5 text-xs font-semibold tracking-wider',
+              'text-muted-foreground hover:bg-accent hover:text-foreground',
               'data-[state=open]:bg-accent data-[state=open]:text-accent-foreground',
-              isGroupActive(group) && 'text-primary bg-accent'
+              isGroupActive(group) && 'bg-accent text-primary'
             )}
           >
             {group.title}
           </MenubarTrigger>
+
           <MenubarContent align="start" sideOffset={4} className="min-w-[180px]">
             {group.items.map((item, idx) => (
               <div key={item.href}>
                 {idx > 0 && <MenubarSeparator />}
-                <MenubarItem
-                  disabled={item.placeholder}
-                  className={cn(
-                    'cursor-pointer text-sm',
-                    location.pathname === item.href && 'bg-accent font-semibold'
-                  )}
-                  onClick={() => {
-                    if (!item.placeholder) navigate(item.href);
-                  }}
-                >
-                  {item.label}
-                  {item.placeholder && (
+
+                {item.placeholder ? (
+                  <MenubarItem disabled className="text-sm">
+                    {item.label}
                     <span className="ml-auto text-xs text-muted-foreground">Próximamente</span>
-                  )}
-                </MenubarItem>
+                  </MenubarItem>
+                ) : (
+                  <MenubarItem
+                    asChild
+                    className={cn(
+                      'cursor-pointer text-sm',
+                      location.pathname === item.href && 'bg-accent font-semibold'
+                    )}
+                  >
+                    <Link to={item.href}>{item.label}</Link>
+                  </MenubarItem>
+                )}
               </div>
             ))}
           </MenubarContent>

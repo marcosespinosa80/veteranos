@@ -8,20 +8,14 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { hasModule, isLoading: permLoading } = usePermissions();
   const location = useLocation();
 
-  // Wait for auth AND role to be fully loaded
-  if (loading || permLoading || (user && !role)) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
-      </div>
-    );
+  if (loading || (user && (!role || permLoading))) {
+    return <div className="p-8 text-center text-muted-foreground">Cargando...</div>;
   }
 
   if (!user) {
     return <Navigate to="/login" replace />;
   }
 
-  // Check module permission for this route
   const moduleKey = ROUTE_MODULE_MAP[location.pathname];
   if (moduleKey && !hasModule(moduleKey)) {
     return (
