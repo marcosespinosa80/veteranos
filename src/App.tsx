@@ -17,6 +17,7 @@ import CarnetsPage from "./pages/CarnetsPage";
 import ValidarCarnetPage from "./pages/ValidarCarnetPage";
 import UsuariosPage from "./pages/UsuariosPage";
 import NotFound from "./pages/NotFound";
+import PlaceholderPage from "./pages/PlaceholderPage";
 
 const queryClient = new QueryClient();
 
