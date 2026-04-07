@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { User, Session } from '@supabase/supabase-js';
 import type { UserRole } from '@/lib/navigation';
@@ -21,55 +21,101 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<AuthContextType['profile']>(null);
   const [role, setRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(true);
+  const mountedRef = useRef(true);
+  const loadedUserIdRef = useRef<string | null>(null);
+  const requestRef = useRef(0);
 
-  const fetchProfileAndRole = async (userId: string) => {
+  const clearUserState = useCallback(() => {
+    loadedUserIdRef.current = null;
+    requestRef.current += 1;
+    setProfile(null);
+    setRole(null);
+  }, []);
+
+  const fetchProfileAndRole = useCallback(async (userId: string) => {
+    const requestId = ++requestRef.current;
+
     try {
-      const [profileRes, roleRes] = await Promise.all([
-        supabase.from('profiles').select('nombre, apellido, equipo_id').eq('id', userId).single(),
-        supabase.from('user_roles').select('role').eq('user_id', userId).single(),
-      ]);
+      const profileRes = await supabase
+        .from('profiles')
+        .select('nombre, apellido, equipo_id')
+        .eq('id', userId)
+        .maybeSingle();
 
-      if (profileRes.data) {
-        setProfile(profileRes.data);
+      const roleRes = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (!mountedRef.current || requestId !== requestRef.current) return;
+
+      if (profileRes.error) {
+        console.error('Error fetching profile:', profileRes.error);
       }
-      if (roleRes.data) {
-        setRole(roleRes.data.role as UserRole);
+
+      if (roleRes.error) {
+        console.error('Error fetching role:', roleRes.error);
       }
+
+      setProfile(profileRes.data ?? null);
+      setRole((roleRes.data?.role as UserRole | undefined) ?? null);
     } catch (err) {
       console.error('Error fetching profile/role:', err);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
+    mountedRef.current = true;
 
-        if (session?.user) {
-          // Use setTimeout to avoid Supabase deadlock
-          setTimeout(() => fetchProfileAndRole(session.user.id), 0);
-        } else {
-          setProfile(null);
-          setRole(null);
-        }
+    const syncAuthState = async (nextSession: Session | null, forceRefresh = false) => {
+      if (!mountedRef.current) return;
+
+      setSession(nextSession);
+      setUser(nextSession?.user ?? null);
+
+      const nextUserId = nextSession?.user?.id ?? null;
+
+      if (!nextUserId) {
+        clearUserState();
+        if (mountedRef.current) setLoading(false);
+        return;
+      }
+
+      if (!forceRefresh && loadedUserIdRef.current === nextUserId) {
+        if (mountedRef.current) setLoading(false);
+        return;
+      }
+
+      loadedUserIdRef.current = nextUserId;
+      await fetchProfileAndRole(nextUserId);
+
+      if (mountedRef.current) {
         setLoading(false);
       }
-    );
+    };
 
-    // THEN check existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfileAndRole(session.user.id);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (!mountedRef.current) return;
+
+      if (event === 'TOKEN_REFRESHED') {
+        setSession(nextSession);
+        setUser(nextSession?.user ?? null);
+        return;
       }
-      setLoading(false);
+
+      void syncAuthState(nextSession, event === 'SIGNED_IN' || event === 'USER_UPDATED');
     });
 
-    return () => subscription.unsubscribe();
-  }, []);
+    void supabase.auth.getSession().then(({ data: { session } }) => {
+      void syncAuthState(session);
+    });
+
+    return () => {
+      mountedRef.current = false;
+      subscription.unsubscribe();
+    };
+  }, [clearUserState, fetchProfileAndRole]);
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
