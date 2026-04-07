@@ -63,6 +63,26 @@ const App = () => (
             <Route path="/usuarios" element={
               <ProtectedRoute><UsuariosPage /></ProtectedRoute>
             } />
+
+            {/* Placeholder routes */}
+            <Route path="/tarifas" element={
+              <ProtectedRoute><PlaceholderPage title="Tarifas" /></ProtectedRoute>
+            } />
+            <Route path="/categorias" element={
+              <ProtectedRoute><PlaceholderPage title="Categorías" /></ProtectedRoute>
+            } />
+            <Route path="/partidos" element={
+              <ProtectedRoute><PlaceholderPage title="Partidos" /></ProtectedRoute>
+            } />
+            <Route path="/fixture" element={
+              <ProtectedRoute><PlaceholderPage title="Fixture" /></ProtectedRoute>
+            } />
+            <Route path="/tabla" element={
+              <ProtectedRoute><PlaceholderPage title="Tabla de Posiciones" /></ProtectedRoute>
+            } />
+            <Route path="/canchas" element={
+              <ProtectedRoute><PlaceholderPage title="Canchas" /></ProtectedRoute>
+            } />
             
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
