@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -50,10 +50,11 @@ export default function Jugadores() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<JugadorForm>(emptyForm);
+  const [categoriaPreview, setCategoriaPreview] = useState<string>('');
   const isAdmin = role === 'admin_general' || role === 'admin_comun';
   const isDelegado = role === 'delegado';
 
-  const { data: jugadores = [], isLoading, error } = useQuery({
+  const { data: jugadores = [], isLoading } = useQuery({
     queryKey: ['jugadores', user?.id, role, profile?.equipo_id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -84,8 +85,30 @@ export default function Jugadores() {
     },
   });
 
+  // Recalculate category preview when fecha_nacimiento changes
+  useEffect(() => {
+    if (!form.fecha_nacimiento) {
+      setCategoriaPreview('');
+      return;
+    }
+
+    const calcular = async () => {
+      const { data, error } = await supabase.rpc('calcular_categoria', {
+        p_fecha_nacimiento: form.fecha_nacimiento,
+      });
+      if (error || !data) {
+        setCategoriaPreview('Sin categoría');
+        return;
+      }
+      const cat = categorias.find((c) => c.id === data);
+      setCategoriaPreview(cat?.nombre_categoria || 'Sin categoría');
+    };
+    calcular();
+  }, [form.fecha_nacimiento, categorias]);
+
   const saveMutation = useMutation({
     mutationFn: async (data: JugadorForm & { id?: string }) => {
+      // Do NOT send categoria_id — the trigger assigns it automatically
       const payload = {
         nombre: data.nombre.trim(),
         apellido: data.apellido.trim(),
@@ -110,6 +133,7 @@ export default function Jugadores() {
       setDialogOpen(false);
       setEditingId(null);
       setForm(emptyForm);
+      setCategoriaPreview('');
       toast({ title: editingId ? 'Jugador actualizado' : 'Jugador creado' });
     },
     onError: (err: Error) => {
@@ -117,7 +141,13 @@ export default function Jugadores() {
     },
   });
 
-  const openCreate = () => { setForm({ ...emptyForm, equipo_id: isDelegado ? (profile?.equipo_id || null) : null }); setEditingId(null); setDialogOpen(true); };
+  const openCreate = () => {
+    setForm({ ...emptyForm, equipo_id: isDelegado ? (profile?.equipo_id || null) : null });
+    setEditingId(null);
+    setCategoriaPreview('');
+    setDialogOpen(true);
+  };
+
   const openEdit = (j: any) => {
     setForm({
       nombre: j.nombre,
@@ -129,6 +159,7 @@ export default function Jugadores() {
       direccion: j.direccion || '',
       estado: j.estado,
     });
+    setCategoriaPreview(j.categoria?.nombre_categoria || 'Sin categoría');
     setEditingId(j.id);
     setDialogOpen(true);
   };
@@ -198,9 +229,9 @@ export default function Jugadores() {
                   <TableHead className="hidden md:table-cell">Equipo</TableHead>
                   <TableHead className="hidden lg:table-cell">Categoría</TableHead>
                   <TableHead className="hidden lg:table-cell">Fecha Nac.</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead className="hidden sm:table-cell">Delegado</TableHead>
-                    <TableHead className="w-12" />
+                  <TableHead>Estado</TableHead>
+                  <TableHead className="hidden sm:table-cell">Delegado</TableHead>
+                  <TableHead className="w-12" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -265,6 +296,14 @@ export default function Jugadores() {
               <Input id="fecha_nacimiento" type="date" value={form.fecha_nacimiento} onChange={(e) => setForm({ ...form, fecha_nacimiento: e.target.value })} />
             </div>
             <div className="space-y-2">
+              <Label>Categoría</Label>
+              <Input
+                value={categoriaPreview || (form.fecha_nacimiento ? 'Calculando...' : 'Se asigna por fecha de nacimiento')}
+                disabled
+                className="bg-muted"
+              />
+            </div>
+            <div className="space-y-2">
               <Label>Equipo</Label>
               {isDelegado ? (
                 <Input value={equipos.find(e => e.id === profile?.equipo_id)?.nombre_equipo || 'Tu equipo'} disabled />
@@ -293,12 +332,11 @@ export default function Jugadores() {
               <Label htmlFor="telefono">Teléfono</Label>
               <Input id="telefono" value={form.telefono} onChange={(e) => setForm({ ...form, telefono: e.target.value })} />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2 sm:col-span-2">
               <Label htmlFor="direccion">Dirección</Label>
               <Input id="direccion" value={form.direccion} onChange={(e) => setForm({ ...form, direccion: e.target.value })} />
             </div>
           </div>
-          <p className="text-xs text-muted-foreground">La categoría se asigna automáticamente según la fecha de nacimiento.</p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
             <Button
