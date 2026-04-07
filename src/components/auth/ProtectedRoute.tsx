@@ -4,11 +4,12 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { ROUTE_MODULE_MAP } from '@/lib/modules';
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, role, loading } = useAuth();
   const { hasModule, isLoading: permLoading } = usePermissions();
   const location = useLocation();
 
-  if (loading || permLoading) {
+  // Wait for auth AND role to be fully loaded
+  if (loading || permLoading || (user && !role)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
