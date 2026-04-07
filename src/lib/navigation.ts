@@ -21,7 +21,7 @@ export const navigationItems: NavItem[] = [
     roles: ['admin_general', 'admin_comun', 'delegado'],
   },
   {
-    title: 'Equipos',
+    title: 'Clubes',
     href: '/equipos',
     icon: 'Shield',
     roles: ['admin_general', 'admin_comun', 'delegado'],
