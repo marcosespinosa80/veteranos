@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -13,20 +13,68 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Plus, Pencil, Search, Filter, Upload, X, User } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
+// ── Helpers ──
+
+/** Format a raw digit string as Argentine DNI with dots */
+function formatDni(raw: string): string {
+  const digits = raw.replace(/\D/g, '').slice(0, 8);
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 6) return `${digits.slice(0, -3)}.${digits.slice(-3)}`;
+  return `${digits.slice(0, -6)}.${digits.slice(-6, -3)}.${digits.slice(-3)}`;
+}
+
+/** Count real digits in a DNI string */
+function dniDigitCount(dni: string): number {
+  return dni.replace(/\D/g, '').length;
+}
+
+/** Parse stored phone "+54 383 5123456" into { area, numero } */
+function parsePhone(tel: string): { area: string; numero: string } {
+  if (!tel) return { area: '', numero: '' };
+  const clean = tel.replace(/[^\d]/g, '');
+  // If starts with 54 and long enough, strip country code
+  if (clean.startsWith('54') && clean.length >= 10) {
+    const rest = clean.slice(2);
+    // Try 3-digit area (most common), then 4, then 2
+    for (const areaLen of [3, 4, 2]) {
+      if (rest.length > areaLen) {
+        return { area: rest.slice(0, areaLen), numero: rest.slice(areaLen) };
+      }
+    }
+    return { area: rest, numero: '' };
+  }
+  // Fallback: first 3 digits as area
+  if (clean.length > 3) return { area: clean.slice(0, 3), numero: clean.slice(3) };
+  return { area: clean, numero: '' };
+}
+
+/** Strip leading 0 from area, leading 15 from number */
+function sanitizeArea(v: string): string {
+  const d = v.replace(/\D/g, '');
+  return d.startsWith('0') ? d.slice(1) : d;
+}
+function sanitizeNumero(v: string): string {
+  const d = v.replace(/\D/g, '');
+  return d.startsWith('15') ? d.slice(2) : d;
+}
+
+// ── Types ──
+
 interface JugadorForm {
   nombre: string;
   apellido: string;
   dni: string;
   fecha_nacimiento: string;
   equipo_id: string | null;
-  telefono: string;
+  telefono_area: string;
+  telefono_numero: string;
   direccion: string;
   estado: 'habilitado' | 'no_habilitado' | 'expulsado';
 }
 
 const emptyForm: JugadorForm = {
   nombre: '', apellido: '', dni: '', fecha_nacimiento: '', equipo_id: null,
-  telefono: '', direccion: '', estado: 'no_habilitado',
+  telefono_area: '', telefono_numero: '', direccion: '', estado: 'no_habilitado',
 };
 
 const estadoColors: Record<string, string> = {
@@ -41,6 +89,38 @@ const estadoLabels: Record<string, string> = {
   expulsado: 'Expulsado',
 };
 
+// ── Validation ──
+
+interface FormErrors {
+  nombre?: string;
+  apellido?: string;
+  dni?: string;
+  fecha_nacimiento?: string;
+  telefono_area?: string;
+  telefono_numero?: string;
+}
+
+function validateForm(form: JugadorForm): FormErrors {
+  const errors: FormErrors = {};
+  if (!form.nombre.trim()) errors.nombre = 'Nombre es obligatorio';
+  if (!form.apellido.trim()) errors.apellido = 'Apellido es obligatorio';
+  if (!form.dni.trim()) errors.dni = 'DNI es obligatorio';
+  else if (dniDigitCount(form.dni) < 7) errors.dni = 'DNI inválido (mín. 7 dígitos)';
+  if (!form.fecha_nacimiento) errors.fecha_nacimiento = 'Fecha de nacimiento es obligatoria';
+
+  const hasArea = form.telefono_area.length > 0;
+  const hasNum = form.telefono_numero.length > 0;
+  if (hasArea || hasNum) {
+    if (form.telefono_area.length < 2 || form.telefono_area.length > 4)
+      errors.telefono_area = 'Código de área: 2 a 4 dígitos';
+    if (form.telefono_numero.length < 6 || form.telefono_numero.length > 8)
+      errors.telefono_numero = 'Celular: 6 a 8 dígitos';
+  }
+  return errors;
+}
+
+// ── Component ──
+
 export default function Jugadores() {
   const { role, user, loading, profile } = useAuth();
   const queryClient = useQueryClient();
@@ -50,12 +130,18 @@ export default function Jugadores() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<JugadorForm>(emptyForm);
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [categoriaPreview, setCategoriaPreview] = useState<string>('');
   const [fotoFile, setFotoFile] = useState<File | null>(null);
   const [fotoPreview, setFotoPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isAdmin = role === 'admin_general' || role === 'admin_comun';
   const isDelegado = role === 'delegado';
+
+  const errors = useMemo(() => validateForm(form), [form]);
+  const hasErrors = Object.keys(errors).length > 0;
+
+  // ── Queries ──
 
   const { data: jugadores = [], isLoading } = useQuery({
     queryKey: ['jugadores', user?.id, role, profile?.equipo_id],
@@ -88,26 +174,20 @@ export default function Jugadores() {
     },
   });
 
-  // Recalculate category preview when fecha_nacimiento changes
-  useEffect(() => {
-    if (!form.fecha_nacimiento) {
-      setCategoriaPreview('');
-      return;
-    }
+  // ── Category preview ──
 
+  useEffect(() => {
+    if (!form.fecha_nacimiento) { setCategoriaPreview(''); return; }
     const calcular = async () => {
-      const { data, error } = await supabase.rpc('calcular_categoria', {
-        p_fecha_nacimiento: form.fecha_nacimiento,
-      });
-      if (error || !data) {
-        setCategoriaPreview('Sin categoría');
-        return;
-      }
+      const { data, error } = await supabase.rpc('calcular_categoria', { p_fecha_nacimiento: form.fecha_nacimiento });
+      if (error || !data) { setCategoriaPreview('Sin categoría'); return; }
       const cat = categorias.find((c) => c.id === data);
       setCategoriaPreview(cat?.nombre_categoria || 'Sin categoría');
     };
     calcular();
   }, [form.fecha_nacimiento, categorias]);
+
+  // ── Photo ──
 
   const uploadFoto = async (jugadorId: string, file: File): Promise<string> => {
     const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
@@ -135,21 +215,26 @@ export default function Jugadores() {
     setFotoPreview(URL.createObjectURL(file));
   };
 
+  // ── Save ──
+
   const saveMutation = useMutation({
     mutationFn: async (data: JugadorForm & { id?: string }) => {
+      const telefono = data.telefono_area && data.telefono_numero
+        ? `+54 ${data.telefono_area} ${data.telefono_numero}`
+        : null;
+
       const payload = {
         nombre: data.nombre.trim(),
         apellido: data.apellido.trim(),
         dni: data.dni.trim(),
         fecha_nacimiento: data.fecha_nacimiento,
         equipo_id: isDelegado ? (profile?.equipo_id || null) : (data.equipo_id || null),
-        telefono: data.telefono.trim() || null,
+        telefono,
         direccion: data.direccion.trim() || null,
         estado: data.estado,
       };
 
       let jugadorId = data.id;
-
       if (data.id) {
         const { error } = await supabase.from('jugadores').update(payload).eq('id', data.id);
         if (error) throw error;
@@ -172,6 +257,7 @@ export default function Jugadores() {
       setDialogOpen(false);
       setEditingId(null);
       setForm(emptyForm);
+      setTouched({});
       setCategoriaPreview('');
       setFotoFile(null);
       setFotoPreview(null);
@@ -182,9 +268,12 @@ export default function Jugadores() {
     },
   });
 
+  // ── Open dialogs ──
+
   const openCreate = () => {
     setForm({ ...emptyForm, equipo_id: isDelegado ? (profile?.equipo_id || null) : null });
     setEditingId(null);
+    setTouched({});
     setCategoriaPreview('');
     setFotoFile(null);
     setFotoPreview(null);
@@ -192,13 +281,15 @@ export default function Jugadores() {
   };
 
   const openEdit = (j: any) => {
+    const phone = parsePhone(j.telefono || '');
     setForm({
       nombre: j.nombre,
       apellido: j.apellido,
       dni: j.dni,
       fecha_nacimiento: j.fecha_nacimiento,
       equipo_id: j.equipo_id,
-      telefono: j.telefono || '',
+      telefono_area: phone.area,
+      telefono_numero: phone.numero,
       direccion: j.direccion || '',
       estado: j.estado,
     });
@@ -206,8 +297,11 @@ export default function Jugadores() {
     setFotoFile(null);
     setFotoPreview(j.foto_url || null);
     setEditingId(j.id);
+    setTouched({});
     setDialogOpen(true);
   };
+
+  // ── Filter ──
 
   const filtered = jugadores.filter((j: any) => {
     const matchSearch = `${j.nombre} ${j.apellido} ${j.dni}`.toLowerCase().includes(search.toLowerCase());
@@ -215,6 +309,20 @@ export default function Jugadores() {
     const matchCategoria = filterCategoria === 'all' || j.categoria_id === filterCategoria;
     return matchSearch && matchEquipo && matchCategoria;
   });
+
+  // ── Inline error helper ──
+  const FieldError = ({ field }: { field: keyof FormErrors }) => {
+    if (!touched[field] || !errors[field]) return null;
+    return <p className="text-xs text-destructive mt-1">{errors[field]}</p>;
+  };
+
+  // ── Submit handler ──
+  const handleSubmit = () => {
+    // Touch all fields to show errors
+    setTouched({ nombre: true, apellido: true, dni: true, fecha_nacimiento: true, telefono_area: true, telefono_numero: true });
+    if (hasErrors) return;
+    saveMutation.mutate({ ...form, id: editingId || undefined });
+  };
 
   return (
     <div className="space-y-4">
@@ -255,7 +363,6 @@ export default function Jugadores() {
         </div>
       </div>
 
-      {/* Results count */}
       <p className="text-xs text-muted-foreground">{filtered.length} jugador{filtered.length !== 1 ? 'es' : ''}</p>
 
       {/* Table */}
@@ -323,6 +430,7 @@ export default function Jugadores() {
               {editingId ? 'Modificá los datos del jugador.' : 'Completá los datos para registrar un nuevo jugador.'}
             </DialogDescription>
           </DialogHeader>
+
           {/* Photo upload */}
           <div className="flex items-center gap-4 pb-2">
             <div className="relative w-20 h-24 bg-muted rounded-lg flex items-center justify-center overflow-hidden shrink-0 border">
@@ -333,13 +441,7 @@ export default function Jugadores() {
               )}
             </div>
             <div className="space-y-2">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                className="hidden"
-                onChange={handleFileChange}
-              />
+              <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleFileChange} />
               <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
                 <Upload className="w-3 h-3 mr-1" /> {fotoPreview ? 'Cambiar foto' : 'Subir foto'}
               </Button>
@@ -353,23 +455,61 @@ export default function Jugadores() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
+            {/* Nombre */}
+            <div className="space-y-1">
               <Label htmlFor="nombre">Nombre *</Label>
-              <Input id="nombre" value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} />
+              <Input
+                id="nombre"
+                value={form.nombre}
+                onChange={(e) => setForm({ ...form, nombre: e.target.value.toUpperCase() })}
+                onBlur={() => setTouched({ ...touched, nombre: true })}
+                placeholder="JUAN"
+              />
+              <FieldError field="nombre" />
             </div>
-            <div className="space-y-2">
+
+            {/* Apellido */}
+            <div className="space-y-1">
               <Label htmlFor="apellido">Apellido *</Label>
-              <Input id="apellido" value={form.apellido} onChange={(e) => setForm({ ...form, apellido: e.target.value })} />
+              <Input
+                id="apellido"
+                value={form.apellido}
+                onChange={(e) => setForm({ ...form, apellido: e.target.value.toUpperCase() })}
+                onBlur={() => setTouched({ ...touched, apellido: true })}
+                placeholder="PÉREZ"
+              />
+              <FieldError field="apellido" />
             </div>
-            <div className="space-y-2">
+
+            {/* DNI */}
+            <div className="space-y-1">
               <Label htmlFor="dni">DNI *</Label>
-              <Input id="dni" value={form.dni} onChange={(e) => setForm({ ...form, dni: e.target.value })} maxLength={10} />
+              <Input
+                id="dni"
+                value={form.dni}
+                onChange={(e) => setForm({ ...form, dni: formatDni(e.target.value) })}
+                onBlur={() => setTouched({ ...touched, dni: true })}
+                placeholder="28.404.402"
+                maxLength={10}
+              />
+              <FieldError field="dni" />
             </div>
-            <div className="space-y-2">
+
+            {/* Fecha Nacimiento */}
+            <div className="space-y-1">
               <Label htmlFor="fecha_nacimiento">Fecha de Nacimiento *</Label>
-              <Input id="fecha_nacimiento" type="date" value={form.fecha_nacimiento} onChange={(e) => setForm({ ...form, fecha_nacimiento: e.target.value })} />
+              <Input
+                id="fecha_nacimiento"
+                type="date"
+                value={form.fecha_nacimiento}
+                onChange={(e) => setForm({ ...form, fecha_nacimiento: e.target.value })}
+                onBlur={() => setTouched({ ...touched, fecha_nacimiento: true })}
+              />
+              <FieldError field="fecha_nacimiento" />
             </div>
-            <div className="space-y-2">
+
+            {/* Categoría (read-only) */}
+            <div className="space-y-1">
               <Label>Categoría</Label>
               <Input
                 value={categoriaPreview || (form.fecha_nacimiento ? 'Calculando...' : 'Se asigna por fecha de nacimiento')}
@@ -377,7 +517,9 @@ export default function Jugadores() {
                 className="bg-muted"
               />
             </div>
-            <div className="space-y-2">
+
+            {/* Equipo */}
+            <div className="space-y-1">
               <Label>Equipo</Label>
               {isDelegado ? (
                 <Input value={equipos.find(e => e.id === profile?.equipo_id)?.nombre_equipo || 'Tu equipo'} disabled />
@@ -391,7 +533,9 @@ export default function Jugadores() {
                 </Select>
               )}
             </div>
-            <div className="space-y-2">
+
+            {/* Estado */}
+            <div className="space-y-1">
               <Label>Estado</Label>
               <Select value={form.estado} onValueChange={(v) => setForm({ ...form, estado: v as any })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -402,21 +546,49 @@ export default function Jugadores() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="telefono">Teléfono</Label>
-              <Input id="telefono" value={form.telefono} onChange={(e) => setForm({ ...form, telefono: e.target.value })} />
+
+            {/* Teléfono: 2 campos */}
+            <div className="space-y-1 sm:col-span-2">
+              <Label>Teléfono</Label>
+              <div className="flex items-start gap-2">
+                <div className="space-y-1 w-28">
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs text-muted-foreground shrink-0">+54</span>
+                    <Input
+                      value={form.telefono_area}
+                      onChange={(e) => setForm({ ...form, telefono_area: sanitizeArea(e.target.value).slice(0, 4) })}
+                      onBlur={() => setTouched({ ...touched, telefono_area: true })}
+                      placeholder="383"
+                      maxLength={4}
+                    />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">Área (sin 0)</p>
+                  <FieldError field="telefono_area" />
+                </div>
+                <div className="space-y-1 flex-1">
+                  <Input
+                    value={form.telefono_numero}
+                    onChange={(e) => setForm({ ...form, telefono_numero: sanitizeNumero(e.target.value).slice(0, 8) })}
+                    onBlur={() => setTouched({ ...touched, telefono_numero: true })}
+                    placeholder="5123456"
+                    maxLength={8}
+                  />
+                  <p className="text-[10px] text-muted-foreground">Celular (sin 15)</p>
+                  <FieldError field="telefono_numero" />
+                </div>
+              </div>
             </div>
-            <div className="space-y-2 sm:col-span-2">
+
+            {/* Dirección */}
+            <div className="space-y-1 sm:col-span-2">
               <Label htmlFor="direccion">Dirección</Label>
               <Input id="direccion" value={form.direccion} onChange={(e) => setForm({ ...form, direccion: e.target.value })} />
             </div>
           </div>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button
-              onClick={() => saveMutation.mutate({ ...form, id: editingId || undefined })}
-              disabled={!form.nombre.trim() || !form.apellido.trim() || !form.dni.trim() || !form.fecha_nacimiento || saveMutation.isPending}
-            >
+            <Button onClick={handleSubmit} disabled={saveMutation.isPending}>
               {saveMutation.isPending ? 'Guardando...' : 'Guardar'}
             </Button>
           </DialogFooter>
