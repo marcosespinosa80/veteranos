@@ -70,11 +70,13 @@ interface JugadorForm {
   telefono_numero: string;
   direccion: string;
   estado: 'habilitado' | 'no_habilitado' | 'expulsado';
+  suspendido_fechas: number;
 }
 
 const emptyForm: JugadorForm = {
   nombre: '', apellido: '', dni: '', fecha_nacimiento: '', equipo_id: null,
   telefono_area: '', telefono_numero: '', direccion: '', estado: 'no_habilitado',
+  suspendido_fechas: 0,
 };
 
 const estadoColors: Record<string, string> = {
@@ -292,6 +294,7 @@ export default function Jugadores() {
       telefono_numero: phone.numero,
       direccion: j.direccion || '',
       estado: j.estado,
+      suspendido_fechas: j.suspendido_fechas || 0,
     });
     setCategoriaPreview(j.categoria?.nombre_categoria || 'Sin categoría');
     setFotoFile(null);
