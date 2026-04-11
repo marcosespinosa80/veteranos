@@ -108,8 +108,9 @@ export default function EditarUsuarioDialog({ open, onOpenChange, user }: Props)
 
       // Delegado position assignment
       if (role === 'delegado' && jugadorFound && vinculado && delegadoPosicion) {
-        const updateField: Record<string, string> = {};
-        updateField[delegadoPosicion] = jugadorFound.id;
+        const updateField = delegadoPosicion === 'delegado_1'
+          ? { delegado_1: jugadorFound.id }
+          : { delegado_2: jugadorFound.id };
         await supabase.from('equipos').update(updateField).eq('id', jugadorFound.equipo_id);
       }
     },
