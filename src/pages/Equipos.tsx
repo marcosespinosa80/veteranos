@@ -235,7 +235,7 @@ export default function Equipos() {
                 <div className="space-y-2">
                   <Label>Delegado Titular</Label>
                   {jugadoresDelEquipo.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">No hay jugadores habilitados en este equipo.</p>
+                    <p className="text-xs text-muted-foreground">No hay jugadores habilitados en este club.</p>
                   ) : (
                     <Select value={form.delegado_1 || 'none'} onValueChange={(v) => setForm({ ...form, delegado_1: v === 'none' ? null : v })}>
                       <SelectTrigger><SelectValue placeholder="Sin asignar" /></SelectTrigger>
@@ -251,7 +251,7 @@ export default function Equipos() {
                 <div className="space-y-2">
                   <Label>Delegado Suplente</Label>
                   {jugadoresDelEquipo.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">No hay jugadores habilitados en este equipo.</p>
+                    <p className="text-xs text-muted-foreground">No hay jugadores habilitados en este club.</p>
                   ) : (
                     <Select value={form.delegado_2 || 'none'} onValueChange={(v) => setForm({ ...form, delegado_2: v === 'none' ? null : v })}>
                       <SelectTrigger><SelectValue placeholder="Sin asignar" /></SelectTrigger>
@@ -264,7 +264,7 @@ export default function Equipos() {
                     </Select>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground">Solo se muestran jugadores habilitados del equipo.</p>
+                <p className="text-xs text-muted-foreground">Solo se muestran jugadores habilitados del club.</p>
               </>
             )}
 
