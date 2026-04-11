@@ -57,6 +57,12 @@ export const navigationItems: NavItem[] = [
     roles: ['admin_general', 'admin_comun'],
   },
   {
+    title: 'Gestión Financiera',
+    href: '/finanzas',
+    icon: 'DollarSign',
+    roles: ['admin_general', 'admin_comun'],
+  },
+  {
     title: 'Usuarios',
     href: '/usuarios',
     icon: 'UserCog',

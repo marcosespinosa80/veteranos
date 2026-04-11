@@ -19,6 +19,7 @@ import UsuariosPage from "./pages/UsuariosPage";
 import NotFound from "./pages/NotFound";
 import PlaceholderPage from "./pages/PlaceholderPage";
 import CanchasPage from "./pages/CanchasPage";
+import FinanzasPage from "./pages/FinanzasPage";
 
 const queryClient = new QueryClient();
 
@@ -66,8 +67,8 @@ const App = () => (
             } />
 
             {/* Placeholder routes */}
-            <Route path="/tarifas" element={
-              <ProtectedRoute><PlaceholderPage title="Tarifas" /></ProtectedRoute>
+            <Route path="/finanzas" element={
+              <ProtectedRoute><FinanzasPage /></ProtectedRoute>
             } />
             <Route path="/categorias" element={
               <ProtectedRoute><PlaceholderPage title="Categorías" /></ProtectedRoute>
