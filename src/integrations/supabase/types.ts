@@ -62,6 +62,47 @@ export type Database = {
           },
         ]
       }
+      canchas: {
+        Row: {
+          club_asignado_id: string | null
+          created_at: string
+          direccion: string | null
+          estado: string
+          google_maps_url: string | null
+          id: string
+          nombre: string
+          updated_at: string
+        }
+        Insert: {
+          club_asignado_id?: string | null
+          created_at?: string
+          direccion?: string | null
+          estado?: string
+          google_maps_url?: string | null
+          id?: string
+          nombre: string
+          updated_at?: string
+        }
+        Update: {
+          club_asignado_id?: string | null
+          created_at?: string
+          direccion?: string | null
+          estado?: string
+          google_maps_url?: string | null
+          id?: string
+          nombre?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "canchas_club_asignado_id_fkey"
+            columns: ["club_asignado_id"]
+            isOneToOne: false
+            referencedRelation: "equipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       carnets: {
         Row: {
           codigo: string
