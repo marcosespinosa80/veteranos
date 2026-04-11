@@ -234,6 +234,7 @@ export default function Jugadores() {
         telefono,
         direccion: data.direccion.trim() || null,
         estado: data.estado,
+        suspendido_fechas: data.suspendido_fechas,
       };
 
       let jugadorId = data.id;
