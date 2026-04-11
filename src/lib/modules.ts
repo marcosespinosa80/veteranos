@@ -9,6 +9,7 @@ export const MODULE_KEYS = [
   'pases',
   'boletines_admin',
   'usuarios',
+  'canchas',
 ] as const;
 
 export type ModuleKey = (typeof MODULE_KEYS)[number];
@@ -22,6 +23,7 @@ export const MODULE_LABELS: Record<ModuleKey, string> = {
   pases: 'Pases',
   boletines_admin: 'Boletines (Admin)',
   usuarios: 'Usuarios',
+  canchas: 'Canchas',
 };
 
 // Map route paths to module keys
@@ -34,6 +36,7 @@ export const ROUTE_MODULE_MAP: Record<string, ModuleKey> = {
   '/pases': 'pases',
   '/admin/boletines': 'boletines_admin',
   '/usuarios': 'usuarios',
+  '/canchas': 'canchas',
 };
 
 export function getDefaultModules(role: UserRole): Record<ModuleKey, boolean> {
@@ -51,6 +54,7 @@ export function getDefaultModules(role: UserRole): Record<ModuleKey, boolean> {
       all.pases = true;
       all.carnets = true;
       all.boletines_admin = true;
+      all.canchas = true;
       break;
     case 'delegado':
       all.dashboard = true;
