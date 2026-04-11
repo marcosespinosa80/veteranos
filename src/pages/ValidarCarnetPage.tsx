@@ -7,6 +7,14 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle, XCircle, CreditCard, AlertTriangle } from 'lucide-react';
 
+function getEstadoJugadorLabel(j: any): { label: string; color: string } {
+  if (!j) return { label: 'DESCONOCIDO', color: 'bg-muted text-muted-foreground' };
+  if (j.suspendido_fechas > 0) return { label: `SUSPENDIDO (${j.suspendido_fechas} FECHA${j.suspendido_fechas > 1 ? 'S' : ''})`, color: 'bg-destructive/15 text-destructive border-destructive/30' };
+  if (j.estado === 'habilitado') return { label: 'ACTIVO', color: 'bg-primary/15 text-primary border-primary/30' };
+  if (j.estado === 'expulsado') return { label: 'EXPULSADO', color: 'bg-destructive/15 text-destructive border-destructive/30' };
+  return { label: 'NO HABILITADO', color: 'bg-warning/15 text-warning border-warning/30' };
+}
+
 function ValidarCarnet() {
   const { token } = useParams<{ token: string }>();
 
@@ -16,7 +24,7 @@ function ValidarCarnet() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('carnets')
-        .select('*, jugador:jugadores(id, nombre, apellido, dni, estado, foto_url, equipo:equipos!jugadores_equipo_id_fkey(nombre_equipo), categoria:categorias(nombre_categoria))')
+        .select('*, jugador:jugadores(id, nombre, apellido, dni, estado, foto_url, fecha_nacimiento, suspendido_fechas, equipo:equipos!jugadores_equipo_id_fkey(nombre_equipo), categoria:categorias(nombre_categoria))')
         .eq('qr_token', token!)
         .single();
       if (error) throw error;
@@ -39,13 +47,14 @@ function ValidarCarnet() {
   }
 
   const j = data.jugador as any;
-  const hoy = new Date();
-  const desde = new Date(data.vigencia_desde + 'T00:00:00');
-  const hasta = new Date(data.vigencia_hasta + 'T23:59:59');
   const carnetActivo = data.estado === 'activo';
-  const vigente = hoy >= desde && hoy <= hasta;
   const jugadorHabilitado = j?.estado === 'habilitado';
-  const esValido = carnetActivo && vigente && jugadorHabilitado;
+  const suspendido = (j?.suspendido_fechas || 0) > 0;
+  const esValido = carnetActivo && jugadorHabilitado && !suspendido;
+  const estadoInfo = getEstadoJugadorLabel(j);
+  const fechaNac = j?.fecha_nacimiento
+    ? new Date(j.fecha_nacimiento + 'T00:00:00').toLocaleDateString('es-AR')
+    : '—';
 
   return (
     <div className="max-w-md mx-auto">
@@ -75,13 +84,14 @@ function ValidarCarnet() {
               <p className="text-sm text-muted-foreground">DNI: {j?.dni}</p>
               <p className="text-sm">{j?.equipo?.nombre_equipo || 'Sin equipo'}</p>
               <p className="text-xs text-muted-foreground">{j?.categoria?.nombre_categoria}</p>
+              <p className="text-xs text-muted-foreground">Fecha Nac: {fechaNac}</p>
             </div>
           </div>
 
           <div className="border-t pt-3 space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Vigencia:</span>
-              <span>{desde.toLocaleDateString('es-AR')} - {hasta.toLocaleDateString('es-AR')}</span>
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground">N° Carnet:</span>
+              <span className="font-bold">{(data as any).numero_carnet}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-muted-foreground">Carnet:</span>
@@ -90,15 +100,9 @@ function ValidarCarnet() {
               </Badge>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Vigencia fecha:</span>
-              <Badge variant="outline" className={vigente ? 'bg-primary/15 text-primary' : 'bg-destructive/15 text-destructive'}>
-                {vigente ? 'Vigente' : 'Vencido'}
-              </Badge>
-            </div>
-            <div className="flex justify-between items-center">
               <span className="text-muted-foreground">Jugador:</span>
-              <Badge variant="outline" className={jugadorHabilitado ? 'bg-primary/15 text-primary' : 'bg-destructive/15 text-destructive'}>
-                {j?.estado === 'habilitado' ? 'Habilitado' : j?.estado === 'no_habilitado' ? 'No habilitado' : 'Expulsado'}
+              <Badge variant="outline" className={estadoInfo.color}>
+                {estadoInfo.label}
               </Badge>
             </div>
           </div>

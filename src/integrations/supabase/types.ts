@@ -69,6 +69,7 @@ export type Database = {
           estado: Database["public"]["Enums"]["estado_carnet"]
           id: string
           jugador_id: string
+          numero_carnet: number
           qr_token: string
           vigencia_desde: string
           vigencia_hasta: string
@@ -79,6 +80,7 @@ export type Database = {
           estado?: Database["public"]["Enums"]["estado_carnet"]
           id?: string
           jugador_id: string
+          numero_carnet?: number
           qr_token?: string
           vigencia_desde: string
           vigencia_hasta: string
@@ -89,6 +91,7 @@ export type Database = {
           estado?: Database["public"]["Enums"]["estado_carnet"]
           id?: string
           jugador_id?: string
+          numero_carnet?: number
           qr_token?: string
           vigencia_desde?: string
           vigencia_hasta?: string
@@ -246,6 +249,7 @@ export type Database = {
           foto_url: string | null
           id: string
           nombre: string
+          suspendido_fechas: number
           telefono: string | null
           updated_at: string
         }
@@ -263,6 +267,7 @@ export type Database = {
           foto_url?: string | null
           id?: string
           nombre: string
+          suspendido_fechas?: number
           telefono?: string | null
           updated_at?: string
         }
@@ -280,6 +285,7 @@ export type Database = {
           foto_url?: string | null
           id?: string
           nombre?: string
+          suspendido_fechas?: number
           telefono?: string | null
           updated_at?: string
         }

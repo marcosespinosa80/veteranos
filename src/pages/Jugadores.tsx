@@ -70,11 +70,13 @@ interface JugadorForm {
   telefono_numero: string;
   direccion: string;
   estado: 'habilitado' | 'no_habilitado' | 'expulsado';
+  suspendido_fechas: number;
 }
 
 const emptyForm: JugadorForm = {
   nombre: '', apellido: '', dni: '', fecha_nacimiento: '', equipo_id: null,
   telefono_area: '', telefono_numero: '', direccion: '', estado: 'no_habilitado',
+  suspendido_fechas: 0,
 };
 
 const estadoColors: Record<string, string> = {
@@ -232,6 +234,7 @@ export default function Jugadores() {
         telefono,
         direccion: data.direccion.trim() || null,
         estado: data.estado,
+        suspendido_fechas: data.suspendido_fechas,
       };
 
       let jugadorId = data.id;
@@ -292,6 +295,7 @@ export default function Jugadores() {
       telefono_numero: phone.numero,
       direccion: j.direccion || '',
       estado: j.estado,
+      suspendido_fechas: j.suspendido_fechas || 0,
     });
     setCategoriaPreview(j.categoria?.nombre_categoria || 'Sin categoría');
     setFotoFile(null);
@@ -546,6 +550,22 @@ export default function Jugadores() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Suspendido fechas (admin/tribunal only) */}
+            {(isAdmin || role === 'tribunal') && (
+              <div className="space-y-1">
+                <Label htmlFor="suspendido_fechas">Fechas de suspensión</Label>
+                <Input
+                  id="suspendido_fechas"
+                  type="number"
+                  min="0"
+                  value={form.suspendido_fechas ?? 0}
+                  onChange={(e) => setForm({ ...form, suspendido_fechas: Math.max(0, parseInt(e.target.value) || 0) })}
+                  placeholder="0"
+                />
+                <p className="text-[10px] text-muted-foreground">0 = sin suspensión</p>
+              </div>
+            )}
 
             {/* Teléfono: 2 campos */}
             <div className="space-y-1 sm:col-span-2">
