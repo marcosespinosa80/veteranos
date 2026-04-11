@@ -98,7 +98,7 @@ export default function Equipos() {
       setDialogOpen(false);
       setEditingId(null);
       setForm(emptyForm);
-      toast({ title: editingId ? 'Equipo actualizado' : 'Equipo creado' });
+      toast({ title: editingId ? 'Club actualizado' : 'Club creado' });
     },
     onError: (err: Error) => {
       toast({ title: 'Error', description: err.message, variant: 'destructive' });
@@ -133,7 +133,7 @@ export default function Equipos() {
         <div className="relative w-full sm:w-72">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Buscar equipo..."
+            placeholder="Buscar club..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
@@ -141,7 +141,7 @@ export default function Equipos() {
         </div>
         {isAdmin && (
           <Button onClick={openCreate} className="shrink-0">
-            <Plus className="w-4 h-4 mr-1" /> Nuevo Equipo
+            <Plus className="w-4 h-4 mr-1" /> Nuevo Club
           </Button>
         )}
       </div>
@@ -152,12 +152,12 @@ export default function Equipos() {
           {isLoading ? (
             <div className="p-8 text-center text-muted-foreground">Cargando...</div>
           ) : filtered.length === 0 ? (
-            <div className="p-8 text-center text-muted-foreground">No se encontraron equipos</div>
+            <div className="p-8 text-center text-muted-foreground">No se encontraron clubes</div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Equipo</TableHead>
+                  <TableHead>Club</TableHead>
                   <TableHead className="hidden md:table-cell">Cancha</TableHead>
                   <TableHead className="hidden sm:table-cell">Delegado Titular</TableHead>
                   <TableHead className="hidden lg:table-cell">Delegado Suplente</TableHead>
@@ -214,14 +214,14 @@ export default function Equipos() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{editingId ? 'Editar Equipo' : 'Nuevo Equipo'}</DialogTitle>
+            <DialogTitle>{editingId ? 'Editar Club' : 'Nuevo Club'}</DialogTitle>
             <DialogDescription>
-              {editingId ? 'Modificá los datos del equipo.' : 'Completá los datos para crear un nuevo equipo. Los delegados se asignan después de crear el equipo.'}
+              {editingId ? 'Modificá los datos del club.' : 'Completá los datos para crear un nuevo club. Los delegados se asignan después de crear el club.'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="nombre_equipo">Nombre del Equipo *</Label>
+              <Label htmlFor="nombre_equipo">Nombre del Club *</Label>
               <Input id="nombre_equipo" value={form.nombre_equipo} onChange={(e) => setForm({ ...form, nombre_equipo: e.target.value })} />
             </div>
             <div className="space-y-2">
