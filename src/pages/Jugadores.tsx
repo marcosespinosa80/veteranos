@@ -547,6 +547,22 @@ export default function Jugadores() {
               </Select>
             </div>
 
+            {/* Suspendido fechas (admin/tribunal only) */}
+            {(isAdmin || role === 'tribunal') && (
+              <div className="space-y-1">
+                <Label htmlFor="suspendido_fechas">Fechas de suspensión</Label>
+                <Input
+                  id="suspendido_fechas"
+                  type="number"
+                  min="0"
+                  value={form.suspendido_fechas ?? 0}
+                  onChange={(e) => setForm({ ...form, suspendido_fechas: Math.max(0, parseInt(e.target.value) || 0) })}
+                  placeholder="0"
+                />
+                <p className="text-[10px] text-muted-foreground">0 = sin suspensión</p>
+              </div>
+            )}
+
             {/* Teléfono: 2 campos */}
             <div className="space-y-1 sm:col-span-2">
               <Label>Teléfono</Label>
