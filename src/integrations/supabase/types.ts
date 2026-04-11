@@ -660,6 +660,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      avanzar_temporada: { Args: never; Returns: undefined }
       calcular_categoria: {
         Args: { p_fecha_nacimiento: string }
         Returns: string
