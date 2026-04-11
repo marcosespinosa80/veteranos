@@ -331,18 +331,20 @@ export default function Carnets() {
                   </div>
 
                   {/* Key data: DNI, Club, Categoría */}
-                  <div className="grid grid-cols-3 gap-2 text-center">
-                    <div className="rounded-lg bg-gray-100 p-2">
+                  <div className="space-y-2">
+                    <div className="rounded-lg bg-gray-100 p-2 text-center">
                       <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">DNI</p>
-                      <p className="text-sm font-bold mt-0.5">{j?.dni}</p>
+                      <p className="text-base font-bold mt-0.5">{j?.dni}</p>
                     </div>
-                    <div className="rounded-lg bg-gray-100 p-2">
-                      <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Club</p>
-                      <p className="text-sm font-bold mt-0.5 truncate">{j?.equipo?.nombre_equipo || '—'}</p>
-                    </div>
-                    <div className="rounded-lg bg-gray-100 p-2">
-                      <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Categoría</p>
-                      <p className="text-sm font-bold mt-0.5 truncate">{j?.categoria?.nombre_categoria || '—'}</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="rounded-lg bg-gray-100 p-2 text-center">
+                        <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Club</p>
+                        <p className="text-sm font-bold mt-0.5 break-words leading-tight">{j?.equipo?.nombre_equipo || '—'}</p>
+                      </div>
+                      <div className="rounded-lg bg-gray-100 p-2 text-center">
+                        <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Categoría</p>
+                        <p className="text-sm font-bold mt-0.5 break-words leading-tight">{j?.categoria?.nombre_categoria || '—'}</p>
+                      </div>
                     </div>
                   </div>
 
