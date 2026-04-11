@@ -18,6 +18,7 @@ import ValidarCarnetPage from "./pages/ValidarCarnetPage";
 import UsuariosPage from "./pages/UsuariosPage";
 import NotFound from "./pages/NotFound";
 import PlaceholderPage from "./pages/PlaceholderPage";
+import CanchasPage from "./pages/CanchasPage";
 
 const queryClient = new QueryClient();
 
@@ -81,7 +82,7 @@ const App = () => (
               <ProtectedRoute><PlaceholderPage title="Tabla de Posiciones" /></ProtectedRoute>
             } />
             <Route path="/canchas" element={
-              <ProtectedRoute><PlaceholderPage title="Canchas" /></ProtectedRoute>
+              <ProtectedRoute><CanchasPage /></ProtectedRoute>
             } />
             
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

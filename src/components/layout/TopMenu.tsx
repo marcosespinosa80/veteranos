@@ -47,7 +47,7 @@ const menuGroups: MenuGroup[] = [
       { label: 'Jugadores', href: '/jugadores', moduleKey: 'jugadores' },
       { label: 'Pases', href: '/pases', moduleKey: 'pases' },
       { label: 'Clubes', href: '/equipos', moduleKey: 'equipos' },
-      { label: 'Canchas', href: '/canchas', placeholder: true },
+      { label: 'Canchas', href: '/canchas', moduleKey: 'canchas' },
     ],
   },
 ];
