@@ -8,7 +8,7 @@ export default function EquiposPage() {
   const userRole = role || 'admin_general';
 
   return (
-    <DashboardLayout userRole={userRole} userName={userName} pageTitle="Equipos" onLogout={signOut}>
+    <DashboardLayout userRole={userRole} userName={userName} pageTitle="CLUBES" onLogout={signOut}>
       <Equipos />
     </DashboardLayout>
   );
