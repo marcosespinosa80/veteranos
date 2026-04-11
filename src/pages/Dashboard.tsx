@@ -42,7 +42,7 @@ export default function Dashboard() {
 
   const stats = [
     { label: 'Jugadores', value: jugadorCount, icon: Users },
-    { label: 'Equipos activos', value: equipoCount, icon: Shield },
+    { label: 'Clubes activos', value: equipoCount, icon: Shield },
     { label: 'Listas pendientes', value: listasPendientes, icon: ClipboardList },
     { label: 'Pases pendientes', value: pasesPendientes, icon: ArrowRightLeft },
   ];
@@ -72,7 +72,7 @@ export default function Dashboard() {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            Desde aquí podés administrar jugadores, equipos, listas de buena fe, pases y carnets de la Liga de Veteranos de Fútbol de Catamarca.
+            Desde aquí podés administrar jugadores, clubes, listas de buena fe, pases y carnets de la Liga de Veteranos de Fútbol de Catamarca.
           </p>
         </CardContent>
       </Card>
