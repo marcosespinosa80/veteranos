@@ -103,6 +103,90 @@ export type Database = {
           },
         ]
       }
+      cargos: {
+        Row: {
+          created_at: string
+          created_by: string
+          descripcion: string | null
+          equipo_id: string | null
+          estado_pago: string
+          fecha_emision: string
+          fecha_vencimiento: string | null
+          id: string
+          jugador_id: string | null
+          monto: number
+          pase_id: string | null
+          tarifa_id: string | null
+          tipo: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          descripcion?: string | null
+          equipo_id?: string | null
+          estado_pago?: string
+          fecha_emision?: string
+          fecha_vencimiento?: string | null
+          id?: string
+          jugador_id?: string | null
+          monto: number
+          pase_id?: string | null
+          tarifa_id?: string | null
+          tipo: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          descripcion?: string | null
+          equipo_id?: string | null
+          estado_pago?: string
+          fecha_emision?: string
+          fecha_vencimiento?: string | null
+          id?: string
+          jugador_id?: string | null
+          monto?: number
+          pase_id?: string | null
+          tarifa_id?: string | null
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cargos_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cargos_equipo_id_fkey"
+            columns: ["equipo_id"]
+            isOneToOne: false
+            referencedRelation: "equipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cargos_jugador_id_fkey"
+            columns: ["jugador_id"]
+            isOneToOne: false
+            referencedRelation: "jugadores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cargos_pase_id_fkey"
+            columns: ["pase_id"]
+            isOneToOne: false
+            referencedRelation: "pases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cargos_tarifa_id_fkey"
+            columns: ["tarifa_id"]
+            isOneToOne: false
+            referencedRelation: "tarifas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       carnets: {
         Row: {
           codigo: string
@@ -466,6 +550,83 @@ export type Database = {
           },
         ]
       }
+      pago_items: {
+        Row: {
+          cargo_id: string
+          id: string
+          monto_aplicado: number
+          pago_id: string
+        }
+        Insert: {
+          cargo_id: string
+          id?: string
+          monto_aplicado: number
+          pago_id: string
+        }
+        Update: {
+          cargo_id?: string
+          id?: string
+          monto_aplicado?: number
+          pago_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pago_items_cargo_id_fkey"
+            columns: ["cargo_id"]
+            isOneToOne: false
+            referencedRelation: "cargos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pago_items_pago_id_fkey"
+            columns: ["pago_id"]
+            isOneToOne: false
+            referencedRelation: "pagos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pagos: {
+        Row: {
+          created_at: string
+          fecha_pago: string
+          id: string
+          medio_pago: string
+          monto_total: number
+          observaciones: string | null
+          referencia: string | null
+          registrado_por: string
+        }
+        Insert: {
+          created_at?: string
+          fecha_pago?: string
+          id?: string
+          medio_pago: string
+          monto_total: number
+          observaciones?: string | null
+          referencia?: string | null
+          registrado_por: string
+        }
+        Update: {
+          created_at?: string
+          fecha_pago?: string
+          id?: string
+          medio_pago?: string
+          monto_total?: number
+          observaciones?: string | null
+          referencia?: string | null
+          registrado_por?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pagos_registrado_por_fkey"
+            columns: ["registrado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pases: {
         Row: {
           archivo_formulario_url: string | null
@@ -613,6 +774,45 @@ export type Database = {
           },
         ]
       }
+      tarifas: {
+        Row: {
+          created_at: string
+          descripcion: string | null
+          estado: string
+          fecha_fin: string | null
+          fecha_inicio: string
+          id: string
+          monto: number
+          temporada: number
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          descripcion?: string | null
+          estado?: string
+          fecha_fin?: string | null
+          fecha_inicio?: string
+          id?: string
+          monto: number
+          temporada?: number
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          descripcion?: string | null
+          estado?: string
+          fecha_fin?: string | null
+          fecha_inicio?: string
+          id?: string
+          monto?: number
+          temporada?: number
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_module_permissions: {
         Row: {
           created_at: string
@@ -657,7 +857,46 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      deuda_equipo: {
+        Row: {
+          cantidad_cargos: number | null
+          deuda_pendiente: number | null
+          equipo_id: string | null
+          nombre_equipo: string | null
+          total_cargos: number | null
+          total_pagado: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cargos_equipo_id_fkey"
+            columns: ["equipo_id"]
+            isOneToOne: false
+            referencedRelation: "equipos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deuda_jugador: {
+        Row: {
+          apellido: string | null
+          cantidad_cargos: number | null
+          deuda_pendiente: number | null
+          dni: string | null
+          jugador_id: string | null
+          nombre: string | null
+          total_cargos: number | null
+          total_pagado: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cargos_jugador_id_fkey"
+            columns: ["jugador_id"]
+            isOneToOne: false
+            referencedRelation: "jugadores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       avanzar_temporada: { Args: never; Returns: undefined }
