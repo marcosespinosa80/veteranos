@@ -29,7 +29,7 @@ const menuGroups: MenuGroup[] = [
     title: 'CONFIGURACIÓN',
     items: [
       { label: 'Usuarios', href: '/usuarios', moduleKey: 'usuarios' },
-      { label: 'Tarifas', href: '/tarifas', placeholder: true },
+      { label: 'Gestión Financiera', href: '/finanzas', moduleKey: 'finanzas' },
       { label: 'Categorías', href: '/categorias', placeholder: true },
     ],
   },
