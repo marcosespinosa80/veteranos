@@ -236,6 +236,7 @@ export type Database = {
       }
       jugadores: {
         Row: {
+          activo_club: boolean
           apellido: string
           apto_medico: boolean
           categoria_id: string | null
@@ -254,6 +255,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          activo_club?: boolean
           apellido: string
           apto_medico?: boolean
           categoria_id?: string | null
@@ -272,6 +274,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          activo_club?: boolean
           apellido?: string
           apto_medico?: boolean
           categoria_id?: string | null

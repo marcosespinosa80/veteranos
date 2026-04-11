@@ -8,18 +8,11 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Search, CreditCard, RefreshCw, QrCode, Users, Printer, Download } from 'lucide-react';
+import { Search, CreditCard, RefreshCw, QrCode, Users, Download } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
-
-function getEstadoJugadorLabel(j: any): { label: string; color: string } {
-  if (!j) return { label: 'DESCONOCIDO', color: 'bg-muted text-muted-foreground' };
-  if (j.suspendido_fechas > 0) return { label: `SUSPENDIDO (${j.suspendido_fechas} FECHA${j.suspendido_fechas > 1 ? 'S' : ''})`, color: 'bg-destructive/15 text-destructive border-destructive/30' };
-  if (j.estado === 'habilitado') return { label: 'ACTIVO', color: 'bg-primary/15 text-primary border-primary/30' };
-  if (j.estado === 'expulsado') return { label: 'EXPULSADO', color: 'bg-destructive/15 text-destructive border-destructive/30' };
-  return { label: 'NO HABILITADO', color: 'bg-warning/15 text-warning border-warning/30' };
-}
+import logoLvfc from '@/assets/logo-lvfc.png';
 
 export default function Carnets() {
   const { role, user, loading } = useAuth();
@@ -169,31 +162,6 @@ export default function Carnets() {
 
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
 
-  // Print handler
-  const handlePrint = () => {
-    if (!carnetRef.current) return;
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-    const content = carnetRef.current.innerHTML;
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Credencial Digital</title>
-          <style>
-            body { margin: 0; padding: 20px; font-family: system-ui, -apple-system, sans-serif; display: flex; justify-content: center; }
-            * { box-sizing: border-box; }
-            img { max-width: 100%; }
-            @media print { body { padding: 0; } }
-          </style>
-        </head>
-        <body>${content}</body>
-      </html>
-    `);
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
-  };
-
   // Download PDF handler
   const handleDownloadPDF = async () => {
     if (!carnetRef.current) return;
@@ -276,14 +244,12 @@ export default function Carnets() {
                   <TableHead className="hidden sm:table-cell">DNI</TableHead>
                   <TableHead className="hidden md:table-cell">Club</TableHead>
                   <TableHead className="hidden lg:table-cell">Categoría</TableHead>
-                  <TableHead>Estado</TableHead>
                   <TableHead className="w-32" />
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filtered.map((c: any) => {
                   const j = c.jugador;
-                  const estadoInfo = getEstadoJugadorLabel(j);
                   return (
                     <TableRow key={c.id}>
                       <TableCell className="font-mono text-sm font-bold">{c.numero_carnet}</TableCell>
@@ -291,11 +257,6 @@ export default function Carnets() {
                       <TableCell className="hidden sm:table-cell text-muted-foreground">{j?.dni}</TableCell>
                       <TableCell className="hidden md:table-cell text-sm">{j?.equipo?.nombre_equipo || '—'}</TableCell>
                       <TableCell className="hidden lg:table-cell text-sm">{j?.categoria?.nombre_categoria || '—'}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className={estadoInfo.color}>
-                          {estadoInfo.label}
-                        </Badge>
-                      </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
                           <Button size="icon" variant="ghost" title="Ver credencial" onClick={() => setSelectedJugador(c)}>
@@ -327,71 +288,67 @@ export default function Carnets() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Credencial Digital</DialogTitle>
-            <DialogDescription>Carnet del jugador</DialogDescription>
+            <DialogDescription>Constancia de inscripción en la Liga</DialogDescription>
           </DialogHeader>
           {selectedJugador && (() => {
             const j = selectedJugador.jugador;
-            const estadoInfo = getEstadoJugadorLabel(j);
             const fechaNac = j?.fecha_nacimiento
               ? new Date(j.fecha_nacimiento + 'T00:00:00').toLocaleDateString('es-AR')
               : '—';
             return (
               <>
-                <div ref={carnetRef} className="border rounded-xl p-5 space-y-4 bg-card" style={{ minWidth: 300 }}>
-                  {/* Header with carnet number */}
+                <div ref={carnetRef} className="border rounded-xl p-5 space-y-4 bg-white text-black" style={{ minWidth: 300 }}>
+                  {/* Header: Logo + Title + Carnet Number */}
                   <div className="flex items-center justify-between border-b pb-3">
-                    <div>
-                      <p className="text-xs font-semibold tracking-widest text-muted-foreground uppercase">Liga Veteranos FC</p>
-                      <p className="text-xs text-muted-foreground">Credencial Digital</p>
+                    <div className="flex items-center gap-2">
+                      <img src={logoLvfc} alt="LVFC" className="w-10 h-10" />
+                      <div>
+                        <p className="text-xs font-bold tracking-widest uppercase">Liga Veteranos FC</p>
+                        <p className="text-[10px] text-gray-500 uppercase tracking-wide">Credencial Digital</p>
+                        <p className="text-[9px] text-gray-400 italic">Constancia de inscripción en la Liga</p>
+                      </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-xs text-muted-foreground">N° Carnet</p>
+                      <p className="text-[10px] text-gray-500">N° Carnet</p>
                       <p className="text-2xl font-black tracking-tight">{selectedJugador.numero_carnet}</p>
                     </div>
                   </div>
 
                   {/* Photo + Name */}
                   <div className="flex items-start gap-4">
-                    <div className="w-24 h-28 bg-muted rounded-lg flex items-center justify-center overflow-hidden shrink-0 border">
+                    <div className="w-24 h-28 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden shrink-0 border border-gray-200">
                       {j?.foto_url ? (
                         <img src={j.foto_url} alt="" className="w-full h-full object-cover" />
                       ) : (
-                        <CreditCard className="w-10 h-10 text-muted-foreground" />
+                        <CreditCard className="w-10 h-10 text-gray-300" />
                       )}
                     </div>
                     <div className="space-y-1 pt-1">
                       <p className="text-lg font-bold leading-tight">{j?.apellido}</p>
                       <p className="text-lg font-bold leading-tight">{j?.nombre}</p>
-                      <p className="text-xs text-muted-foreground mt-1">Fecha Nac: {fechaNac}</p>
+                      <p className="text-xs text-gray-500 mt-1">Fecha Nac: {fechaNac}</p>
                     </div>
                   </div>
 
                   {/* Key data: DNI, Club, Categoría */}
                   <div className="grid grid-cols-3 gap-2 text-center">
-                    <div className="rounded-lg bg-muted/70 p-2">
-                      <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">DNI</p>
+                    <div className="rounded-lg bg-gray-100 p-2">
+                      <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">DNI</p>
                       <p className="text-sm font-bold mt-0.5">{j?.dni}</p>
                     </div>
-                    <div className="rounded-lg bg-muted/70 p-2">
-                      <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Club</p>
+                    <div className="rounded-lg bg-gray-100 p-2">
+                      <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Club</p>
                       <p className="text-sm font-bold mt-0.5 truncate">{j?.equipo?.nombre_equipo || '—'}</p>
                     </div>
-                    <div className="rounded-lg bg-muted/70 p-2">
-                      <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Categoría</p>
+                    <div className="rounded-lg bg-gray-100 p-2">
+                      <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Categoría</p>
                       <p className="text-sm font-bold mt-0.5 truncate">{j?.categoria?.nombre_categoria || '—'}</p>
                     </div>
                   </div>
 
-                  {/* Estado */}
-                  <div className="flex justify-center">
-                    <Badge variant="outline" className={`text-sm px-4 py-1 font-semibold ${estadoInfo.color}`}>
-                      {estadoInfo.label}
-                    </Badge>
-                  </div>
-
                   {/* QR */}
                   <div className="border-t pt-3 flex flex-col items-center">
-                    <div className="bg-foreground text-background p-3 rounded-lg">
+                    <div className="bg-black p-3 rounded-lg">
                       <img
                         src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`${origin}/validar/${selectedJugador.qr_token}`)}`}
                         alt="QR Code"
@@ -402,12 +359,9 @@ export default function Carnets() {
                   </div>
                 </div>
 
-                {/* Action buttons */}
-                <div className="flex gap-2 pt-2">
-                  <Button variant="outline" className="flex-1" onClick={handlePrint}>
-                    <Printer className="w-4 h-4 mr-1" /> Imprimir
-                  </Button>
-                  <Button className="flex-1" onClick={handleDownloadPDF}>
+                {/* Download button only */}
+                <div className="pt-2">
+                  <Button className="w-full" onClick={handleDownloadPDF}>
                     <Download className="w-4 h-4 mr-1" /> Descargar PDF
                   </Button>
                 </div>

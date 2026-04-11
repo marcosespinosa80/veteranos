@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -15,7 +16,6 @@ import { toast } from '@/hooks/use-toast';
 
 // ── Helpers ──
 
-/** Format a raw digit string as Argentine DNI with dots */
 function formatDni(raw: string): string {
   const digits = raw.replace(/\D/g, '').slice(0, 8);
   if (digits.length <= 3) return digits;
@@ -23,19 +23,15 @@ function formatDni(raw: string): string {
   return `${digits.slice(0, -6)}.${digits.slice(-6, -3)}.${digits.slice(-3)}`;
 }
 
-/** Count real digits in a DNI string */
 function dniDigitCount(dni: string): number {
   return dni.replace(/\D/g, '').length;
 }
 
-/** Parse stored phone "+54 383 5123456" into { area, numero } */
 function parsePhone(tel: string): { area: string; numero: string } {
   if (!tel) return { area: '', numero: '' };
   const clean = tel.replace(/[^\d]/g, '');
-  // If starts with 54 and long enough, strip country code
   if (clean.startsWith('54') && clean.length >= 10) {
     const rest = clean.slice(2);
-    // Try 3-digit area (most common), then 4, then 2
     for (const areaLen of [3, 4, 2]) {
       if (rest.length > areaLen) {
         return { area: rest.slice(0, areaLen), numero: rest.slice(areaLen) };
@@ -43,12 +39,10 @@ function parsePhone(tel: string): { area: string; numero: string } {
     }
     return { area: rest, numero: '' };
   }
-  // Fallback: first 3 digits as area
   if (clean.length > 3) return { area: clean.slice(0, 3), numero: clean.slice(3) };
   return { area: clean, numero: '' };
 }
 
-/** Strip leading 0 from area, leading 15 from number */
 function sanitizeArea(v: string): string {
   const d = v.replace(/\D/g, '');
   return d.startsWith('0') ? d.slice(1) : d;
@@ -56,6 +50,14 @@ function sanitizeArea(v: string): string {
 function sanitizeNumero(v: string): string {
   const d = v.replace(/\D/g, '');
   return d.startsWith('15') ? d.slice(2) : d;
+}
+
+/** Get deportivo status label */
+function getEstadoDeportivo(j: any): { label: string; color: string } {
+  if (j.estado === 'expulsado') return { label: 'EXPULSADO', color: 'bg-destructive/15 text-destructive border-destructive/30' };
+  if (j.suspendido_fechas > 0) return { label: `SUSPENDIDO (${j.suspendido_fechas} FECHA${j.suspendido_fechas > 1 ? 'S' : ''})`, color: 'bg-warning/15 text-warning border-warning/30' };
+  if (j.estado === 'habilitado') return { label: 'HABILITADO', color: 'bg-primary/15 text-primary border-primary/30' };
+  return { label: 'NO HABILITADO', color: 'bg-muted text-muted-foreground border-muted' };
 }
 
 // ── Types ──
@@ -71,24 +73,13 @@ interface JugadorForm {
   direccion: string;
   estado: 'habilitado' | 'no_habilitado' | 'expulsado';
   suspendido_fechas: number;
+  activo_club: boolean;
 }
 
 const emptyForm: JugadorForm = {
   nombre: '', apellido: '', dni: '', fecha_nacimiento: '', equipo_id: null,
   telefono_area: '', telefono_numero: '', direccion: '', estado: 'no_habilitado',
-  suspendido_fechas: 0,
-};
-
-const estadoColors: Record<string, string> = {
-  habilitado: 'bg-primary/15 text-primary border-primary/30',
-  no_habilitado: 'bg-warning/15 text-warning border-warning/30',
-  expulsado: 'bg-destructive/15 text-destructive border-destructive/30',
-};
-
-const estadoLabels: Record<string, string> = {
-  habilitado: 'Habilitado',
-  no_habilitado: 'No habilitado',
-  expulsado: 'Expulsado',
+  suspendido_fechas: 0, activo_club: true,
 };
 
 // ── Validation ──
@@ -139,6 +130,7 @@ export default function Jugadores() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isAdmin = role === 'admin_general' || role === 'admin_comun';
   const isDelegado = role === 'delegado';
+  const canEditEstado = isAdmin || role === 'tribunal';
 
   const errors = useMemo(() => validateForm(form), [form]);
   const hasErrors = Object.keys(errors).length > 0;
@@ -235,6 +227,7 @@ export default function Jugadores() {
         direccion: data.direccion.trim() || null,
         estado: data.estado,
         suspendido_fechas: data.suspendido_fechas,
+        activo_club: data.activo_club,
       };
 
       let jugadorId = data.id;
@@ -296,6 +289,7 @@ export default function Jugadores() {
       direccion: j.direccion || '',
       estado: j.estado,
       suspendido_fechas: j.suspendido_fechas || 0,
+      activo_club: j.activo_club ?? true,
     });
     setCategoriaPreview(j.categoria?.nombre_categoria || 'Sin categoría');
     setFotoFile(null);
@@ -322,7 +316,6 @@ export default function Jugadores() {
 
   // ── Submit handler ──
   const handleSubmit = () => {
-    // Touch all fields to show errors
     setTouched({ nombre: true, apellido: true, dni: true, fecha_nacimiento: true, telefono_area: true, telefono_numero: true });
     if (hasErrors) return;
     saveMutation.mutate({ ...form, id: editingId || undefined });
@@ -386,39 +379,51 @@ export default function Jugadores() {
                   <TableHead className="hidden lg:table-cell">Categoría</TableHead>
                   <TableHead className="hidden lg:table-cell">Fecha Nac.</TableHead>
                   <TableHead>Estado</TableHead>
+                  <TableHead className="hidden sm:table-cell">Club</TableHead>
                   <TableHead className="hidden sm:table-cell">Delegado</TableHead>
                   <TableHead className="w-12" />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((j: any) => (
-                  <TableRow key={j.id}>
-                    <TableCell className="font-medium">{j.apellido}, {j.nombre}</TableCell>
-                    <TableCell className="hidden sm:table-cell text-muted-foreground">{j.dni}</TableCell>
-                    <TableCell className="hidden md:table-cell text-sm">{j.equipo?.nombre_equipo || '—'}</TableCell>
-                    <TableCell className="hidden lg:table-cell text-sm">{j.categoria?.nombre_categoria || '—'}</TableCell>
-                    <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
-                      {j.fecha_nacimiento ? new Date(j.fecha_nacimiento + 'T00:00:00').toLocaleDateString('es-AR') : '—'}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={estadoColors[j.estado] || ''}>
-                        {estadoLabels[j.estado] || j.estado}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="hidden sm:table-cell">
-                      {j.es_delegado ? (
-                        <Badge variant="outline" className="bg-accent/15 text-accent-foreground border-accent/30 text-xs">
-                          Delegado
+                {filtered.map((j: any) => {
+                  const deportivo = getEstadoDeportivo(j);
+                  return (
+                    <TableRow key={j.id}>
+                      <TableCell className="font-medium">{j.apellido}, {j.nombre}</TableCell>
+                      <TableCell className="hidden sm:table-cell text-muted-foreground">{j.dni}</TableCell>
+                      <TableCell className="hidden md:table-cell text-sm">{j.equipo?.nombre_equipo || '—'}</TableCell>
+                      <TableCell className="hidden lg:table-cell text-sm">{j.categoria?.nombre_categoria || '—'}</TableCell>
+                      <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
+                        {j.fecha_nacimiento ? new Date(j.fecha_nacimiento + 'T00:00:00').toLocaleDateString('es-AR') : '—'}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={deportivo.color}>
+                          {deportivo.label}
                         </Badge>
-                      ) : '—'}
-                    </TableCell>
-                    <TableCell>
-                      <Button size="icon" variant="ghost" onClick={() => openEdit(j)}>
-                        <Pencil className="w-4 h-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell">
+                        <Badge variant="outline" className={j.activo_club
+                          ? 'bg-primary/15 text-primary border-primary/30 text-xs'
+                          : 'bg-destructive/15 text-destructive border-destructive/30 text-xs'
+                        }>
+                          {j.activo_club ? 'ACTIVO' : 'INACTIVO'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell">
+                        {j.es_delegado ? (
+                          <Badge variant="outline" className="bg-accent/15 text-accent-foreground border-accent/30 text-xs">
+                            Delegado
+                          </Badge>
+                        ) : '—'}
+                      </TableCell>
+                      <TableCell>
+                        <Button size="icon" variant="ghost" onClick={() => openEdit(j)}>
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}
@@ -538,29 +543,48 @@ export default function Jugadores() {
               )}
             </div>
 
-            {/* Estado */}
+            {/* Estado deportivo */}
             <div className="space-y-1">
-              <Label>Estado</Label>
-              <Select value={form.estado} onValueChange={(v) => setForm({ ...form, estado: v as any })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="no_habilitado">No habilitado</SelectItem>
-                  <SelectItem value="habilitado">Habilitado</SelectItem>
-                  <SelectItem value="expulsado">Expulsado</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label>Estado (deportivo)</Label>
+              {canEditEstado ? (
+                <Select value={form.estado} onValueChange={(v) => setForm({ ...form, estado: v as any })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="no_habilitado">No habilitado</SelectItem>
+                    <SelectItem value="habilitado">Habilitado</SelectItem>
+                    <SelectItem value="expulsado">Expulsado</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input value={form.estado === 'habilitado' ? 'Habilitado' : form.estado === 'expulsado' ? 'Expulsado' : 'No habilitado'} disabled className="bg-muted" />
+              )}
             </div>
 
+            {/* Activo Club (admin/tribunal only) */}
+            {canEditEstado && (
+              <div className="space-y-1">
+                <Label>Activo (Club)</Label>
+                <div className="flex items-center gap-3 h-10">
+                  <Switch
+                    checked={form.activo_club}
+                    onCheckedChange={(v) => setForm({ ...form, activo_club: v })}
+                  />
+                  <span className="text-sm">{form.activo_club ? 'Activo' : 'Inactivo'}</span>
+                </div>
+              </div>
+            )}
+
             {/* Suspendido fechas (admin/tribunal only) */}
-            {(isAdmin || role === 'tribunal') && (
+            {canEditEstado && (
               <div className="space-y-1">
                 <Label htmlFor="suspendido_fechas">Fechas de suspensión</Label>
                 <Input
                   id="suspendido_fechas"
                   type="number"
                   min="0"
+                  max="99"
                   value={form.suspendido_fechas ?? 0}
-                  onChange={(e) => setForm({ ...form, suspendido_fechas: Math.max(0, parseInt(e.target.value) || 0) })}
+                  onChange={(e) => setForm({ ...form, suspendido_fechas: Math.max(0, Math.min(99, parseInt(e.target.value) || 0)) })}
                   placeholder="0"
                 />
                 <p className="text-[10px] text-muted-foreground">0 = sin suspensión</p>

@@ -1,0 +1,1 @@
+ALTER TABLE public.jugadores ADD COLUMN IF NOT EXISTS activo_club boolean NOT NULL DEFAULT true;
