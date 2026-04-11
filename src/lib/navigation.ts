@@ -51,6 +51,12 @@ export const navigationItems: NavItem[] = [
     roles: ['admin_general', 'admin_comun'],
   },
   {
+    title: 'Canchas',
+    href: '/canchas',
+    icon: 'MapPin',
+    roles: ['admin_general', 'admin_comun'],
+  },
+  {
     title: 'Usuarios',
     href: '/usuarios',
     icon: 'UserCog',
