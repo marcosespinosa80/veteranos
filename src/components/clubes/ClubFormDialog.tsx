@@ -190,11 +190,21 @@ export function ClubFormDialog({ open, onOpenChange, editingId, initialData }: P
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="nombre_equipo">Nombre del Club *</Label>
-            <Input id="nombre_equipo" value={form.nombre_equipo} onChange={(e) => setForm({ ...form, nombre_equipo: e.target.value })} />
+            <Input
+              id="nombre_equipo"
+              value={form.nombre_equipo}
+              onChange={(e) => setForm({ ...form, nombre_equipo: e.target.value.toUpperCase() })}
+              placeholder="EJ: ATLÉTICO CATAMARCA"
+              autoFocus
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="cancha">Cancha / Ubicación</Label>
-            <Input id="cancha" value={form.cancha} onChange={(e) => setForm({ ...form, cancha: e.target.value })} />
+            <Input
+              id="cancha"
+              value={form.cancha}
+              onChange={(e) => setForm({ ...form, cancha: e.target.value.toUpperCase() })}
+            />
           </div>
 
           {/* Delegados */}
