@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -8,14 +8,21 @@ import { Plus, Search } from 'lucide-react';
 import { ClubCard } from '@/components/clubes/ClubCard';
 import { ClubFormDialog } from '@/components/clubes/ClubFormDialog';
 import { PlantelDrawer } from '@/components/clubes/PlantelDrawer';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { toast } from '@/hooks/use-toast';
 
 export default function Equipos() {
   const { role } = useAuth();
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingData, setEditingData] = useState<any>(null);
   const [plantelEquipo, setPlantelEquipo] = useState<any>(null);
+  const [toggleTarget, setToggleTarget] = useState<any>(null);
   const isAdmin = role === 'admin_general' || role === 'admin_comun';
 
   const { data: equipos = [], isLoading } = useQuery({
