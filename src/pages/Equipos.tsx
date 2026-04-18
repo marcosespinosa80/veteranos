@@ -71,6 +71,24 @@ export default function Equipos() {
   const openCreate = () => { setEditingId(null); setEditingData(null); setDialogOpen(true); };
   const openEdit = (eq: any) => { setEditingId(eq.id); setEditingData(eq); setDialogOpen(true); };
 
+  const toggleEstadoMutation = useMutation({
+    mutationFn: async (eq: any) => {
+      const nuevo = eq.estado === 'activo' ? 'inactivo' : 'activo';
+      const { error } = await supabase.from('equipos').update({ estado: nuevo }).eq('id', eq.id);
+      if (error) throw error;
+      return nuevo;
+    },
+    onSuccess: (nuevo) => {
+      queryClient.invalidateQueries({ queryKey: ['equipos'] });
+      toast({ title: `Club ${nuevo === 'activo' ? 'activado' : 'desactivado'}` });
+      setToggleTarget(null);
+    },
+    onError: (err: Error) => {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+      setToggleTarget(null);
+    },
+  });
+
   // Sort: active first, then by name
   const filtered = equipos
     .filter((e: any) => e.nombre_equipo.toLowerCase().includes(search.toLowerCase()))
