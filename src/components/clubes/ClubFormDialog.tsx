@@ -73,21 +73,29 @@ export function ClubFormDialog({ open, onOpenChange, editingId, initialData }: P
   });
 
   useEffect(() => {
-    if (open) {
-      if (editingId && initialData) {
-        setForm({
-          nombre_equipo: initialData.nombre_equipo,
-          cancha: initialData.cancha || '',
-          estado: initialData.estado,
-          delegado_1: initialData.delegado_1,
-          delegado_2: initialData.delegado_2,
-          categorias: equipoCategorias,
-        });
-      } else {
-        setForm(emptyForm);
-      }
+    if (!open) return;
+    if (editingId && initialData) {
+      setForm({
+        nombre_equipo: (initialData.nombre_equipo || '').toUpperCase(),
+        cancha: initialData.cancha || '',
+        estado: initialData.estado,
+        delegado_1: initialData.delegado_1,
+        delegado_2: initialData.delegado_2,
+        categorias: equipoCategorias,
+      });
+    } else {
+      setForm(emptyForm);
     }
-  }, [open, editingId, initialData, equipoCategorias]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, editingId]);
+
+  // Sync categorías once loaded (edit mode)
+  useEffect(() => {
+    if (open && editingId) {
+      setForm((prev) => ({ ...prev, categorias: equipoCategorias }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [equipoCategorias.join(',')]);
 
   const toggleCategoria = (catId: string) => {
     setForm((prev) => ({
