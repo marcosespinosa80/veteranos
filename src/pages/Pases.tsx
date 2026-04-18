@@ -44,8 +44,10 @@ export default function Pases() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedPase, setSelectedPase] = useState<any>(null);
   const [createForm, setCreateForm] = useState({
-    jugador_id: '', club_origen_id: '', club_destino_id: '', monto: '',
+    club_origen_id: '', club_destino_id: '', dni: '',
   });
+  const [jugadorEncontrado, setJugadorEncontrado] = useState<any>(null);
+  const [searchError, setSearchError] = useState<string>('');
   const [montoRegistro, setMontoRegistro] = useState('');
   const isAdmin = role === 'admin_general' || role === 'admin_comun';
 
