@@ -97,16 +97,12 @@ export default function Pases() {
   const buscarJugador = async () => {
     setSearchError('');
     setJugadorEncontrado(null);
-    if (!createForm.club_origen_id) {
-      setSearchError('Seleccioná primero el club de origen');
-      return;
-    }
+    setCreateForm((f) => ({ ...f, club_destino_id: '' }));
     const dniNorm = normalizeDni(createForm.dni);
     if (!dniNorm) {
       setSearchError('Ingresá un DNI');
       return;
     }
-    // Try both with and without dots formatting
     const { data, error } = await supabase
       .from('jugadores')
       .select('id, nombre, apellido, dni, equipo_id, categoria_id, estado, suspendido_fechas, categorias(nombre_categoria), equipos!jugadores_equipo_id_fkey(nombre_equipo)')
@@ -118,14 +114,13 @@ export default function Pases() {
       return;
     }
     if (!data) {
-      setSearchError('No se encontró jugador con ese DNI');
+      setSearchError('Jugador no encontrado');
       return;
     }
-    if (data.equipo_id !== createForm.club_origen_id) {
-      setSearchError('El jugador no pertenece al club de origen');
+    if (!data.equipo_id) {
+      setSearchError('El jugador no tiene club asignado');
       return;
     }
-    // Check deuda pendiente
     const { data: deudas } = await supabase
       .from('cargos')
       .select('id')
@@ -134,15 +129,22 @@ export default function Pases() {
     setJugadorEncontrado({ ...data, tiene_deuda: (deudas?.length || 0) > 0, cantidad_deudas: deudas?.length || 0 });
   };
 
+  const getBloqueo = (): string | null => {
+    if (!jugadorEncontrado) return null;
+    if (jugadorEncontrado.tiene_deuda) return 'No se puede realizar el pase: el jugador tiene deuda pendiente.';
+    if (jugadorEncontrado.suspendido_fechas > 0) return `No se puede realizar el pase: jugador suspendido (${jugadorEncontrado.suspendido_fechas} fechas).`;
+    if (jugadorEncontrado.estado === 'expulsado') return 'No se puede realizar el pase: jugador expulsado.';
+    if (jugadorEncontrado.estado !== 'habilitado') return 'No se puede realizar el pase: jugador no habilitado.';
+    if (!tarifaPase) return 'No hay tarifa de pase vigente. Configure Tarifas.';
+    return null;
+  };
+
   const validarPase = (): string | null => {
     if (!jugadorEncontrado) return 'Buscá un jugador válido primero';
-    if (jugadorEncontrado.tiene_deuda) return 'No se puede iniciar el pase: el jugador tiene deuda pendiente.';
-    if (jugadorEncontrado.suspendido_fechas > 0) return `No se puede iniciar el pase: jugador suspendido (${jugadorEncontrado.suspendido_fechas} fechas).`;
-    if (jugadorEncontrado.estado === 'expulsado') return 'No se puede iniciar el pase: jugador expulsado.';
-    if (jugadorEncontrado.estado !== 'habilitado') return 'No se puede iniciar el pase: jugador no habilitado.';
+    const bloqueo = getBloqueo();
+    if (bloqueo) return bloqueo;
     if (!createForm.club_destino_id) return 'Seleccioná el club de destino';
-    if (createForm.club_destino_id === createForm.club_origen_id) return 'El club de destino debe ser distinto al de origen';
-    if (!tarifaPase) return 'No hay tarifa de pase vigente. Configure Tarifas.';
+    if (createForm.club_destino_id === jugadorEncontrado.equipo_id) return 'El club de destino debe ser distinto al de origen';
     return null;
   };
 
@@ -153,7 +155,7 @@ export default function Pases() {
       const monto = Number(tarifaPase!.monto);
       const { data: paseInsertado, error } = await supabase.from('pases').insert({
         jugador_id: jugadorEncontrado.id,
-        club_origen_id: createForm.club_origen_id,
+        club_origen_id: jugadorEncontrado.equipo_id,
         club_destino_id: createForm.club_destino_id,
         categoria_id: jugadorEncontrado.categoria_id,
         iniciado_por: user!.id,
@@ -260,7 +262,8 @@ export default function Pases() {
     return matchSearch && matchEstado;
   });
 
-  const clubDestinoOptions = equipos.filter(e => e.id !== createForm.club_origen_id);
+  const clubDestinoOptions = equipos.filter(e => e.id !== jugadorEncontrado?.equipo_id);
+  const bloqueoMsg = getBloqueo();
 
   return (
     <div className="space-y-4">
@@ -354,34 +357,17 @@ export default function Pases() {
             <DialogDescription>Iniciá un pase de jugador entre clubes.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            {/* 1. Club Origen */}
+            {/* 1. Buscar jugador por DNI */}
             <div className="space-y-2">
-              <Label>1. Club de Origen *</Label>
-              <Select value={createForm.club_origen_id} onValueChange={(v) => { setCreateForm({ ...createForm, club_origen_id: v }); setJugadorEncontrado(null); setSearchError(''); }}>
-                <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
-                <SelectContent>
-                  {equipos.map((e) => <SelectItem key={e.id} value={e.id}>{e.nombre_equipo}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* 2. Categoría origen (auto - tras buscar jugador) */}
-            <div className="space-y-2">
-              <Label>2. Categoría</Label>
-              <Input readOnly value={(jugadorEncontrado as any)?.categorias?.nombre_categoria || '— se completa al buscar jugador —'} className="bg-muted" />
-            </div>
-
-            {/* 3. Buscar jugador por DNI */}
-            <div className="space-y-2">
-              <Label>3. Buscar Jugador por DNI *</Label>
+              <Label>1. Buscar Jugador por DNI *</Label>
               <div className="flex gap-2">
                 <Input
                   placeholder="Ej: 26187534"
                   value={createForm.dni}
                   onChange={(e) => setCreateForm({ ...createForm, dni: e.target.value })}
-                  disabled={!createForm.club_origen_id}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); buscarJugador(); } }}
                 />
-                <Button type="button" variant="outline" onClick={buscarJugador} disabled={!createForm.club_origen_id}>
+                <Button type="button" variant="outline" onClick={buscarJugador}>
                   <Search className="w-4 h-4 mr-1" /> Buscar
                 </Button>
               </div>
@@ -390,27 +376,23 @@ export default function Pases() {
               )}
             </div>
 
-            {/* 4. Datos jugador */}
+            {/* 2. Datos jugador (resumen) */}
             {jugadorEncontrado && (
               <div className="rounded-md border p-3 bg-muted/30 space-y-1 text-sm">
                 <p className="font-medium">{jugadorEncontrado.apellido}, {jugadorEncontrado.nombre}</p>
                 <p className="text-xs text-muted-foreground">DNI: {jugadorEncontrado.dni}</p>
-                <p className="text-xs">Club: {jugadorEncontrado.equipos?.nombre_equipo}</p>
-                <p className="text-xs">Categoría: {jugadorEncontrado.categorias?.nombre_categoria || '—'}</p>
                 <div className="flex flex-wrap gap-1 pt-1">
                   <Badge variant="outline" className={
-                    jugadorEncontrado.estado === 'habilitado' ? 'bg-primary/15 text-primary border-primary/30' :
+                    jugadorEncontrado.estado === 'habilitado' && jugadorEncontrado.suspendido_fechas === 0 ? 'bg-primary/15 text-primary border-primary/30' :
                     jugadorEncontrado.estado === 'expulsado' ? 'bg-destructive/15 text-destructive border-destructive/30' :
                     'bg-muted text-muted-foreground'
                   }>
-                    {jugadorEncontrado.estado === 'habilitado' ? 'Habilitado' :
-                     jugadorEncontrado.estado === 'expulsado' ? 'Expulsado' : 'No habilitado'}
+                    {jugadorEncontrado.suspendido_fechas > 0
+                      ? `SUSPENDIDO (${jugadorEncontrado.suspendido_fechas} FECHAS)`
+                      : jugadorEncontrado.estado === 'habilitado' ? 'HABILITADO'
+                      : jugadorEncontrado.estado === 'expulsado' ? 'EXPULSADO'
+                      : 'NO HABILITADO'}
                   </Badge>
-                  {jugadorEncontrado.suspendido_fechas > 0 && (
-                    <Badge variant="outline" className="bg-warning/15 text-warning border-warning/30">
-                      Suspendido ({jugadorEncontrado.suspendido_fechas})
-                    </Badge>
-                  )}
                   {jugadorEncontrado.tiene_deuda && (
                     <Badge variant="outline" className="bg-destructive/15 text-destructive border-destructive/30 gap-1">
                       <AlertTriangle className="w-3 h-3" /> CON DEUDA ({jugadorEncontrado.cantidad_deudas})
@@ -420,39 +402,57 @@ export default function Pases() {
               </div>
             )}
 
-            {/* 5. Club destino */}
-            <div className="space-y-2">
-              <Label>5. Club de Destino *</Label>
-              <Select value={createForm.club_destino_id} onValueChange={(v) => setCreateForm({ ...createForm, club_destino_id: v })} disabled={!jugadorEncontrado}>
-                <SelectTrigger><SelectValue placeholder={jugadorEncontrado ? 'Seleccionar' : 'Buscá primero el jugador'} /></SelectTrigger>
-                <SelectContent>
-                  {clubDestinoOptions.map((e) => <SelectItem key={e.id} value={e.id}>{e.nombre_equipo}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Solo mostrar el resto si hay jugador */}
+            {jugadorEncontrado && (
+              <>
+                {/* 2. Club origen (auto) */}
+                <div className="space-y-2">
+                  <Label>2. Club de Origen</Label>
+                  <Input readOnly value={jugadorEncontrado.equipos?.nombre_equipo || '—'} className="bg-muted" />
+                </div>
 
-            {/* 6. Categoría destino */}
-            <div className="space-y-2">
-              <Label>6. Categoría destino</Label>
-              <Input readOnly value={jugadorEncontrado?.categorias?.nombre_categoria || '—'} className="bg-muted" />
-            </div>
+                {/* 3. Categoría (auto) */}
+                <div className="space-y-2">
+                  <Label>3. Categoría</Label>
+                  <Input readOnly value={jugadorEncontrado.categorias?.nombre_categoria || '—'} className="bg-muted" />
+                </div>
 
-            {/* 7. Costo de transferencia */}
-            <div className="space-y-2">
-              <Label>7. Costo de Transferencia (Pase)</Label>
-              <Input readOnly value={tarifaPase ? `$${Number(tarifaPase.monto).toLocaleString('es-AR')}` : 'Sin tarifa vigente'} className="bg-muted" />
-              {!tarifaPase && (
-                <p className="text-xs text-destructive flex items-center gap-1">
-                  <AlertCircle className="w-3 h-3" /> No hay tarifa de pase vigente. Configurá Tarifas.
-                </p>
-              )}
-            </div>
+                {/* 4. Bloqueos */}
+                {bloqueoMsg && (
+                  <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                    <span>{bloqueoMsg}</span>
+                  </div>
+                )}
 
-            {/* 8. Monto a pagar */}
-            <div className="space-y-2">
-              <Label>8. Monto a pagar</Label>
-              <Input readOnly value={tarifaPase ? `$${Number(tarifaPase.monto).toLocaleString('es-AR')}` : '—'} className="bg-muted font-medium" />
-            </div>
+                {/* 5. Club destino */}
+                <div className="space-y-2">
+                  <Label>5. Club de Destino *</Label>
+                  <Select
+                    value={createForm.club_destino_id}
+                    onValueChange={(v) => setCreateForm({ ...createForm, club_destino_id: v })}
+                    disabled={!!bloqueoMsg}
+                  >
+                    <SelectTrigger><SelectValue placeholder={bloqueoMsg ? 'Bloqueado' : 'Seleccionar'} /></SelectTrigger>
+                    <SelectContent>
+                      {clubDestinoOptions.map((e) => <SelectItem key={e.id} value={e.id}>{e.nombre_equipo}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* 6. Categoría destino */}
+                <div className="space-y-2">
+                  <Label>6. Categoría Destino</Label>
+                  <Input readOnly value={jugadorEncontrado.categorias?.nombre_categoria || '—'} className="bg-muted" />
+                </div>
+
+                {/* 7. Costo */}
+                <div className="space-y-2">
+                  <Label>7. Costo de Transferencia (Pase)</Label>
+                  <Input readOnly value={tarifaPase ? `$${Number(tarifaPase.monto).toLocaleString('es-AR')}` : 'Sin tarifa vigente'} className="bg-muted font-medium" />
+                </div>
+              </>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
