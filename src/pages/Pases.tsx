@@ -347,52 +347,118 @@ export default function Pases() {
       </Card>
 
       {/* Create Dialog */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="sm:max-w-md">
+      <Dialog open={createOpen} onOpenChange={(o) => { setCreateOpen(o); if (!o) { setJugadorEncontrado(null); setSearchError(''); setCreateForm({ club_origen_id: '', club_destino_id: '', dni: '' }); } }}>
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Nuevo Pase</DialogTitle>
-            <DialogDescription>Iniciá un pase de jugador entre equipos.</DialogDescription>
+            <DialogDescription>Iniciá un pase de jugador entre clubes.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            {/* 1. Club Origen */}
             <div className="space-y-2">
-              <Label>Club de Origen *</Label>
-              <Select value={createForm.club_origen_id} onValueChange={(v) => setCreateForm({ ...createForm, club_origen_id: v, jugador_id: '' })}>
+              <Label>1. Club de Origen *</Label>
+              <Select value={createForm.club_origen_id} onValueChange={(v) => { setCreateForm({ ...createForm, club_origen_id: v }); setJugadorEncontrado(null); setSearchError(''); }}>
                 <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
                 <SelectContent>
                   {equipos.map((e) => <SelectItem key={e.id} value={e.id}>{e.nombre_equipo}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
+
+            {/* 2. Categoría origen (auto - tras buscar jugador) */}
             <div className="space-y-2">
-              <Label>Jugador *</Label>
-              <Select value={createForm.jugador_id} onValueChange={(v) => setCreateForm({ ...createForm, jugador_id: v })} disabled={!createForm.club_origen_id}>
-                <SelectTrigger><SelectValue placeholder={createForm.club_origen_id ? 'Seleccionar jugador' : 'Elegí primero el club'} /></SelectTrigger>
-                <SelectContent>
-                  {jugadoresOrigen.map((j) => (
-                    <SelectItem key={j.id} value={j.id}>{j.apellido}, {j.nombre} — DNI {j.dni}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>2. Categoría</Label>
+              <Input readOnly value={(jugadorEncontrado as any)?.categorias?.nombre_categoria || '— se completa al buscar jugador —'} className="bg-muted" />
             </div>
+
+            {/* 3. Buscar jugador por DNI */}
             <div className="space-y-2">
-              <Label>Club de Destino *</Label>
-              <Select value={createForm.club_destino_id} onValueChange={(v) => setCreateForm({ ...createForm, club_destino_id: v })} disabled={!createForm.club_origen_id}>
-                <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+              <Label>3. Buscar Jugador por DNI *</Label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Ej: 26187534"
+                  value={createForm.dni}
+                  onChange={(e) => setCreateForm({ ...createForm, dni: e.target.value })}
+                  disabled={!createForm.club_origen_id}
+                />
+                <Button type="button" variant="outline" onClick={buscarJugador} disabled={!createForm.club_origen_id}>
+                  <Search className="w-4 h-4 mr-1" /> Buscar
+                </Button>
+              </div>
+              {searchError && (
+                <p className="text-xs text-destructive flex items-center gap-1"><AlertCircle className="w-3 h-3" /> {searchError}</p>
+              )}
+            </div>
+
+            {/* 4. Datos jugador */}
+            {jugadorEncontrado && (
+              <div className="rounded-md border p-3 bg-muted/30 space-y-1 text-sm">
+                <p className="font-medium">{jugadorEncontrado.apellido}, {jugadorEncontrado.nombre}</p>
+                <p className="text-xs text-muted-foreground">DNI: {jugadorEncontrado.dni}</p>
+                <p className="text-xs">Club: {jugadorEncontrado.equipos?.nombre_equipo}</p>
+                <p className="text-xs">Categoría: {jugadorEncontrado.categorias?.nombre_categoria || '—'}</p>
+                <div className="flex flex-wrap gap-1 pt-1">
+                  <Badge variant="outline" className={
+                    jugadorEncontrado.estado === 'habilitado' ? 'bg-primary/15 text-primary border-primary/30' :
+                    jugadorEncontrado.estado === 'expulsado' ? 'bg-destructive/15 text-destructive border-destructive/30' :
+                    'bg-muted text-muted-foreground'
+                  }>
+                    {jugadorEncontrado.estado === 'habilitado' ? 'Habilitado' :
+                     jugadorEncontrado.estado === 'expulsado' ? 'Expulsado' : 'No habilitado'}
+                  </Badge>
+                  {jugadorEncontrado.suspendido_fechas > 0 && (
+                    <Badge variant="outline" className="bg-warning/15 text-warning border-warning/30">
+                      Suspendido ({jugadorEncontrado.suspendido_fechas})
+                    </Badge>
+                  )}
+                  {jugadorEncontrado.tiene_deuda && (
+                    <Badge variant="outline" className="bg-destructive/15 text-destructive border-destructive/30 gap-1">
+                      <AlertTriangle className="w-3 h-3" /> CON DEUDA ({jugadorEncontrado.cantidad_deudas})
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* 5. Club destino */}
+            <div className="space-y-2">
+              <Label>5. Club de Destino *</Label>
+              <Select value={createForm.club_destino_id} onValueChange={(v) => setCreateForm({ ...createForm, club_destino_id: v })} disabled={!jugadorEncontrado}>
+                <SelectTrigger><SelectValue placeholder={jugadorEncontrado ? 'Seleccionar' : 'Buscá primero el jugador'} /></SelectTrigger>
                 <SelectContent>
                   {clubDestinoOptions.map((e) => <SelectItem key={e.id} value={e.id}>{e.nombre_equipo}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
+
+            {/* 6. Categoría destino */}
             <div className="space-y-2">
-              <Label>Monto (opcional)</Label>
-              <Input type="number" placeholder="0" value={createForm.monto} onChange={(e) => setCreateForm({ ...createForm, monto: e.target.value })} />
+              <Label>6. Categoría destino</Label>
+              <Input readOnly value={jugadorEncontrado?.categorias?.nombre_categoria || '—'} className="bg-muted" />
+            </div>
+
+            {/* 7. Costo de transferencia */}
+            <div className="space-y-2">
+              <Label>7. Costo de Transferencia (Pase)</Label>
+              <Input readOnly value={tarifaPase ? `$${Number(tarifaPase.monto).toLocaleString('es-AR')}` : 'Sin tarifa vigente'} className="bg-muted" />
+              {!tarifaPase && (
+                <p className="text-xs text-destructive flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" /> No hay tarifa de pase vigente. Configurá Tarifas.
+                </p>
+              )}
+            </div>
+
+            {/* 8. Monto a pagar */}
+            <div className="space-y-2">
+              <Label>8. Monto a pagar</Label>
+              <Input readOnly value={tarifaPase ? `$${Number(tarifaPase.monto).toLocaleString('es-AR')}` : '—'} className="bg-muted font-medium" />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
             <Button
               onClick={() => createMutation.mutate()}
-              disabled={!createForm.jugador_id || !createForm.club_origen_id || !createForm.club_destino_id || createMutation.isPending}
+              disabled={!!validarPase() || createMutation.isPending}
             >
               {createMutation.isPending ? 'Creando...' : 'Iniciar Pase'}
             </Button>
