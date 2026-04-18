@@ -133,6 +133,7 @@ export default function Equipos() {
               isAdmin={isAdmin}
               onEdit={() => openEdit(eq)}
               onViewPlantel={() => setPlantelEquipo(eq)}
+              onToggleEstado={() => setToggleTarget(eq)}
             />
           ))}
         </div>
@@ -152,6 +153,26 @@ export default function Equipos() {
         onOpenChange={(open) => { if (!open) setPlantelEquipo(null); }}
         equipo={plantelEquipo}
       />
+
+      {/* Toggle estado confirmation */}
+      <AlertDialog open={!!toggleTarget} onOpenChange={(o) => !o && setToggleTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {toggleTarget?.estado === 'activo' ? 'Desactivar' : 'Activar'} club
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Confirmás {toggleTarget?.estado === 'activo' ? 'desactivar' : 'activar'} el club <strong>{toggleTarget?.nombre_equipo}</strong>?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => toggleTarget && toggleEstadoMutation.mutate(toggleTarget)}>
+              Confirmar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
