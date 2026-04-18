@@ -155,7 +155,7 @@ export default function Pases() {
       const monto = Number(tarifaPase!.monto);
       const { data: paseInsertado, error } = await supabase.from('pases').insert({
         jugador_id: jugadorEncontrado.id,
-        club_origen_id: createForm.club_origen_id,
+        club_origen_id: jugadorEncontrado.equipo_id,
         club_destino_id: createForm.club_destino_id,
         categoria_id: jugadorEncontrado.categoria_id,
         iniciado_por: user!.id,
