@@ -9,6 +9,8 @@ import {
   ArrowRightLeft,
   FileText,
   UserCog,
+  MapPin,
+  DollarSign,
   ChevronLeft,
   LogOut,
 } from 'lucide-react';
@@ -27,6 +29,8 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   ArrowRightLeft,
   FileText,
   UserCog,
+  MapPin,
+  DollarSign,
 };
 
 interface AppSidebarProps {
