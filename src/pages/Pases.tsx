@@ -97,16 +97,12 @@ export default function Pases() {
   const buscarJugador = async () => {
     setSearchError('');
     setJugadorEncontrado(null);
-    if (!createForm.club_origen_id) {
-      setSearchError('Seleccioná primero el club de origen');
-      return;
-    }
+    setCreateForm((f) => ({ ...f, club_destino_id: '' }));
     const dniNorm = normalizeDni(createForm.dni);
     if (!dniNorm) {
       setSearchError('Ingresá un DNI');
       return;
     }
-    // Try both with and without dots formatting
     const { data, error } = await supabase
       .from('jugadores')
       .select('id, nombre, apellido, dni, equipo_id, categoria_id, estado, suspendido_fechas, categorias(nombre_categoria), equipos!jugadores_equipo_id_fkey(nombre_equipo)')
@@ -118,14 +114,13 @@ export default function Pases() {
       return;
     }
     if (!data) {
-      setSearchError('No se encontró jugador con ese DNI');
+      setSearchError('Jugador no encontrado');
       return;
     }
-    if (data.equipo_id !== createForm.club_origen_id) {
-      setSearchError('El jugador no pertenece al club de origen');
+    if (!data.equipo_id) {
+      setSearchError('El jugador no tiene club asignado');
       return;
     }
-    // Check deuda pendiente
     const { data: deudas } = await supabase
       .from('cargos')
       .select('id')
@@ -134,15 +129,22 @@ export default function Pases() {
     setJugadorEncontrado({ ...data, tiene_deuda: (deudas?.length || 0) > 0, cantidad_deudas: deudas?.length || 0 });
   };
 
+  const getBloqueo = (): string | null => {
+    if (!jugadorEncontrado) return null;
+    if (jugadorEncontrado.tiene_deuda) return 'No se puede realizar el pase: el jugador tiene deuda pendiente.';
+    if (jugadorEncontrado.suspendido_fechas > 0) return `No se puede realizar el pase: jugador suspendido (${jugadorEncontrado.suspendido_fechas} fechas).`;
+    if (jugadorEncontrado.estado === 'expulsado') return 'No se puede realizar el pase: jugador expulsado.';
+    if (jugadorEncontrado.estado !== 'habilitado') return 'No se puede realizar el pase: jugador no habilitado.';
+    if (!tarifaPase) return 'No hay tarifa de pase vigente. Configure Tarifas.';
+    return null;
+  };
+
   const validarPase = (): string | null => {
     if (!jugadorEncontrado) return 'Buscá un jugador válido primero';
-    if (jugadorEncontrado.tiene_deuda) return 'No se puede iniciar el pase: el jugador tiene deuda pendiente.';
-    if (jugadorEncontrado.suspendido_fechas > 0) return `No se puede iniciar el pase: jugador suspendido (${jugadorEncontrado.suspendido_fechas} fechas).`;
-    if (jugadorEncontrado.estado === 'expulsado') return 'No se puede iniciar el pase: jugador expulsado.';
-    if (jugadorEncontrado.estado !== 'habilitado') return 'No se puede iniciar el pase: jugador no habilitado.';
+    const bloqueo = getBloqueo();
+    if (bloqueo) return bloqueo;
     if (!createForm.club_destino_id) return 'Seleccioná el club de destino';
-    if (createForm.club_destino_id === createForm.club_origen_id) return 'El club de destino debe ser distinto al de origen';
-    if (!tarifaPase) return 'No hay tarifa de pase vigente. Configure Tarifas.';
+    if (createForm.club_destino_id === jugadorEncontrado.equipo_id) return 'El club de destino debe ser distinto al de origen';
     return null;
   };
 
