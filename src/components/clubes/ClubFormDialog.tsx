@@ -100,9 +100,21 @@ export function ClubFormDialog({ open, onOpenChange, editingId, initialData }: P
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      const nombreNorm = form.nombre_equipo.trim().toUpperCase();
+      const canchaNorm = form.cancha.trim().toUpperCase() || null;
+
+      // Check duplicate (case-insensitive), excluding self when editing
+      const { data: dup, error: dupErr } = await supabase
+        .from('equipos')
+        .select('id, nombre_equipo')
+        .ilike('nombre_equipo', nombreNorm);
+      if (dupErr) throw dupErr;
+      const conflict = (dup || []).find((e) => e.id !== editingId);
+      if (conflict) throw new Error('Ya existe un club con ese nombre');
+
       const payload = {
-        nombre_equipo: form.nombre_equipo.trim(),
-        cancha: form.cancha.trim() || null,
+        nombre_equipo: nombreNorm,
+        cancha: canchaNorm,
         estado: form.estado,
         delegado_1: form.delegado_1 || null,
         delegado_2: form.delegado_2 || null,
@@ -115,7 +127,10 @@ export function ClubFormDialog({ open, onOpenChange, editingId, initialData }: P
         if (error) throw error;
       } else {
         const { data, error } = await supabase.from('equipos').insert(payload).select('id').single();
-        if (error) throw error;
+        if (error) {
+          if (error.code === '23505') throw new Error('Ya existe un club con ese nombre');
+          throw error;
+        }
         equipoId = data.id;
       }
 
