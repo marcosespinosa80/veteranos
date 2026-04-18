@@ -84,6 +84,12 @@ export function ClubCard({ equipo, categorias, jugadorCount, isAdmin, onEdit, on
       <CardFooter className="pt-3 border-t flex items-center justify-between">
         <span className="text-[10px] text-muted-foreground font-medium tracking-wide">TEMPORADA 2026</span>
         <div className="flex gap-1">
+          {isAdmin && onToggleEstado && (
+            <Button size="sm" variant="ghost" onClick={onToggleEstado} title={equipo.estado === 'activo' ? 'Desactivar' : 'Activar'}>
+              <Power className={`w-3.5 h-3.5 mr-1 ${equipo.estado === 'activo' ? 'text-destructive' : 'text-primary'}`} />
+              {equipo.estado === 'activo' ? 'Desactivar' : 'Activar'}
+            </Button>
+          )}
           {isAdmin && (
             <Button size="sm" variant="ghost" onClick={onEdit}>
               <Pencil className="w-3.5 h-3.5 mr-1" /> Editar
