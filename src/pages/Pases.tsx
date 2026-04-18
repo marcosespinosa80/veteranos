@@ -262,7 +262,8 @@ export default function Pases() {
     return matchSearch && matchEstado;
   });
 
-  const clubDestinoOptions = equipos.filter(e => e.id !== createForm.club_origen_id);
+  const clubDestinoOptions = equipos.filter(e => e.id !== jugadorEncontrado?.equipo_id);
+  const bloqueoMsg = getBloqueo();
 
   return (
     <div className="space-y-4">
