@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX IF NOT EXISTS equipos_nombre_upper_unique ON public.equipos (upper(nombre_equipo));

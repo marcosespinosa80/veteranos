@@ -73,21 +73,29 @@ export function ClubFormDialog({ open, onOpenChange, editingId, initialData }: P
   });
 
   useEffect(() => {
-    if (open) {
-      if (editingId && initialData) {
-        setForm({
-          nombre_equipo: initialData.nombre_equipo,
-          cancha: initialData.cancha || '',
-          estado: initialData.estado,
-          delegado_1: initialData.delegado_1,
-          delegado_2: initialData.delegado_2,
-          categorias: equipoCategorias,
-        });
-      } else {
-        setForm(emptyForm);
-      }
+    if (!open) return;
+    if (editingId && initialData) {
+      setForm({
+        nombre_equipo: (initialData.nombre_equipo || '').toUpperCase(),
+        cancha: initialData.cancha || '',
+        estado: initialData.estado,
+        delegado_1: initialData.delegado_1,
+        delegado_2: initialData.delegado_2,
+        categorias: equipoCategorias,
+      });
+    } else {
+      setForm(emptyForm);
     }
-  }, [open, editingId, initialData, equipoCategorias]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, editingId]);
+
+  // Sync categorías once loaded (edit mode)
+  useEffect(() => {
+    if (open && editingId) {
+      setForm((prev) => ({ ...prev, categorias: equipoCategorias }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [equipoCategorias.join(',')]);
 
   const toggleCategoria = (catId: string) => {
     setForm((prev) => ({
@@ -100,9 +108,21 @@ export function ClubFormDialog({ open, onOpenChange, editingId, initialData }: P
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      const nombreNorm = form.nombre_equipo.trim().toUpperCase();
+      const canchaNorm = form.cancha.trim().toUpperCase() || null;
+
+      // Check duplicate (case-insensitive), excluding self when editing
+      const { data: dup, error: dupErr } = await supabase
+        .from('equipos')
+        .select('id, nombre_equipo')
+        .ilike('nombre_equipo', nombreNorm);
+      if (dupErr) throw dupErr;
+      const conflict = (dup || []).find((e) => e.id !== editingId);
+      if (conflict) throw new Error('Ya existe un club con ese nombre');
+
       const payload = {
-        nombre_equipo: form.nombre_equipo.trim(),
-        cancha: form.cancha.trim() || null,
+        nombre_equipo: nombreNorm,
+        cancha: canchaNorm,
         estado: form.estado,
         delegado_1: form.delegado_1 || null,
         delegado_2: form.delegado_2 || null,
@@ -115,7 +135,10 @@ export function ClubFormDialog({ open, onOpenChange, editingId, initialData }: P
         if (error) throw error;
       } else {
         const { data, error } = await supabase.from('equipos').insert(payload).select('id').single();
-        if (error) throw error;
+        if (error) {
+          if (error.code === '23505') throw new Error('Ya existe un club con ese nombre');
+          throw error;
+        }
         equipoId = data.id;
       }
 
@@ -167,11 +190,21 @@ export function ClubFormDialog({ open, onOpenChange, editingId, initialData }: P
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="nombre_equipo">Nombre del Club *</Label>
-            <Input id="nombre_equipo" value={form.nombre_equipo} onChange={(e) => setForm({ ...form, nombre_equipo: e.target.value })} />
+            <Input
+              id="nombre_equipo"
+              value={form.nombre_equipo}
+              onChange={(e) => setForm({ ...form, nombre_equipo: e.target.value.toUpperCase() })}
+              placeholder="EJ: ATLÉTICO CATAMARCA"
+              autoFocus
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="cancha">Cancha / Ubicación</Label>
-            <Input id="cancha" value={form.cancha} onChange={(e) => setForm({ ...form, cancha: e.target.value })} />
+            <Input
+              id="cancha"
+              value={form.cancha}
+              onChange={(e) => setForm({ ...form, cancha: e.target.value.toUpperCase() })}
+            />
           </div>
 
           {/* Delegados */}

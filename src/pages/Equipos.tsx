@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -8,14 +8,21 @@ import { Plus, Search } from 'lucide-react';
 import { ClubCard } from '@/components/clubes/ClubCard';
 import { ClubFormDialog } from '@/components/clubes/ClubFormDialog';
 import { PlantelDrawer } from '@/components/clubes/PlantelDrawer';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { toast } from '@/hooks/use-toast';
 
 export default function Equipos() {
   const { role } = useAuth();
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingData, setEditingData] = useState<any>(null);
   const [plantelEquipo, setPlantelEquipo] = useState<any>(null);
+  const [toggleTarget, setToggleTarget] = useState<any>(null);
   const isAdmin = role === 'admin_general' || role === 'admin_comun';
 
   const { data: equipos = [], isLoading } = useQuery({
@@ -64,6 +71,24 @@ export default function Equipos() {
   const openCreate = () => { setEditingId(null); setEditingData(null); setDialogOpen(true); };
   const openEdit = (eq: any) => { setEditingId(eq.id); setEditingData(eq); setDialogOpen(true); };
 
+  const toggleEstadoMutation = useMutation({
+    mutationFn: async (eq: any) => {
+      const nuevo = eq.estado === 'activo' ? 'inactivo' : 'activo';
+      const { error } = await supabase.from('equipos').update({ estado: nuevo }).eq('id', eq.id);
+      if (error) throw error;
+      return nuevo;
+    },
+    onSuccess: (nuevo) => {
+      queryClient.invalidateQueries({ queryKey: ['equipos'] });
+      toast({ title: `Club ${nuevo === 'activo' ? 'activado' : 'desactivado'}` });
+      setToggleTarget(null);
+    },
+    onError: (err: Error) => {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+      setToggleTarget(null);
+    },
+  });
+
   // Sort: active first, then by name
   const filtered = equipos
     .filter((e: any) => e.nombre_equipo.toLowerCase().includes(search.toLowerCase()))
@@ -108,6 +133,7 @@ export default function Equipos() {
               isAdmin={isAdmin}
               onEdit={() => openEdit(eq)}
               onViewPlantel={() => setPlantelEquipo(eq)}
+              onToggleEstado={() => setToggleTarget(eq)}
             />
           ))}
         </div>
@@ -127,6 +153,26 @@ export default function Equipos() {
         onOpenChange={(open) => { if (!open) setPlantelEquipo(null); }}
         equipo={plantelEquipo}
       />
+
+      {/* Toggle estado confirmation */}
+      <AlertDialog open={!!toggleTarget} onOpenChange={(o) => !o && setToggleTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {toggleTarget?.estado === 'activo' ? 'Desactivar' : 'Activar'} club
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Confirmás {toggleTarget?.estado === 'activo' ? 'desactivar' : 'activar'} el club <strong>{toggleTarget?.nombre_equipo}</strong>?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => toggleTarget && toggleEstadoMutation.mutate(toggleTarget)}>
+              Confirmar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

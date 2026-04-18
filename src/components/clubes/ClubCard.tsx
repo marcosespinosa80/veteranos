@@ -1,7 +1,7 @@
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Shield, MapPin, Users, Pencil, Eye } from 'lucide-react';
+import { Shield, MapPin, Users, Pencil, Eye, Power } from 'lucide-react';
 
 interface ClubCardProps {
   equipo: any;
@@ -10,9 +10,10 @@ interface ClubCardProps {
   isAdmin: boolean;
   onEdit: () => void;
   onViewPlantel: () => void;
+  onToggleEstado?: () => void;
 }
 
-export function ClubCard({ equipo, categorias, jugadorCount, isAdmin, onEdit, onViewPlantel }: ClubCardProps) {
+export function ClubCard({ equipo, categorias, jugadorCount, isAdmin, onEdit, onViewPlantel, onToggleEstado }: ClubCardProps) {
   const delegadoCount = (equipo.delegado_1 ? 1 : 0) + (equipo.delegado_2 ? 1 : 0);
 
   return (
@@ -83,6 +84,12 @@ export function ClubCard({ equipo, categorias, jugadorCount, isAdmin, onEdit, on
       <CardFooter className="pt-3 border-t flex items-center justify-between">
         <span className="text-[10px] text-muted-foreground font-medium tracking-wide">TEMPORADA 2026</span>
         <div className="flex gap-1">
+          {isAdmin && onToggleEstado && (
+            <Button size="sm" variant="ghost" onClick={onToggleEstado} title={equipo.estado === 'activo' ? 'Desactivar' : 'Activar'}>
+              <Power className={`w-3.5 h-3.5 mr-1 ${equipo.estado === 'activo' ? 'text-destructive' : 'text-primary'}`} />
+              {equipo.estado === 'activo' ? 'Desactivar' : 'Activar'}
+            </Button>
+          )}
           {isAdmin && (
             <Button size="sm" variant="ghost" onClick={onEdit}>
               <Pencil className="w-3.5 h-3.5 mr-1" /> Editar
