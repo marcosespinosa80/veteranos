@@ -72,37 +72,114 @@ export default function Pases() {
     },
   });
 
-  // Jugadores del club de origen
-  const { data: jugadoresOrigen = [] } = useQuery({
-    queryKey: ['jugadores-pase', createForm.club_origen_id],
-    enabled: !!createForm.club_origen_id,
+  // Tarifa de pase activa vigente
+  const { data: tarifaPase } = useQuery({
+    queryKey: ['tarifa-pase-activa'],
     queryFn: async () => {
+      const today = new Date().toISOString().slice(0, 10);
       const { data, error } = await supabase
-        .from('jugadores')
-        .select('id, nombre, apellido, dni')
-        .eq('equipo_id', createForm.club_origen_id)
-        .order('apellido');
+        .from('tarifas')
+        .select('*')
+        .eq('tipo', 'pase')
+        .eq('estado', 'activa')
+        .lte('fecha_inicio', today)
+        .or(`fecha_fin.is.null,fecha_fin.gte.${today}`)
+        .order('fecha_inicio', { ascending: false })
+        .limit(1)
+        .maybeSingle();
       if (error) throw error;
       return data;
     },
   });
 
+  const normalizeDni = (dni: string) => dni.replace(/\D/g, '');
+
+  const buscarJugador = async () => {
+    setSearchError('');
+    setJugadorEncontrado(null);
+    if (!createForm.club_origen_id) {
+      setSearchError('Seleccioná primero el club de origen');
+      return;
+    }
+    const dniNorm = normalizeDni(createForm.dni);
+    if (!dniNorm) {
+      setSearchError('Ingresá un DNI');
+      return;
+    }
+    // Try both with and without dots formatting
+    const { data, error } = await supabase
+      .from('jugadores')
+      .select('id, nombre, apellido, dni, equipo_id, categoria_id, estado, suspendido_fechas, categorias(nombre_categoria), equipos!jugadores_equipo_id_fkey(nombre_equipo)')
+      .or(`dni.eq.${dniNorm},dni.eq.${createForm.dni}`)
+      .limit(1)
+      .maybeSingle();
+    if (error) {
+      setSearchError(error.message);
+      return;
+    }
+    if (!data) {
+      setSearchError('No se encontró jugador con ese DNI');
+      return;
+    }
+    if (data.equipo_id !== createForm.club_origen_id) {
+      setSearchError('El jugador no pertenece al club de origen');
+      return;
+    }
+    // Check deuda pendiente
+    const { data: deudas } = await supabase
+      .from('cargos')
+      .select('id')
+      .eq('jugador_id', data.id)
+      .eq('estado_pago', 'pendiente');
+    setJugadorEncontrado({ ...data, tiene_deuda: (deudas?.length || 0) > 0, cantidad_deudas: deudas?.length || 0 });
+  };
+
+  const validarPase = (): string | null => {
+    if (!jugadorEncontrado) return 'Buscá un jugador válido primero';
+    if (jugadorEncontrado.tiene_deuda) return 'No se puede iniciar el pase: el jugador tiene deuda pendiente.';
+    if (jugadorEncontrado.suspendido_fechas > 0) return `No se puede iniciar el pase: jugador suspendido (${jugadorEncontrado.suspendido_fechas} fechas).`;
+    if (jugadorEncontrado.estado === 'expulsado') return 'No se puede iniciar el pase: jugador expulsado.';
+    if (jugadorEncontrado.estado !== 'habilitado') return 'No se puede iniciar el pase: jugador no habilitado.';
+    if (!createForm.club_destino_id) return 'Seleccioná el club de destino';
+    if (createForm.club_destino_id === createForm.club_origen_id) return 'El club de destino debe ser distinto al de origen';
+    if (!tarifaPase) return 'No hay tarifa de pase vigente. Configure Tarifas.';
+    return null;
+  };
+
   const createMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from('pases').insert({
-        jugador_id: createForm.jugador_id,
+      const err = validarPase();
+      if (err) throw new Error(err);
+      const monto = Number(tarifaPase!.monto);
+      const { data: paseInsertado, error } = await supabase.from('pases').insert({
+        jugador_id: jugadorEncontrado.id,
         club_origen_id: createForm.club_origen_id,
         club_destino_id: createForm.club_destino_id,
+        categoria_id: jugadorEncontrado.categoria_id,
         iniciado_por: user!.id,
-        monto: createForm.monto ? parseFloat(createForm.monto) : null,
-      });
+        monto,
+      }).select('id').single();
       if (error) throw error;
+      // Crear cargo pendiente asociado
+      const { error: cargoError } = await supabase.from('cargos').insert({
+        tipo: 'pase',
+        monto,
+        tarifa_id: tarifaPase!.id,
+        jugador_id: jugadorEncontrado.id,
+        pase_id: paseInsertado.id,
+        estado_pago: 'pendiente',
+        descripcion: `Pase ${jugadorEncontrado.apellido}, ${jugadorEncontrado.nombre}`,
+        created_by: user!.id,
+      });
+      if (cargoError) throw cargoError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pases'] });
       setCreateOpen(false);
-      setCreateForm({ jugador_id: '', club_origen_id: '', club_destino_id: '', monto: '' });
-      toast({ title: 'Pase iniciado' });
+      setCreateForm({ club_origen_id: '', club_destino_id: '', dni: '' });
+      setJugadorEncontrado(null);
+      setSearchError('');
+      toast({ title: 'Pase iniciado', description: 'Se generó el cargo del pase como pendiente.' });
     },
     onError: (err: Error) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
   });
