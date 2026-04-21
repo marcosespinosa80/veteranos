@@ -79,17 +79,17 @@ export default function NuevoUsuarioWizard({ open, onOpenChange }: Props) {
   };
 
   const searchJugador = async () => {
-    if (!dniSearch.trim()) return;
+    const dniDigits = dniSearch.replace(/\D/g, '');
+    if (!dniDigits) return;
     setSearching(true);
     setJugadorError('');
     setJugadorFound(null);
     setVinculado(false);
 
+    // Fetch all and match by digits (handles DNIs stored with/without dots)
     const { data, error } = await supabase
       .from('jugadores')
-      .select('id, nombre, apellido, dni, estado, equipo_id, equipo:equipos(nombre_equipo)')
-      .eq('dni', dniSearch.trim())
-      .maybeSingle();
+      .select('id, nombre, apellido, dni, estado, equipo_id, suspendido_fechas, categoria:categorias(nombre_categoria), equipo:equipos!jugadores_equipo_id_fkey(nombre_equipo)');
 
     setSearching(false);
 
@@ -97,20 +97,27 @@ export default function NuevoUsuarioWizard({ open, onOpenChange }: Props) {
       setJugadorError('Error al buscar jugador');
       return;
     }
-    if (!data) {
-      setJugadorError('Jugador no encontrado con ese DNI');
+
+    const match = (data || []).find((j: any) => (j.dni || '').replace(/\D/g, '') === dniDigits);
+
+    if (!match) {
+      setJugadorError('Jugador no encontrado');
       return;
     }
-    if (data.estado !== 'habilitado') {
-      setJugadorError(`El jugador ${data.apellido}, ${data.nombre} no está habilitado (estado: ${data.estado})`);
+    if (match.estado !== 'habilitado') {
+      setJugadorError('El jugador no está habilitado, no puede ser delegado');
       return;
     }
-    if (!data.equipo_id) {
-      setJugadorError(`El jugador ${data.apellido}, ${data.nombre} no tiene equipo asignado`);
+    if ((match.suspendido_fechas || 0) > 0) {
+      setJugadorError(`Jugador suspendido (${match.suspendido_fechas} fecha${match.suspendido_fechas !== 1 ? 's' : ''}), no puede ser delegado`);
+      return;
+    }
+    if (!match.equipo_id) {
+      setJugadorError('Jugador sin club asignado, no se puede vincular');
       return;
     }
 
-    setJugadorFound(data);
+    setJugadorFound(match);
   };
 
   const createMutation = useMutation({
