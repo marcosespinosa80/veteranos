@@ -302,6 +302,10 @@ export default function NuevoUsuarioWizard({ open, onOpenChange }: Props) {
                     <span className="text-muted-foreground">Equipo: </span>
                     <span className="font-medium">{jugadorFound.equipo?.nombre_equipo || '—'}</span>
                   </div>
+                  <div className="text-sm">
+                    <span className="text-muted-foreground">Categoría: </span>
+                    <span className="font-medium">{jugadorFound.categoria?.nombre_categoria || '—'}</span>
+                  </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
