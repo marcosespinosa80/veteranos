@@ -172,10 +172,10 @@ export default function EditarUsuarioDialog({ open, onOpenChange, user }: Props)
             <section className="space-y-4">
               <h3 className="text-sm font-semibold border-b pb-1">Vinculación de Delegado</h3>
               <div className="flex gap-2">
-                <Input
+                <DniInput
                   placeholder="DNI del jugador"
                   value={dniSearch}
-                  onChange={(e) => { setDniSearch(e.target.value); setJugadorFound(null); setJugadorError(''); setVinculado(false); }}
+                  onChange={(v) => { setDniSearch(v); setJugadorFound(null); setJugadorError(''); setVinculado(false); }}
                   onKeyDown={(e) => e.key === 'Enter' && searchJugador()}
                 />
                 <Button variant="outline" onClick={searchJugador} disabled={searching || !dniSearch.trim()}>
