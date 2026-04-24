@@ -69,24 +69,6 @@ export default function Carnets() {
     onError: (err: Error) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
   });
 
-  const renewMutation = useMutation({
-    mutationFn: async (carnetId: string) => {
-      const hoy = new Date();
-      const hasta = new Date(hoy.getFullYear() + 1, hoy.getMonth(), hoy.getDate());
-      const { error } = await supabase.from('carnets').update({
-        vigencia_desde: hoy.toISOString().slice(0, 10),
-        vigencia_hasta: hasta.toISOString().slice(0, 10),
-        estado: 'activo',
-      }).eq('id', carnetId);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['carnets-jugadores'] });
-      toast({ title: 'Vigencia renovada' });
-    },
-    onError: (err: Error) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
-  });
-
   const bulkGenerateMutation = useMutation({
     mutationFn: async () => {
       const { data: habilitados, error: hErr } = await supabase
