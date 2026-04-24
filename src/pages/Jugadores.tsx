@@ -351,6 +351,8 @@ export default function Jugadores() {
   };
 
   // ── Submit handler ──
+  const editingPlayer = editingId ? jugadores.find((j: any) => j.id === editingId) : null;
+  const editingClubInactivo = editingPlayer?.equipo?.estado === 'inactivo';
   const fotoRequired = !editingId && !fotoFile && !fotoPreview;
   const handleSubmit = () => {
     setTouched({ nombre: true, apellido: true, dni: true, fecha_nacimiento: true, telefono_area: true, telefono_numero: true });
@@ -359,7 +361,9 @@ export default function Jugadores() {
       return;
     }
     if (hasErrors) return;
-    saveMutation.mutate({ ...form, id: editingId || undefined });
+    // Force activo_club=false if club is inactive
+    const payload = editingClubInactivo ? { ...form, activo_club: false } : form;
+    saveMutation.mutate({ ...payload, id: editingId || undefined });
   };
 
   return (
