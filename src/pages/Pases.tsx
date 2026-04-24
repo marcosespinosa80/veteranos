@@ -496,7 +496,24 @@ export default function Pases() {
           </DialogHeader>
           {selectedPase && (
             <div className="space-y-3 text-sm">
-              <div className="grid grid-cols-2 gap-2">
+              {selectedPase.estado === 'observado' && selectedPase.motivo_observacion && (
+                <div className="rounded-md border border-warning/40 bg-warning/10 p-3 text-sm flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-warning" />
+                  <div>
+                    <p className="font-semibold text-warning">Motivo de observación</p>
+                    <p>{selectedPase.motivo_observacion}</p>
+                  </div>
+                </div>
+              )}
+              {selectedPase.estado === 'rechazado' && selectedPase.motivo_rechazo && (
+                <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm flex items-start gap-2">
+                  <XCircle className="w-4 h-4 mt-0.5 shrink-0 text-destructive" />
+                  <div>
+                    <p className="font-semibold text-destructive">Motivo de rechazo</p>
+                    <p>{selectedPase.motivo_rechazo}</p>
+                  </div>
+                </div>
+              )}
                 <div>
                   <p className="text-muted-foreground">Jugador</p>
                   <p className="font-medium">{selectedPase.jugador?.apellido}, {selectedPase.jugador?.nombre}</p>
