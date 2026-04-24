@@ -362,10 +362,10 @@ export default function Pases() {
             <div className="space-y-2">
               <Label>1. Buscar Jugador por DNI *</Label>
               <div className="flex gap-2">
-                <Input
-                  placeholder="Ej: 26187534"
+                <DniInput
+                  placeholder="28.404.402"
                   value={createForm.dni}
-                  onChange={(e) => setCreateForm({ ...createForm, dni: e.target.value })}
+                  onChange={(v) => setCreateForm({ ...createForm, dni: v })}
                   onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); buscarJugador(); } }}
                 />
                 <Button type="button" variant="outline" onClick={buscarJugador}>
