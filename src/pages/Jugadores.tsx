@@ -119,6 +119,7 @@ function validateForm(form: JugadorForm): FormErrors {
 export default function Jugadores() {
   const { role, user, loading, profile } = useAuth();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [filterEquipo, setFilterEquipo] = useState<string>('all');
   const [filterCategoria, setFilterCategoria] = useState<string>('all');
