@@ -428,9 +428,19 @@ export default function Jugadores() {
               <TableBody>
                 {filtered.map((j: any) => {
                   const deportivo = getEstadoDeportivo(j);
+                  const clubInactivo = j.equipo?.estado === 'inactivo';
                   return (
-                    <TableRow key={j.id}>
-                      <TableCell className="font-medium">{j.apellido}, {j.nombre}</TableCell>
+                    <TableRow key={j.id} className={clubInactivo ? 'bg-destructive/5' : ''}>
+                      <TableCell className="font-medium">
+                        <div className="flex flex-col">
+                          <span>{j.apellido}, {j.nombre}</span>
+                          {clubInactivo && (
+                            <Badge variant="outline" className="bg-destructive/15 text-destructive border-destructive/30 text-[10px] mt-1 w-fit">
+                              <AlertTriangle className="w-3 h-3 mr-1" /> CLUB DADO DE BAJA
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell className="hidden sm:table-cell text-muted-foreground">{j.dni}</TableCell>
                       <TableCell className="hidden md:table-cell text-sm">{j.equipo?.nombre_equipo || '—'}</TableCell>
                       <TableCell className="hidden lg:table-cell text-sm">{j.categoria?.nombre_categoria || '—'}</TableCell>
@@ -443,24 +453,37 @@ export default function Jugadores() {
                         </Badge>
                       </TableCell>
                       <TableCell className="hidden sm:table-cell">
-                        <Badge variant="outline" className={j.activo_club
+                        <Badge variant="outline" className={(j.activo_club && !clubInactivo)
                           ? 'bg-primary/15 text-primary border-primary/30 text-xs'
                           : 'bg-destructive/15 text-destructive border-destructive/30 text-xs'
                         }>
-                          {j.activo_club ? 'ACTIVO' : 'INACTIVO'}
+                          {clubInactivo ? 'INACTIVO (CLUB)' : (j.activo_club ? 'ACTIVO' : 'INACTIVO')}
                         </Badge>
                       </TableCell>
                       <TableCell className="hidden sm:table-cell">
-                        {j.es_delegado ? (
+                        {j.es_delegado && !clubInactivo ? (
                           <Badge variant="outline" className="bg-accent/15 text-accent-foreground border-accent/30 text-xs">
                             Delegado
                           </Badge>
                         ) : '—'}
                       </TableCell>
                       <TableCell>
-                        <Button size="icon" variant="ghost" onClick={() => openEdit(j)}>
-                          <Pencil className="w-4 h-4" />
-                        </Button>
+                        <div className="flex gap-1">
+                          {clubInactivo && (isAdmin || isDelegado) && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-[11px]"
+                              onClick={() => navigate(`/pases?jugador=${j.id}`)}
+                              title="Iniciar pase a otro club"
+                            >
+                              <ArrowRightLeft className="w-3 h-3 mr-1" /> Pase
+                            </Button>
+                          )}
+                          <Button size="icon" variant="ghost" onClick={() => openEdit(j)}>
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
