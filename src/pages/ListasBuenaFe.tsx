@@ -415,24 +415,42 @@ export default function ListasBuenaFe() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {listaItems.map((item: any) => (
-                      <TableRow key={item.id}>
-                        <TableCell className="text-sm">{item.jugador?.apellido}, {item.jugador?.nombre}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{item.jugador?.dni}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={item.estado_item === 'incluido' ? 'bg-primary/15 text-primary border-primary/30 text-xs' : 'text-xs'}>
-                            {item.estado_item}
-                          </Badge>
-                        </TableCell>
-                        {canEdit && (
+                    {listaItems.map((item: any) => {
+                      const susp = item.jugador?.suspendido_fechas ?? 0;
+                      const noApto = susp > 0 || item.tiene_deuda;
+                      return (
+                        <TableRow key={item.id} className={noApto ? 'bg-destructive/5' : ''}>
+                          <TableCell className="text-sm">{item.jugador?.apellido}, {item.jugador?.nombre}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{item.jugador?.dni}</TableCell>
                           <TableCell>
-                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => removeItemMutation.mutate(item.id)}>
-                              <XCircle className="w-4 h-4 text-destructive" />
-                            </Button>
+                            <div className="flex flex-wrap gap-1">
+                              {susp > 0 && (
+                                <Badge variant="outline" className="bg-destructive/15 text-destructive border-destructive/30 text-xs">
+                                  SUSPENDIDO ({susp})
+                                </Badge>
+                              )}
+                              {item.tiene_deuda && (
+                                <Badge variant="outline" className="bg-destructive/15 text-destructive border-destructive/30 text-xs">
+                                  CON DEUDA
+                                </Badge>
+                              )}
+                              {!noApto && (
+                                <Badge variant="outline" className="bg-primary/15 text-primary border-primary/30 text-xs">
+                                  HABILITADO
+                                </Badge>
+                              )}
+                            </div>
                           </TableCell>
-                        )}
-                      </TableRow>
-                    ))}
+                          {canEdit && (
+                            <TableCell>
+                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => removeItemMutation.mutate(item.id)}>
+                                <XCircle className="w-4 h-4 text-destructive" />
+                              </Button>
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
