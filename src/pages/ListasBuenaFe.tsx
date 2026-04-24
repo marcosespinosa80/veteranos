@@ -335,7 +335,7 @@ export default function ListasBuenaFe() {
                     <TableCell>
                       <div className="flex items-center gap-1">
                         <Badge variant="outline" className={estadoColors[l.estado] || ''}>
-                          {estadoLabels[l.estado] || l.estado}
+                          {l.estado === 'aprobada' || l.cerrada ? 'APROBADA (CONGELADA)' : (estadoLabels[l.estado] || l.estado)}
                         </Badge>
                         {(l.estado === 'observada' && l.motivo_observacion) && (
                           <AlertCircle className="w-3.5 h-3.5 text-warning" aria-label={l.motivo_observacion}>
