@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { Plus, Eye, Search, ArrowRightLeft, CheckCircle, XCircle, AlertCircle, DollarSign, AlertTriangle } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
@@ -50,6 +51,7 @@ export default function Pases() {
   const [jugadorEncontrado, setJugadorEncontrado] = useState<any>(null);
   const [searchError, setSearchError] = useState<string>('');
   const [montoRegistro, setMontoRegistro] = useState('');
+  const [motivoDialog, setMotivoDialog] = useState<{ open: boolean; estado: 'observado' | 'rechazado' | null; paseId: string | null; texto: string }>({ open: false, estado: null, paseId: null, texto: '' });
   const isAdmin = role === 'admin_general' || role === 'admin_comun';
 
   const { data: pases = [], isLoading } = useQuery({
@@ -333,9 +335,21 @@ export default function Pases() {
                       {p.monto ? `$${Number(p.monto).toLocaleString('es-AR')}` : '—'}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={estadoColors[p.estado] || ''}>
-                        {estadoLabels[p.estado] || p.estado}
-                      </Badge>
+                      <div className="flex items-center gap-1">
+                        <Badge variant="outline" className={estadoColors[p.estado] || ''}>
+                          {estadoLabels[p.estado] || p.estado}
+                        </Badge>
+                        {p.estado === 'observado' && p.motivo_observacion && (
+                          <AlertCircle className="w-4 h-4 text-warning" aria-label={p.motivo_observacion}>
+                            <title>{p.motivo_observacion}</title>
+                          </AlertCircle>
+                        )}
+                        {p.estado === 'rechazado' && p.motivo_rechazo && (
+                          <XCircle className="w-4 h-4 text-destructive" aria-label={p.motivo_rechazo}>
+                            <title>{p.motivo_rechazo}</title>
+                          </XCircle>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Button size="icon" variant="ghost" onClick={() => openDetail(p)}>
@@ -482,6 +496,24 @@ export default function Pases() {
           </DialogHeader>
           {selectedPase && (
             <div className="space-y-3 text-sm">
+              {selectedPase.estado === 'observado' && selectedPase.motivo_observacion && (
+                <div className="rounded-md border border-warning/40 bg-warning/10 p-3 text-sm flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-warning" />
+                  <div>
+                    <p className="font-semibold text-warning">Motivo de observación</p>
+                    <p>{selectedPase.motivo_observacion}</p>
+                  </div>
+                </div>
+              )}
+              {selectedPase.estado === 'rechazado' && selectedPase.motivo_rechazo && (
+                <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm flex items-start gap-2">
+                  <XCircle className="w-4 h-4 mt-0.5 shrink-0 text-destructive" />
+                  <div>
+                    <p className="font-semibold text-destructive">Motivo de rechazo</p>
+                    <p>{selectedPase.motivo_rechazo}</p>
+                  </div>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <p className="text-muted-foreground">Jugador</p>
@@ -541,10 +573,10 @@ export default function Pases() {
                       <Button size="sm" className="gap-1" onClick={() => changeEstadoMutation.mutate({ id: selectedPase.id, estado: 'aprobado' })} disabled={changeEstadoMutation.isPending}>
                         <CheckCircle className="w-4 h-4" /> Aprobar
                       </Button>
-                      <Button size="sm" variant="outline" className="gap-1" onClick={() => changeEstadoMutation.mutate({ id: selectedPase.id, estado: 'observado' })} disabled={changeEstadoMutation.isPending}>
+                      <Button size="sm" variant="outline" className="gap-1" onClick={() => setMotivoDialog({ open: true, estado: 'observado', paseId: selectedPase.id, texto: '' })} disabled={changeEstadoMutation.isPending}>
                         <AlertCircle className="w-4 h-4" /> Observar
                       </Button>
-                      <Button size="sm" variant="destructive" className="gap-1" onClick={() => changeEstadoMutation.mutate({ id: selectedPase.id, estado: 'rechazado' })} disabled={changeEstadoMutation.isPending}>
+                      <Button size="sm" variant="destructive" className="gap-1" onClick={() => setMotivoDialog({ open: true, estado: 'rechazado', paseId: selectedPase.id, texto: '' })} disabled={changeEstadoMutation.isPending}>
                         <XCircle className="w-4 h-4" /> Rechazar
                       </Button>
                     </div>
@@ -599,6 +631,54 @@ export default function Pases() {
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setDetailOpen(false)}>Cerrar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Motivo Dialog (Observar / Rechazar) */}
+      <Dialog open={motivoDialog.open} onOpenChange={(o) => setMotivoDialog((s) => ({ ...s, open: o, ...(o ? {} : { texto: '', estado: null, paseId: null }) }))}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {motivoDialog.estado === 'observado' ? 'Observar Pase' : 'Rechazar Pase'}
+            </DialogTitle>
+            <DialogDescription>
+              Indicá el motivo (obligatorio, máx. 50 caracteres). El delegado podrá verlo.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>Motivo *</Label>
+            <Textarea
+              value={motivoDialog.texto}
+              onChange={(e) => setMotivoDialog((s) => ({ ...s, texto: e.target.value.slice(0, 50) }))}
+              maxLength={50}
+              placeholder={motivoDialog.estado === 'observado' ? 'Ej: Falta firma del delegado' : 'Ej: Documentación inválida'}
+              rows={3}
+            />
+            <p className={`text-xs text-right ${motivoDialog.texto.length > 50 ? 'text-destructive' : 'text-muted-foreground'}`}>
+              {motivoDialog.texto.length}/50
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMotivoDialog({ open: false, estado: null, paseId: null, texto: '' })}>
+              Cancelar
+            </Button>
+            <Button
+              variant={motivoDialog.estado === 'rechazado' ? 'destructive' : 'default'}
+              disabled={!motivoDialog.texto.trim() || motivoDialog.texto.length > 50 || changeEstadoMutation.isPending}
+              onClick={() => {
+                if (!motivoDialog.paseId || !motivoDialog.estado) return;
+                const extra = motivoDialog.estado === 'observado'
+                  ? { motivo_observacion: motivoDialog.texto.trim() }
+                  : { motivo_rechazo: motivoDialog.texto.trim() };
+                changeEstadoMutation.mutate(
+                  { id: motivoDialog.paseId, estado: motivoDialog.estado, extra },
+                  { onSuccess: () => setMotivoDialog({ open: false, estado: null, paseId: null, texto: '' }) }
+                );
+              }}
+            >
+              {motivoDialog.estado === 'observado' ? 'Confirmar Observación' : 'Confirmar Rechazo'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

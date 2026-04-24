@@ -648,6 +648,8 @@ export type Database = {
           iniciado_por: string
           jugador_id: string
           monto: number | null
+          motivo_observacion: string | null
+          motivo_rechazo: string | null
           pago_registrado: boolean
           recibo_url: string | null
           revisado_por: string | null
@@ -667,6 +669,8 @@ export type Database = {
           iniciado_por: string
           jugador_id: string
           monto?: number | null
+          motivo_observacion?: string | null
+          motivo_rechazo?: string | null
           pago_registrado?: boolean
           recibo_url?: string | null
           revisado_por?: string | null
@@ -686,6 +690,8 @@ export type Database = {
           iniciado_por?: string
           jugador_id?: string
           monto?: number | null
+          motivo_observacion?: string | null
+          motivo_rechazo?: string | null
           pago_registrado?: boolean
           recibo_url?: string | null
           revisado_por?: string | null
