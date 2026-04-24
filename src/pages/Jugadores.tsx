@@ -11,7 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Pencil, Search, Filter, Upload, X, User } from 'lucide-react';
+import { Plus, Pencil, Search, Filter, Upload, X, User, Camera } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 // ── Helpers ──
