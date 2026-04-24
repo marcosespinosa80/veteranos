@@ -45,7 +45,26 @@ export default function ListasBuenaFe() {
   const [createForm, setCreateForm] = useState({ equipo_id: '', categoria_id: '' });
   const [selectedJugadores, setSelectedJugadores] = useState<string[]>([]);
   const [observacion, setObservacion] = useState('');
+  const [motivoDialog, setMotivoDialog] = useState<{ open: boolean; estado: 'observada' | 'rechazada' | null }>({ open: false, estado: null });
+  const [motivo, setMotivo] = useState('');
   const isAdmin = role === 'admin_general' || role === 'admin_comun';
+
+  const openMotivoDialog = (estado: 'observada' | 'rechazada') => {
+    setMotivo('');
+    setMotivoDialog({ open: true, estado });
+  };
+
+  const confirmMotivo = () => {
+    const trimmed = motivo.trim();
+    if (!trimmed || trimmed.length > 50 || !motivoDialog.estado || !selectedLista) return;
+    const extra: Record<string, any> = motivoDialog.estado === 'observada'
+      ? { motivo_observacion: trimmed, motivo_rechazo: null }
+      : { motivo_rechazo: trimmed, motivo_observacion: null };
+    changeEstadoMutation.mutate(
+      { id: selectedLista.id, estado: motivoDialog.estado, extra },
+      { onSuccess: () => setMotivoDialog({ open: false, estado: null }) }
+    );
+  };
 
   const { data: listas = [], isLoading } = useQuery({
     queryKey: ['listas-buena-fe'],
