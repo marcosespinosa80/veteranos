@@ -10,6 +10,7 @@ import DashboardPage from "./pages/DashboardPage";
 import EquiposPage from "./pages/EquiposPage";
 import JugadoresPage from "./pages/JugadoresPage";
 import ListasBuenaFePage from "./pages/ListasBuenaFePage";
+import ListaBuenaFePdf from "./pages/ListaBuenaFePdf";
 import PasesPage from "./pages/PasesPage";
 import BoletinesPublicPage from "./pages/BoletinesPublicPage";
 import BoletinesAdminPage from "./pages/BoletinesAdminPage";
