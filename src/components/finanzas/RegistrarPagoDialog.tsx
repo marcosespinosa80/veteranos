@@ -194,10 +194,10 @@ export function RegistrarPagoDialog({ open, onOpenChange }: Props) {
           {targetType === 'jugador' ? (
             <div className="space-y-2">
               <Label>Buscar por DNI</Label>
-              <Input
-                placeholder="Ej: 30123456"
+              <DniInput
+                placeholder="28.404.402"
                 value={searchDni}
-                onChange={(e) => setSearchDni(e.target.value)}
+                onChange={(v) => setSearchDni(v)}
               />
               {jugadorFound && (
                 <p className="text-sm text-green-600 font-medium">
