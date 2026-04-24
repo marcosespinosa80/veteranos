@@ -80,7 +80,13 @@ export default function Equipos() {
     },
     onSuccess: (nuevo) => {
       queryClient.invalidateQueries({ queryKey: ['equipos'] });
-      toast({ title: `Club ${nuevo === 'activo' ? 'activado' : 'desactivado'}` });
+      queryClient.invalidateQueries({ queryKey: ['jugadores'] });
+      queryClient.invalidateQueries({ queryKey: ['jugador-counts'] });
+      toast({
+        title: nuevo === 'inactivo'
+          ? 'Club dado de baja. Jugadores marcados como inactivos.'
+          : 'Club activado',
+      });
       setToggleTarget(null);
     },
     onError: (err: Error) => {
