@@ -592,13 +592,11 @@ export default function Jugadores() {
             {/* DNI */}
             <div className="space-y-1">
               <Label htmlFor="dni">DNI *</Label>
-              <Input
+              <DniInput
                 id="dni"
                 value={form.dni}
-                onChange={(e) => setForm({ ...form, dni: formatDni(e.target.value) })}
+                onChange={(v) => setForm({ ...form, dni: v })}
                 onBlur={() => setTouched({ ...touched, dni: true })}
-                placeholder="28.404.402"
-                maxLength={10}
               />
               <FieldError field="dni" />
             </div>
