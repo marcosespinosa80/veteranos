@@ -51,6 +51,9 @@ const App = () => (
             <Route path="/listas-buena-fe" element={
               <ProtectedRoute><ListasBuenaFePage /></ProtectedRoute>
             } />
+            <Route path="/listas-buena-fe/:id/pdf" element={
+              <ProtectedRoute><ListaBuenaFePdf /></ProtectedRoute>
+            } />
             <Route path="/pases" element={
               <ProtectedRoute><PasesPage /></ProtectedRoute>
             } />
