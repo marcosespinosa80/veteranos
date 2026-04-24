@@ -417,6 +417,25 @@ export default function ListasBuenaFe() {
             </DialogDescription>
           </DialogHeader>
 
+          {selectedLista?.estado === 'observada' && selectedLista?.motivo_observacion && (
+            <div className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/10 p-3 text-sm">
+              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-warning" />
+              <div>
+                <p className="font-medium text-warning">Motivo de la observación</p>
+                <p className="text-xs mt-0.5 text-foreground">{selectedLista.motivo_observacion}</p>
+              </div>
+            </div>
+          )}
+          {selectedLista?.estado === 'rechazada' && selectedLista?.motivo_rechazo && (
+            <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm">
+              <XCircle className="w-4 h-4 mt-0.5 shrink-0 text-destructive" />
+              <div>
+                <p className="font-medium text-destructive">Motivo del rechazo</p>
+                <p className="text-xs mt-0.5 text-foreground">{selectedLista.motivo_rechazo}</p>
+              </div>
+            </div>
+          )}
+
           {/* Current items */}
           <div className="space-y-3">
             <h4 className="text-sm font-medium">Jugadores en la lista ({listaItems.length})</h4>
