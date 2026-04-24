@@ -523,14 +523,30 @@ export default function ListasBuenaFe() {
             </div>
           )}
 
+          {/* Aviso si hay jugadores no aptos en la lista */}
+          {canEdit && itemsNoAptos.length > 0 && (
+            <div className="border-t pt-3">
+              <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                <div>
+                  <p className="font-medium">No se puede enviar la lista</p>
+                  <p className="text-xs mt-0.5">
+                    Hay {itemsNoAptos.length} jugador{itemsNoAptos.length !== 1 ? 'es' : ''} suspendido{itemsNoAptos.length !== 1 ? 's' : ''} o con deuda. Eliminalos o regularizá su situación antes de enviar.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Actions */}
           <DialogFooter className="flex-col sm:flex-row gap-2">
             {/* Delegado/Admin: send borrador */}
             {(isBorrador || isObservada) && listaItems.length > 0 && (
               <Button
-                onClick={() => changeEstadoMutation.mutate({ id: selectedLista.id, estado: 'enviada' })}
-                disabled={changeEstadoMutation.isPending}
+                onClick={handleEnviar}
+                disabled={changeEstadoMutation.isPending || !puedeEnviar}
                 className="gap-1"
+                title={!puedeEnviar ? 'Hay jugadores suspendidos o con deuda' : undefined}
               >
                 <Send className="w-4 h-4" /> Enviar para aprobación
               </Button>
