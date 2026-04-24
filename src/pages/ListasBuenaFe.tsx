@@ -224,10 +224,27 @@ export default function ListasBuenaFe() {
   });
 
   const jugadoresYaEnLista = new Set(listaItems.map((i: any) => i.jugador_id));
-  const jugadoresParaAgregar = jugadoresDisponibles.filter((j: any) => !jugadoresYaEnLista.has(j.id));
+  const jugadoresEnEquipo = jugadoresDisponibles.filter((j: any) => !jugadoresYaEnLista.has(j.id));
+  const jugadoresAptos = jugadoresEnEquipo.filter((j: any) => (j.suspendido_fechas ?? 0) === 0 && !j.tiene_deuda);
+  const jugadoresBloqueados = jugadoresEnEquipo.filter((j: any) => (j.suspendido_fechas ?? 0) > 0 || j.tiene_deuda);
+  const jugadoresParaAgregar = jugadoresAptos;
   const isBorrador = selectedLista?.estado === 'borrador';
   const isObservada = selectedLista?.estado === 'observada';
   const canEdit = isBorrador || isObservada;
+  const itemsNoAptos = listaItems.filter((i: any) => (i.jugador?.suspendido_fechas ?? 0) > 0 || i.tiene_deuda);
+  const puedeEnviar = listaItems.length > 0 && itemsNoAptos.length === 0;
+
+  const handleEnviar = () => {
+    if (itemsNoAptos.length > 0) {
+      toast({
+        title: 'No se puede enviar la lista',
+        description: 'Hay jugadores suspendidos o con deuda. Eliminarlos o regularizar antes de enviar.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    changeEstadoMutation.mutate({ id: selectedLista.id, estado: 'enviada' });
+  };
 
   return (
     <div className="space-y-4">
