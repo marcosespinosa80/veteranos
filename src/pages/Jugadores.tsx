@@ -11,7 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Pencil, Search, Filter, Upload, X, User } from 'lucide-react';
+import { Plus, Pencil, Search, Filter, Upload, X, User, Camera } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 // ── Helpers ──
@@ -128,6 +128,7 @@ export default function Jugadores() {
   const [fotoFile, setFotoFile] = useState<File | null>(null);
   const [fotoPreview, setFotoPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const isAdmin = role === 'admin_general' || role === 'admin_comun';
   const isDelegado = role === 'delegado';
   const canEditEstado = isAdmin || role === 'tribunal';
@@ -194,8 +195,39 @@ export default function Jugadores() {
     return `${urlData.publicUrl}?t=${Date.now()}`;
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const resizeImage = (file: File, maxSize = 800): Promise<File> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        let { width, height } = img;
+        if (width <= maxSize && height <= maxSize) {
+          resolve(file);
+          return;
+        }
+        const ratio = Math.min(maxSize / width, maxSize / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { resolve(file); return; }
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob((blob) => {
+          if (!blob) { resolve(file); return; }
+          resolve(new File([blob], file.name.replace(/\.\w+$/, '.jpg'), { type: 'image/jpeg' }));
+        }, 'image/jpeg', 0.85);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+      img.src = url;
+    });
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
     if (!file.type.startsWith('image/')) {
       toast({ title: 'Solo se permiten imágenes', variant: 'destructive' });
@@ -205,8 +237,9 @@ export default function Jugadores() {
       toast({ title: 'La imagen no puede superar 5 MB', variant: 'destructive' });
       return;
     }
-    setFotoFile(file);
-    setFotoPreview(URL.createObjectURL(file));
+    const resized = await resizeImage(file, 800);
+    setFotoFile(resized);
+    setFotoPreview(URL.createObjectURL(resized));
   };
 
   // ── Save ──
@@ -451,15 +484,21 @@ export default function Jugadores() {
             </div>
             <div className="space-y-2">
               <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleFileChange} />
-              <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
-                <Upload className="w-3 h-3 mr-1" /> {fotoPreview ? 'Cambiar foto' : 'Subir foto'}
-              </Button>
-              {fotoFile && (
-                <Button type="button" variant="ghost" size="sm" onClick={() => { setFotoFile(null); setFotoPreview(editingId ? (jugadores.find((j: any) => j.id === editingId)?.foto_url || null) : null); }}>
-                  <X className="w-3 h-3 mr-1" /> Quitar
+              <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => cameraInputRef.current?.click()}>
+                  <Camera className="w-3 h-3 mr-1" /> Sacar foto
                 </Button>
-              )}
-              <p className="text-xs text-muted-foreground">JPG o PNG, máx 5 MB</p>
+                <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+                  <Upload className="w-3 h-3 mr-1" /> {fotoPreview ? 'Cambiar foto' : 'Subir foto'}
+                </Button>
+                {fotoFile && (
+                  <Button type="button" variant="ghost" size="sm" onClick={() => { setFotoFile(null); setFotoPreview(editingId ? (jugadores.find((j: any) => j.id === editingId)?.foto_url || null) : null); }}>
+                    <X className="w-3 h-3 mr-1" /> Quitar
+                  </Button>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">JPG o PNG, máx 5 MB. En celular se abre la cámara.</p>
             </div>
           </div>
 
