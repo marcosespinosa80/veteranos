@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -10,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Eye, Send, CheckCircle, XCircle, ClipboardList, Search, AlertCircle } from 'lucide-react';
+import { Plus, Eye, Send, CheckCircle, XCircle, ClipboardList, Search, AlertCircle, FileDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
@@ -33,6 +34,7 @@ const estadoLabels: Record<string, string> = {
 
 export default function ListasBuenaFe() {
   const { user, role } = useAuth();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [filterEquipo, setFilterEquipo] = useState<string>('all');
@@ -270,9 +272,21 @@ export default function ListasBuenaFe() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Button size="icon" variant="ghost" onClick={() => openDetail(l)}>
-                        <Eye className="w-4 h-4" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        {l.estado === 'aprobada' && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            title="Descargar PDF"
+                            onClick={(e) => { e.stopPropagation(); window.open(`/listas-buena-fe/${l.id}/pdf`, '_blank'); }}
+                          >
+                            <FileDown className="w-4 h-4 text-primary" />
+                          </Button>
+                        )}
+                        <Button size="icon" variant="ghost" onClick={() => openDetail(l)} title="Ver detalle">
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -447,6 +461,16 @@ export default function ListasBuenaFe() {
                   <XCircle className="w-4 h-4" /> Rechazar
                 </Button>
               </>
+            )}
+
+            {selectedLista?.estado === 'aprobada' && (
+              <Button
+                variant="default"
+                className="gap-1"
+                onClick={() => window.open(`/listas-buena-fe/${selectedLista.id}/pdf`, '_blank')}
+              >
+                <FileDown className="w-4 h-4" /> Descargar PDF
+              </Button>
             )}
 
             <Button variant="outline" onClick={() => setDetailOpen(false)}>Cerrar</Button>

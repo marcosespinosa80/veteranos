@@ -10,6 +10,7 @@ import DashboardPage from "./pages/DashboardPage";
 import EquiposPage from "./pages/EquiposPage";
 import JugadoresPage from "./pages/JugadoresPage";
 import ListasBuenaFePage from "./pages/ListasBuenaFePage";
+import ListaBuenaFePdf from "./pages/ListaBuenaFePdf";
 import PasesPage from "./pages/PasesPage";
 import BoletinesPublicPage from "./pages/BoletinesPublicPage";
 import BoletinesAdminPage from "./pages/BoletinesAdminPage";
@@ -49,6 +50,9 @@ const App = () => (
             } />
             <Route path="/listas-buena-fe" element={
               <ProtectedRoute><ListasBuenaFePage /></ProtectedRoute>
+            } />
+            <Route path="/listas-buena-fe/:id/pdf" element={
+              <ProtectedRoute><ListaBuenaFePdf /></ProtectedRoute>
             } />
             <Route path="/pases" element={
               <ProtectedRoute><PasesPage /></ProtectedRoute>
