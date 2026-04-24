@@ -195,8 +195,39 @@ export default function Jugadores() {
     return `${urlData.publicUrl}?t=${Date.now()}`;
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const resizeImage = (file: File, maxSize = 800): Promise<File> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        let { width, height } = img;
+        if (width <= maxSize && height <= maxSize) {
+          resolve(file);
+          return;
+        }
+        const ratio = Math.min(maxSize / width, maxSize / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { resolve(file); return; }
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob((blob) => {
+          if (!blob) { resolve(file); return; }
+          resolve(new File([blob], file.name.replace(/\.\w+$/, '.jpg'), { type: 'image/jpeg' }));
+        }, 'image/jpeg', 0.85);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+      img.src = url;
+    });
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file) return;
     if (!file.type.startsWith('image/')) {
       toast({ title: 'Solo se permiten imágenes', variant: 'destructive' });
@@ -206,8 +237,9 @@ export default function Jugadores() {
       toast({ title: 'La imagen no puede superar 5 MB', variant: 'destructive' });
       return;
     }
-    setFotoFile(file);
-    setFotoPreview(URL.createObjectURL(file));
+    const resized = await resizeImage(file, 800);
+    setFotoFile(resized);
+    setFotoPreview(URL.createObjectURL(resized));
   };
 
   // ── Save ──
