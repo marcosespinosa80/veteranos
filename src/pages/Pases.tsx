@@ -51,6 +51,7 @@ export default function Pases() {
   const [jugadorEncontrado, setJugadorEncontrado] = useState<any>(null);
   const [searchError, setSearchError] = useState<string>('');
   const [montoRegistro, setMontoRegistro] = useState('');
+  const [motivoDialog, setMotivoDialog] = useState<{ open: boolean; estado: 'observado' | 'rechazado' | null; paseId: string | null; texto: string }>({ open: false, estado: null, paseId: null, texto: '' });
   const isAdmin = role === 'admin_general' || role === 'admin_comun';
 
   const { data: pases = [], isLoading } = useQuery({
