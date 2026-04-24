@@ -249,7 +249,8 @@ export default function ListasBuenaFe() {
   const jugadoresParaAgregar = jugadoresAptos;
   const isBorrador = selectedLista?.estado === 'borrador';
   const isObservada = selectedLista?.estado === 'observada';
-  const canEdit = isBorrador || isObservada;
+  const isCongelada = selectedLista?.estado === 'aprobada' || selectedLista?.cerrada === true;
+  const canEdit = (isBorrador || isObservada) && !isCongelada;
   const itemsNoAptos = listaItems.filter((i: any) => (i.jugador?.suspendido_fechas ?? 0) > 0 || i.tiene_deuda);
   const puedeEnviar = listaItems.length > 0 && itemsNoAptos.length === 0;
 
