@@ -272,9 +272,21 @@ export default function ListasBuenaFe() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Button size="icon" variant="ghost" onClick={() => openDetail(l)}>
-                        <Eye className="w-4 h-4" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        {l.estado === 'aprobada' && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            title="Descargar PDF"
+                            onClick={(e) => { e.stopPropagation(); window.open(`/listas-buena-fe/${l.id}/pdf`, '_blank'); }}
+                          >
+                            <FileDown className="w-4 h-4 text-primary" />
+                          </Button>
+                        )}
+                        <Button size="icon" variant="ghost" onClick={() => openDetail(l)} title="Ver detalle">
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
