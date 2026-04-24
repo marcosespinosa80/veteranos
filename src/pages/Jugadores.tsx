@@ -665,10 +665,13 @@ export default function Jugadores() {
                 <Label>Activo (Club)</Label>
                 <div className="flex items-center gap-3 h-10">
                   <Switch
-                    checked={form.activo_club}
+                    checked={editingClubInactivo ? false : form.activo_club}
+                    disabled={editingClubInactivo}
                     onCheckedChange={(v) => setForm({ ...form, activo_club: v })}
                   />
-                  <span className="text-sm">{form.activo_club ? 'Activo' : 'Inactivo'}</span>
+                  <span className="text-sm">
+                    {editingClubInactivo ? 'Inactivo (club dado de baja)' : (form.activo_club ? 'Activo' : 'Inactivo')}
+                  </span>
                 </div>
               </div>
             )}
