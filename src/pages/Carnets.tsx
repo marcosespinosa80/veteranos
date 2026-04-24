@@ -50,13 +50,9 @@ export default function Carnets() {
   const generateMutation = useMutation({
     mutationFn: async (jugador: { id: string; dni: string }) => {
       const codigo = `LVFC-${jugador.dni.replace(/\D/g, '')}`;
-      const hoy = new Date();
-      const hasta = new Date(hoy.getFullYear() + 1, hoy.getMonth(), hoy.getDate());
       const { error } = await supabase.from('carnets').insert({
         jugador_id: jugador.id,
         codigo,
-        vigencia_desde: hoy.toISOString().slice(0, 10),
-        vigencia_hasta: hasta.toISOString().slice(0, 10),
         estado: 'activo',
       });
       if (error) {
