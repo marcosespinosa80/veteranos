@@ -682,7 +682,7 @@ export default function Jugadores() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSubmit} disabled={saveMutation.isPending}>
+            <Button onClick={handleSubmit} disabled={saveMutation.isPending || fotoRequired}>
               {saveMutation.isPending ? 'Guardando...' : 'Guardar'}
             </Button>
           </DialogFooter>
