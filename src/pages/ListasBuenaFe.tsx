@@ -449,6 +449,18 @@ export default function ListasBuenaFe() {
             </div>
           )}
 
+          {isCongelada && (
+            <div className="flex items-start gap-2 rounded-md border border-primary/30 bg-primary/10 p-3 text-sm">
+              <CheckCircle className="w-4 h-4 mt-0.5 shrink-0 text-primary" />
+              <div>
+                <p className="font-medium text-primary">LISTA APROBADA — CONGELADA</p>
+                <p className="text-xs mt-0.5 text-foreground">
+                  No se puede modificar hasta finalizar el campeonato. Para el próximo torneo se debe crear una nueva lista.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Current items */}
           <div className="space-y-3">
             <h4 className="text-sm font-medium">Jugadores en la lista ({listaItems.length})</h4>
