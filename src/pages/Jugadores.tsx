@@ -508,6 +508,25 @@ export default function Jugadores() {
             </DialogDescription>
           </DialogHeader>
 
+          {editingClubInactivo && (
+            <Alert variant="destructive">
+              <AlertTriangle className="w-4 h-4" />
+              <AlertTitle>Club dado de baja</AlertTitle>
+              <AlertDescription className="flex flex-col gap-2">
+                <span>Este club está dado de baja. El jugador no puede estar ACTIVO. Solo se permite iniciar un pase.</span>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="w-fit"
+                  onClick={() => { setDialogOpen(false); navigate(`/pases?jugador=${editingId}`); }}
+                >
+                  <ArrowRightLeft className="w-3 h-3 mr-1" /> Iniciar Pase
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Photo upload */}
           <div className="space-y-1 pb-2">
             <Label>
