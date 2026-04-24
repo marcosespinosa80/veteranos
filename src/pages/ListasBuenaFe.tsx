@@ -45,7 +45,26 @@ export default function ListasBuenaFe() {
   const [createForm, setCreateForm] = useState({ equipo_id: '', categoria_id: '' });
   const [selectedJugadores, setSelectedJugadores] = useState<string[]>([]);
   const [observacion, setObservacion] = useState('');
+  const [motivoDialog, setMotivoDialog] = useState<{ open: boolean; estado: 'observada' | 'rechazada' | null }>({ open: false, estado: null });
+  const [motivo, setMotivo] = useState('');
   const isAdmin = role === 'admin_general' || role === 'admin_comun';
+
+  const openMotivoDialog = (estado: 'observada' | 'rechazada') => {
+    setMotivo('');
+    setMotivoDialog({ open: true, estado });
+  };
+
+  const confirmMotivo = () => {
+    const trimmed = motivo.trim();
+    if (!trimmed || trimmed.length > 50 || !motivoDialog.estado || !selectedLista) return;
+    const extra: Record<string, any> = motivoDialog.estado === 'observada'
+      ? { motivo_observacion: trimmed, motivo_rechazo: null }
+      : { motivo_rechazo: trimmed, motivo_observacion: null };
+    changeEstadoMutation.mutate(
+      { id: selectedLista.id, estado: motivoDialog.estado, extra },
+      { onSuccess: () => setMotivoDialog({ open: false, estado: null }) }
+    );
+  };
 
   const { data: listas = [], isLoading } = useQuery({
     queryKey: ['listas-buena-fe'],
@@ -313,9 +332,21 @@ export default function ListasBuenaFe() {
                       {l.creador ? `${l.creador.apellido}, ${l.creador.nombre}` : '—'}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={estadoColors[l.estado] || ''}>
-                        {estadoLabels[l.estado] || l.estado}
-                      </Badge>
+                      <div className="flex items-center gap-1">
+                        <Badge variant="outline" className={estadoColors[l.estado] || ''}>
+                          {estadoLabels[l.estado] || l.estado}
+                        </Badge>
+                        {(l.estado === 'observada' && l.motivo_observacion) && (
+                          <AlertCircle className="w-3.5 h-3.5 text-warning" aria-label={l.motivo_observacion}>
+                            <title>{l.motivo_observacion}</title>
+                          </AlertCircle>
+                        )}
+                        {(l.estado === 'rechazada' && l.motivo_rechazo) && (
+                          <XCircle className="w-3.5 h-3.5 text-destructive" aria-label={l.motivo_rechazo}>
+                            <title>{l.motivo_rechazo}</title>
+                          </XCircle>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
@@ -397,6 +428,25 @@ export default function ListasBuenaFe() {
               {selectedLista?.equipo?.nombre_equipo} — {selectedLista?.categoria?.nombre_categoria} — Temporada {selectedLista?.temporada}
             </DialogDescription>
           </DialogHeader>
+
+          {selectedLista?.estado === 'observada' && selectedLista?.motivo_observacion && (
+            <div className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/10 p-3 text-sm">
+              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-warning" />
+              <div>
+                <p className="font-medium text-warning">Motivo de la observación</p>
+                <p className="text-xs mt-0.5 text-foreground">{selectedLista.motivo_observacion}</p>
+              </div>
+            </div>
+          )}
+          {selectedLista?.estado === 'rechazada' && selectedLista?.motivo_rechazo && (
+            <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm">
+              <XCircle className="w-4 h-4 mt-0.5 shrink-0 text-destructive" />
+              <div>
+                <p className="font-medium text-destructive">Motivo del rechazo</p>
+                <p className="text-xs mt-0.5 text-foreground">{selectedLista.motivo_rechazo}</p>
+              </div>
+            </div>
+          )}
 
           {/* Current items */}
           <div className="space-y-3">
@@ -564,7 +614,7 @@ export default function ListasBuenaFe() {
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => changeEstadoMutation.mutate({ id: selectedLista.id, estado: 'observada' })}
+                  onClick={() => openMotivoDialog('observada')}
                   disabled={changeEstadoMutation.isPending}
                   className="gap-1"
                 >
@@ -572,7 +622,7 @@ export default function ListasBuenaFe() {
                 </Button>
                 <Button
                   variant="destructive"
-                  onClick={() => changeEstadoMutation.mutate({ id: selectedLista.id, estado: 'rechazada' })}
+                  onClick={() => openMotivoDialog('rechazada')}
                   disabled={changeEstadoMutation.isPending}
                   className="gap-1"
                 >
@@ -592,6 +642,46 @@ export default function ListasBuenaFe() {
             )}
 
             <Button variant="outline" onClick={() => setDetailOpen(false)}>Cerrar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Motivo Dialog (Observar / Rechazar) */}
+      <Dialog open={motivoDialog.open} onOpenChange={(o) => !o && setMotivoDialog({ open: false, estado: null })}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {motivoDialog.estado === 'observada' ? 'Observar lista' : 'Rechazar lista'}
+            </DialogTitle>
+            <DialogDescription>
+              Indicá un motivo breve (máx. 50 caracteres). Será visible para el delegado.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="motivo">Motivo *</Label>
+            <Textarea
+              id="motivo"
+              value={motivo}
+              onChange={(e) => setMotivo(e.target.value.slice(0, 50))}
+              maxLength={50}
+              rows={3}
+              placeholder={motivoDialog.estado === 'observada' ? 'Ej: Falta DNI de jugador X' : 'Ej: Lista incompleta'}
+            />
+            <p className={`text-xs text-right ${motivo.length >= 50 ? 'text-destructive' : 'text-muted-foreground'}`}>
+              {motivo.length}/50
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMotivoDialog({ open: false, estado: null })}>
+              Cancelar
+            </Button>
+            <Button
+              variant={motivoDialog.estado === 'rechazada' ? 'destructive' : 'default'}
+              onClick={confirmMotivo}
+              disabled={!motivo.trim() || motivo.length > 50 || changeEstadoMutation.isPending}
+            >
+              {motivoDialog.estado === 'observada' ? 'Confirmar Observación' : 'Confirmar Rechazo'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
