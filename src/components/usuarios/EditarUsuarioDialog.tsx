@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
+import { DniInput } from '@/components/ui/dni-input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
@@ -171,10 +172,10 @@ export default function EditarUsuarioDialog({ open, onOpenChange, user }: Props)
             <section className="space-y-4">
               <h3 className="text-sm font-semibold border-b pb-1">Vinculación de Delegado</h3>
               <div className="flex gap-2">
-                <Input
+                <DniInput
                   placeholder="DNI del jugador"
                   value={dniSearch}
-                  onChange={(e) => { setDniSearch(e.target.value); setJugadorFound(null); setJugadorError(''); setVinculado(false); }}
+                  onChange={(v) => { setDniSearch(v); setJugadorFound(null); setJugadorError(''); setVinculado(false); }}
                   onKeyDown={(e) => e.key === 'Enter' && searchJugador()}
                 />
                 <Button variant="outline" onClick={searchJugador} disabled={searching || !dniSearch.trim()}>

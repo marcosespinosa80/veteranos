@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DniInput } from '@/components/ui/dni-input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -264,11 +265,11 @@ export default function NuevoUsuarioWizard({ open, onOpenChange }: Props) {
                 <div className="flex-1 space-y-2">
                   <Label>DNI del jugador *</Label>
                   <div className="flex gap-2">
-                    <Input
+                    <DniInput
                       placeholder="Ingresá el DNI"
                       value={dniSearch}
-                      onChange={(e) => {
-                        setDniSearch(e.target.value);
+                      onChange={(v) => {
+                        setDniSearch(v);
                         setJugadorFound(null);
                         setJugadorError('');
                         setVinculado(false);

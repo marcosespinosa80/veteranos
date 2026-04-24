@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DniInput } from '@/components/ui/dni-input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
@@ -18,16 +19,12 @@ import { toast } from '@/hooks/use-toast';
 
 // ── Helpers ──
 
-function formatDni(raw: string): string {
-  const digits = raw.replace(/\D/g, '').slice(0, 8);
-  if (digits.length <= 3) return digits;
-  if (digits.length <= 6) return `${digits.slice(0, -3)}.${digits.slice(-3)}`;
-  return `${digits.slice(0, -6)}.${digits.slice(-6, -3)}.${digits.slice(-3)}`;
-}
+import { formatDni, dniDigits as dniDigitsHelper } from '@/lib/dni';
 
 function dniDigitCount(dni: string): number {
-  return dni.replace(/\D/g, '').length;
+  return dniDigitsHelper(dni).length;
 }
+
 
 function parsePhone(tel: string): { area: string; numero: string } {
   if (!tel) return { area: '', numero: '' };
@@ -338,7 +335,10 @@ export default function Jugadores() {
   // ── Filter ──
 
   const filtered = jugadores.filter((j: any) => {
-    const matchSearch = `${j.nombre} ${j.apellido} ${j.dni}`.toLowerCase().includes(search.toLowerCase());
+    const searchDigits = search.replace(/\D/g, '');
+    const matchSearch =
+      `${j.nombre} ${j.apellido} ${j.dni}`.toLowerCase().includes(search.toLowerCase()) ||
+      (searchDigits.length > 0 && (j.dni || '').replace(/\D/g, '').includes(searchDigits));
     const matchEquipo = filterEquipo === 'all' || j.equipo_id === filterEquipo;
     const matchCategoria = filterCategoria === 'all' || j.categoria_id === filterCategoria;
     return matchSearch && matchEquipo && matchCategoria;
@@ -592,13 +592,11 @@ export default function Jugadores() {
             {/* DNI */}
             <div className="space-y-1">
               <Label htmlFor="dni">DNI *</Label>
-              <Input
+              <DniInput
                 id="dni"
                 value={form.dni}
-                onChange={(e) => setForm({ ...form, dni: formatDni(e.target.value) })}
+                onChange={(v) => setForm({ ...form, dni: v })}
                 onBlur={() => setTouched({ ...touched, dni: true })}
-                placeholder="28.404.402"
-                maxLength={10}
               />
               <FieldError field="dni" />
             </div>

@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DniInput } from '@/components/ui/dni-input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
@@ -152,7 +153,7 @@ export function AsignarMultaDialog() {
           {targetType === 'jugador' ? (
             <div className="space-y-2">
               <Label>Buscar por DNI</Label>
-              <Input placeholder="Ej: 30123456" value={searchDni} onChange={(e) => setSearchDni(e.target.value)} />
+              <DniInput placeholder="28.404.402" value={searchDni} onChange={(v) => setSearchDni(v)} />
               {jugadorFound && (
                 <p className="text-sm text-green-600 font-medium">
                   ✓ {jugadorFound.apellido}, {jugadorFound.nombre}
