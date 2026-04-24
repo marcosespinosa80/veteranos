@@ -196,8 +196,8 @@ export type Database = {
           jugador_id: string
           numero_carnet: number
           qr_token: string
-          vigencia_desde: string
-          vigencia_hasta: string
+          vigencia_desde: string | null
+          vigencia_hasta: string | null
         }
         Insert: {
           codigo: string
@@ -207,8 +207,8 @@ export type Database = {
           jugador_id: string
           numero_carnet?: number
           qr_token?: string
-          vigencia_desde: string
-          vigencia_hasta: string
+          vigencia_desde?: string | null
+          vigencia_hasta?: string | null
         }
         Update: {
           codigo?: string
@@ -218,8 +218,8 @@ export type Database = {
           jugador_id?: string
           numero_carnet?: number
           qr_token?: string
-          vigencia_desde?: string
-          vigencia_hasta?: string
+          vigencia_desde?: string | null
+          vigencia_hasta?: string | null
         }
         Relationships: [
           {

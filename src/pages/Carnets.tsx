@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, CreditCard, RefreshCw, QrCode, Users, Download } from 'lucide-react';
+import { Search, CreditCard, QrCode, Users, Download } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
@@ -50,13 +50,9 @@ export default function Carnets() {
   const generateMutation = useMutation({
     mutationFn: async (jugador: { id: string; dni: string }) => {
       const codigo = `LVFC-${jugador.dni.replace(/\D/g, '')}`;
-      const hoy = new Date();
-      const hasta = new Date(hoy.getFullYear() + 1, hoy.getMonth(), hoy.getDate());
       const { error } = await supabase.from('carnets').insert({
         jugador_id: jugador.id,
         codigo,
-        vigencia_desde: hoy.toISOString().slice(0, 10),
-        vigencia_hasta: hasta.toISOString().slice(0, 10),
         estado: 'activo',
       });
       if (error) {
@@ -69,24 +65,6 @@ export default function Carnets() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['carnets-jugadores'] });
       toast({ title: 'Carnet generado correctamente' });
-    },
-    onError: (err: Error) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
-  });
-
-  const renewMutation = useMutation({
-    mutationFn: async (carnetId: string) => {
-      const hoy = new Date();
-      const hasta = new Date(hoy.getFullYear() + 1, hoy.getMonth(), hoy.getDate());
-      const { error } = await supabase.from('carnets').update({
-        vigencia_desde: hoy.toISOString().slice(0, 10),
-        vigencia_hasta: hasta.toISOString().slice(0, 10),
-        estado: 'activo',
-      }).eq('id', carnetId);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['carnets-jugadores'] });
-      toast({ title: 'Vigencia renovada' });
     },
     onError: (err: Error) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
   });
@@ -111,13 +89,9 @@ export default function Carnets() {
       const existentes = (habilitados || []).length - sinCarnet.length;
 
       if (sinCarnet.length > 0) {
-        const hoy = new Date();
-        const hasta = new Date(hoy.getFullYear() + 1, hoy.getMonth(), hoy.getDate());
         const rows = sinCarnet.map((j: any) => ({
           jugador_id: j.id,
           codigo: `LVFC-${(j.dni || '').replace(/\D/g, '')}`,
-          vigencia_desde: hoy.toISOString().slice(0, 10),
-          vigencia_hasta: hasta.toISOString().slice(0, 10),
           estado: 'activo' as const,
         }));
 
@@ -265,16 +239,9 @@ export default function Carnets() {
                       <TableCell className="text-right">
                         <div className="flex gap-1 justify-end">
                           {carnet ? (
-                            <>
-                              <Button size="sm" variant="outline" onClick={() => setSelectedJugador({ ...j, ...carnet, jugador: j })}>
-                                <QrCode className="w-3 h-3 mr-1" /> Ver carnet
-                              </Button>
-                              {isAdmin && (
-                                <Button size="icon" variant="ghost" title="Renovar vigencia" onClick={() => renewMutation.mutate(carnet.id)} disabled={renewMutation.isPending}>
-                                  <RefreshCw className="w-4 h-4" />
-                                </Button>
-                              )}
-                            </>
+                            <Button size="sm" variant="outline" onClick={() => setSelectedJugador({ ...j, ...carnet, jugador: j })}>
+                              <QrCode className="w-3 h-3 mr-1" /> Ver carnet
+                            </Button>
                           ) : (
                             isAdmin && (
                               <Button size="sm" onClick={() => generateMutation.mutate({ id: j.id, dni: j.dni })} disabled={generateMutation.isPending}>
