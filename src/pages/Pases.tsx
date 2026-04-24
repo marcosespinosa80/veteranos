@@ -514,6 +514,7 @@ export default function Pases() {
                   </div>
                 </div>
               )}
+              <div className="grid grid-cols-2 gap-2">
                 <div>
                   <p className="text-muted-foreground">Jugador</p>
                   <p className="font-medium">{selectedPase.jugador?.apellido}, {selectedPase.jugador?.nombre}</p>
