@@ -484,6 +484,8 @@ export type Database = {
           fecha_firma: string | null
           firmada: boolean
           id: string
+          motivo_observacion: string | null
+          motivo_rechazo: string | null
           temporada: number
           updated_at: string
         }
@@ -500,6 +502,8 @@ export type Database = {
           fecha_firma?: string | null
           firmada?: boolean
           id?: string
+          motivo_observacion?: string | null
+          motivo_rechazo?: string | null
           temporada?: number
           updated_at?: string
         }
@@ -516,6 +520,8 @@ export type Database = {
           fecha_firma?: string | null
           firmada?: boolean
           id?: string
+          motivo_observacion?: string | null
+          motivo_rechazo?: string | null
           temporada?: number
           updated_at?: string
         }
