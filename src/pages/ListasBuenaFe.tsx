@@ -458,25 +458,63 @@ export default function ListasBuenaFe() {
           </div>
 
           {/* Add jugadores (only in borrador/observada) */}
-          {canEdit && jugadoresParaAgregar.length > 0 && (
+          {canEdit && jugadoresEnEquipo.length > 0 && (
             <div className="space-y-3 border-t pt-3">
-              <h4 className="text-sm font-medium">Agregar jugadores</h4>
-              <div className="border rounded-md max-h-40 overflow-y-auto p-2 space-y-1">
-                {jugadoresParaAgregar.map((j: any) => (
-                  <label key={j.id} className="flex items-center gap-2 text-sm p-1 rounded hover:bg-muted cursor-pointer">
-                    <Checkbox
-                      checked={selectedJugadores.includes(j.id)}
-                      onCheckedChange={(checked) => {
-                        setSelectedJugadores(prev =>
-                          checked ? [...prev, j.id] : prev.filter(id => id !== j.id)
-                        );
-                      }}
-                    />
-                    <span>{j.apellido}, {j.nombre}</span>
-                    <span className="text-muted-foreground ml-auto">{j.dni}</span>
-                  </label>
-                ))}
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <h4 className="text-sm font-medium">Agregar jugadores</h4>
+                <p className="text-xs text-muted-foreground">
+                  {jugadoresAptos.length} disponible{jugadoresAptos.length !== 1 ? 's' : ''} / {jugadoresBloqueados.length} bloqueado{jugadoresBloqueados.length !== 1 ? 's' : ''}
+                </p>
               </div>
+
+              {jugadoresAptos.length > 0 ? (
+                <div className="border rounded-md max-h-40 overflow-y-auto p-2 space-y-1">
+                  {jugadoresAptos.map((j: any) => (
+                    <label key={j.id} className="flex items-center gap-2 text-sm p-1 rounded hover:bg-muted cursor-pointer">
+                      <Checkbox
+                        checked={selectedJugadores.includes(j.id)}
+                        onCheckedChange={(checked) => {
+                          setSelectedJugadores(prev =>
+                            checked ? [...prev, j.id] : prev.filter(id => id !== j.id)
+                          );
+                        }}
+                      />
+                      <span>{j.apellido}, {j.nombre}</span>
+                      <span className="text-muted-foreground ml-auto">{j.dni}</span>
+                    </label>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">No hay jugadores disponibles para agregar.</p>
+              )}
+
+              {jugadoresBloqueados.length > 0 && (
+                <details className="text-xs">
+                  <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+                    Ver {jugadoresBloqueados.length} jugador{jugadoresBloqueados.length !== 1 ? 'es' : ''} bloqueado{jugadoresBloqueados.length !== 1 ? 's' : ''}
+                  </summary>
+                  <div className="border rounded-md max-h-32 overflow-y-auto p-2 space-y-1 mt-2">
+                    {jugadoresBloqueados.map((j: any) => (
+                      <div key={j.id} className="flex items-center gap-2 p-1">
+                        <span className="text-muted-foreground">{j.apellido}, {j.nombre}</span>
+                        <div className="ml-auto flex gap-1">
+                          {(j.suspendido_fechas ?? 0) > 0 && (
+                            <Badge variant="outline" className="bg-destructive/15 text-destructive border-destructive/30 text-[10px]">
+                              SUSP. ({j.suspendido_fechas})
+                            </Badge>
+                          )}
+                          {j.tiene_deuda && (
+                            <Badge variant="outline" className="bg-destructive/15 text-destructive border-destructive/30 text-[10px]">
+                              DEUDA
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              )}
+
               {selectedJugadores.length > 0 && (
                 <Button size="sm" onClick={() => addItemsMutation.mutate(selectedJugadores)} disabled={addItemsMutation.isPending}>
                   Agregar {selectedJugadores.length} jugador{selectedJugadores.length !== 1 ? 'es' : ''}
