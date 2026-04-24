@@ -479,31 +479,37 @@ export default function Jugadores() {
           </DialogHeader>
 
           {/* Photo upload */}
-          <div className="flex items-center gap-4 pb-2">
-            <div className="relative w-20 h-24 bg-muted rounded-lg flex items-center justify-center overflow-hidden shrink-0 border">
-              {fotoPreview ? (
-                <img src={fotoPreview} alt="Foto" className="w-full h-full object-cover" />
-              ) : (
-                <User className="w-8 h-8 text-muted-foreground" />
-              )}
-            </div>
-            <div className="space-y-2">
-              <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleFileChange} />
-              <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
-              <div className="flex flex-wrap gap-2">
-                <Button type="button" variant="outline" size="sm" onClick={() => cameraInputRef.current?.click()}>
-                  <Camera className="w-3 h-3 mr-1" /> Sacar foto
-                </Button>
-                <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
-                  <Upload className="w-3 h-3 mr-1" /> {fotoPreview ? 'Cambiar foto' : 'Subir foto'}
-                </Button>
-                {fotoFile && (
-                  <Button type="button" variant="ghost" size="sm" onClick={() => { setFotoFile(null); setFotoPreview(editingId ? (jugadores.find((j: any) => j.id === editingId)?.foto_url || null) : null); }}>
-                    <X className="w-3 h-3 mr-1" /> Quitar
-                  </Button>
+          <div className="space-y-1 pb-2">
+            <Label>
+              Foto {!editingId && <span className="text-destructive">*</span>}
+            </Label>
+            <div className="flex items-center gap-4">
+              <div className={`relative w-20 h-24 bg-muted rounded-lg flex items-center justify-center overflow-hidden shrink-0 border ${fotoRequired ? 'border-destructive' : ''}`}>
+                {fotoPreview ? (
+                  <img src={fotoPreview} alt="Foto" className="w-full h-full object-cover" />
+                ) : (
+                  <User className="w-8 h-8 text-muted-foreground" />
                 )}
               </div>
-              <p className="text-xs text-muted-foreground">JPG o PNG, máx 5 MB. En celular se abre la cámara.</p>
+              <div className="space-y-2">
+                <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleFileChange} />
+                <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={() => cameraInputRef.current?.click()}>
+                    <Camera className="w-3 h-3 mr-1" /> Sacar foto
+                  </Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+                    <Upload className="w-3 h-3 mr-1" /> {fotoPreview ? 'Cambiar foto' : 'Subir foto'}
+                  </Button>
+                  {fotoFile && (
+                    <Button type="button" variant="ghost" size="sm" onClick={() => { setFotoFile(null); setFotoPreview(editingId ? (jugadores.find((j: any) => j.id === editingId)?.foto_url || null) : null); }}>
+                      <X className="w-3 h-3 mr-1" /> Quitar
+                    </Button>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">JPG o PNG, máx 5 MB. En celular se abre la cámara.</p>
+                {fotoRequired && <p className="text-xs text-destructive">La foto es obligatoria</p>}
+              </div>
             </div>
           </div>
 
