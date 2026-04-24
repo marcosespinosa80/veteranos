@@ -348,8 +348,13 @@ export default function Jugadores() {
   };
 
   // ── Submit handler ──
+  const fotoRequired = !editingId && !fotoFile && !fotoPreview;
   const handleSubmit = () => {
     setTouched({ nombre: true, apellido: true, dni: true, fecha_nacimiento: true, telefono_area: true, telefono_numero: true });
+    if (fotoRequired) {
+      toast({ title: 'La foto es obligatoria para crear el jugador', variant: 'destructive' });
+      return;
+    }
     if (hasErrors) return;
     saveMutation.mutate({ ...form, id: editingId || undefined });
   };
