@@ -239,16 +239,9 @@ export default function Carnets() {
                       <TableCell className="text-right">
                         <div className="flex gap-1 justify-end">
                           {carnet ? (
-                            <>
-                              <Button size="sm" variant="outline" onClick={() => setSelectedJugador({ ...j, ...carnet, jugador: j })}>
-                                <QrCode className="w-3 h-3 mr-1" /> Ver carnet
-                              </Button>
-                              {isAdmin && (
-                                <Button size="icon" variant="ghost" title="Renovar vigencia" onClick={() => renewMutation.mutate(carnet.id)} disabled={renewMutation.isPending}>
-                                  <RefreshCw className="w-4 h-4" />
-                                </Button>
-                              )}
-                            </>
+                            <Button size="sm" variant="outline" onClick={() => setSelectedJugador({ ...j, ...carnet, jugador: j })}>
+                              <QrCode className="w-3 h-3 mr-1" /> Ver carnet
+                            </Button>
                           ) : (
                             isAdmin && (
                               <Button size="sm" onClick={() => generateMutation.mutate({ id: j.id, dni: j.dni })} disabled={generateMutation.isPending}>
