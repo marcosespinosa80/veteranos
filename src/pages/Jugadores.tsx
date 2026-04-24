@@ -484,15 +484,21 @@ export default function Jugadores() {
             </div>
             <div className="space-y-2">
               <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleFileChange} />
-              <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
-                <Upload className="w-3 h-3 mr-1" /> {fotoPreview ? 'Cambiar foto' : 'Subir foto'}
-              </Button>
-              {fotoFile && (
-                <Button type="button" variant="ghost" size="sm" onClick={() => { setFotoFile(null); setFotoPreview(editingId ? (jugadores.find((j: any) => j.id === editingId)?.foto_url || null) : null); }}>
-                  <X className="w-3 h-3 mr-1" /> Quitar
+              <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => cameraInputRef.current?.click()}>
+                  <Camera className="w-3 h-3 mr-1" /> Sacar foto
                 </Button>
-              )}
-              <p className="text-xs text-muted-foreground">JPG o PNG, máx 5 MB</p>
+                <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+                  <Upload className="w-3 h-3 mr-1" /> {fotoPreview ? 'Cambiar foto' : 'Subir foto'}
+                </Button>
+                {fotoFile && (
+                  <Button type="button" variant="ghost" size="sm" onClick={() => { setFotoFile(null); setFotoPreview(editingId ? (jugadores.find((j: any) => j.id === editingId)?.foto_url || null) : null); }}>
+                    <X className="w-3 h-3 mr-1" /> Quitar
+                  </Button>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">JPG o PNG, máx 5 MB. En celular se abre la cámara.</p>
             </div>
           </div>
 
