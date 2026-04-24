@@ -18,16 +18,12 @@ import { toast } from '@/hooks/use-toast';
 
 // ── Helpers ──
 
-function formatDni(raw: string): string {
-  const digits = raw.replace(/\D/g, '').slice(0, 8);
-  if (digits.length <= 3) return digits;
-  if (digits.length <= 6) return `${digits.slice(0, -3)}.${digits.slice(-3)}`;
-  return `${digits.slice(0, -6)}.${digits.slice(-6, -3)}.${digits.slice(-3)}`;
-}
+import { formatDni, dniDigits as dniDigitsHelper } from '@/lib/dni';
 
 function dniDigitCount(dni: string): number {
-  return dni.replace(/\D/g, '').length;
+  return dniDigitsHelper(dni).length;
 }
+
 
 function parsePhone(tel: string): { area: string; numero: string } {
   if (!tel) return { area: '', numero: '' };
