@@ -332,9 +332,21 @@ export default function ListasBuenaFe() {
                       {l.creador ? `${l.creador.apellido}, ${l.creador.nombre}` : '—'}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={estadoColors[l.estado] || ''}>
-                        {estadoLabels[l.estado] || l.estado}
-                      </Badge>
+                      <div className="flex items-center gap-1">
+                        <Badge variant="outline" className={estadoColors[l.estado] || ''}>
+                          {estadoLabels[l.estado] || l.estado}
+                        </Badge>
+                        {(l.estado === 'observada' && l.motivo_observacion) && (
+                          <AlertCircle className="w-3.5 h-3.5 text-warning" aria-label={l.motivo_observacion}>
+                            <title>{l.motivo_observacion}</title>
+                          </AlertCircle>
+                        )}
+                        {(l.estado === 'rechazada' && l.motivo_rechazo) && (
+                          <XCircle className="w-3.5 h-3.5 text-destructive" aria-label={l.motivo_rechazo}>
+                            <title>{l.motivo_rechazo}</title>
+                          </XCircle>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
