@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent } from '@/components/ui/card';
@@ -11,7 +12,8 @@ import { Switch } from '@/components/ui/switch';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Pencil, Search, Filter, Upload, X, User, Camera } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Plus, Pencil, Search, Filter, Upload, X, User, Camera, AlertTriangle, ArrowRightLeft } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 // ── Helpers ──
@@ -117,6 +119,7 @@ function validateForm(form: JugadorForm): FormErrors {
 export default function Jugadores() {
   const { role, user, loading, profile } = useAuth();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [filterEquipo, setFilterEquipo] = useState<string>('all');
   const [filterCategoria, setFilterCategoria] = useState<string>('all');
@@ -143,7 +146,7 @@ export default function Jugadores() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('jugadores')
-        .select('*, equipo:equipos!jugadores_equipo_id_fkey(nombre_equipo), categoria:categorias(nombre_categoria)')
+        .select('*, equipo:equipos!jugadores_equipo_id_fkey(nombre_equipo, estado), categoria:categorias(nombre_categoria)')
         .order('apellido');
       if (error) throw error;
       return data;
@@ -348,6 +351,8 @@ export default function Jugadores() {
   };
 
   // ── Submit handler ──
+  const editingPlayer = editingId ? jugadores.find((j: any) => j.id === editingId) : null;
+  const editingClubInactivo = editingPlayer?.equipo?.estado === 'inactivo';
   const fotoRequired = !editingId && !fotoFile && !fotoPreview;
   const handleSubmit = () => {
     setTouched({ nombre: true, apellido: true, dni: true, fecha_nacimiento: true, telefono_area: true, telefono_numero: true });
@@ -356,7 +361,9 @@ export default function Jugadores() {
       return;
     }
     if (hasErrors) return;
-    saveMutation.mutate({ ...form, id: editingId || undefined });
+    // Force activo_club=false if club is inactive
+    const payload = editingClubInactivo ? { ...form, activo_club: false } : form;
+    saveMutation.mutate({ ...payload, id: editingId || undefined });
   };
 
   return (
@@ -425,9 +432,19 @@ export default function Jugadores() {
               <TableBody>
                 {filtered.map((j: any) => {
                   const deportivo = getEstadoDeportivo(j);
+                  const clubInactivo = j.equipo?.estado === 'inactivo';
                   return (
-                    <TableRow key={j.id}>
-                      <TableCell className="font-medium">{j.apellido}, {j.nombre}</TableCell>
+                    <TableRow key={j.id} className={clubInactivo ? 'bg-destructive/5' : ''}>
+                      <TableCell className="font-medium">
+                        <div className="flex flex-col">
+                          <span>{j.apellido}, {j.nombre}</span>
+                          {clubInactivo && (
+                            <Badge variant="outline" className="bg-destructive/15 text-destructive border-destructive/30 text-[10px] mt-1 w-fit">
+                              <AlertTriangle className="w-3 h-3 mr-1" /> CLUB DADO DE BAJA
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell className="hidden sm:table-cell text-muted-foreground">{j.dni}</TableCell>
                       <TableCell className="hidden md:table-cell text-sm">{j.equipo?.nombre_equipo || '—'}</TableCell>
                       <TableCell className="hidden lg:table-cell text-sm">{j.categoria?.nombre_categoria || '—'}</TableCell>
@@ -440,24 +457,37 @@ export default function Jugadores() {
                         </Badge>
                       </TableCell>
                       <TableCell className="hidden sm:table-cell">
-                        <Badge variant="outline" className={j.activo_club
+                        <Badge variant="outline" className={(j.activo_club && !clubInactivo)
                           ? 'bg-primary/15 text-primary border-primary/30 text-xs'
                           : 'bg-destructive/15 text-destructive border-destructive/30 text-xs'
                         }>
-                          {j.activo_club ? 'ACTIVO' : 'INACTIVO'}
+                          {clubInactivo ? 'INACTIVO (CLUB)' : (j.activo_club ? 'ACTIVO' : 'INACTIVO')}
                         </Badge>
                       </TableCell>
                       <TableCell className="hidden sm:table-cell">
-                        {j.es_delegado ? (
+                        {j.es_delegado && !clubInactivo ? (
                           <Badge variant="outline" className="bg-accent/15 text-accent-foreground border-accent/30 text-xs">
                             Delegado
                           </Badge>
                         ) : '—'}
                       </TableCell>
                       <TableCell>
-                        <Button size="icon" variant="ghost" onClick={() => openEdit(j)}>
-                          <Pencil className="w-4 h-4" />
-                        </Button>
+                        <div className="flex gap-1">
+                          {clubInactivo && (isAdmin || isDelegado) && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-[11px]"
+                              onClick={() => navigate(`/pases?jugador=${j.id}`)}
+                              title="Iniciar pase a otro club"
+                            >
+                              <ArrowRightLeft className="w-3 h-3 mr-1" /> Pase
+                            </Button>
+                          )}
+                          <Button size="icon" variant="ghost" onClick={() => openEdit(j)}>
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
@@ -477,6 +507,25 @@ export default function Jugadores() {
               {editingId ? 'Modificá los datos del jugador.' : 'Completá los datos para registrar un nuevo jugador.'}
             </DialogDescription>
           </DialogHeader>
+
+          {editingClubInactivo && (
+            <Alert variant="destructive">
+              <AlertTriangle className="w-4 h-4" />
+              <AlertTitle>Club dado de baja</AlertTitle>
+              <AlertDescription className="flex flex-col gap-2">
+                <span>Este club está dado de baja. El jugador no puede estar ACTIVO. Solo se permite iniciar un pase.</span>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="w-fit"
+                  onClick={() => { setDialogOpen(false); navigate(`/pases?jugador=${editingId}`); }}
+                >
+                  <ArrowRightLeft className="w-3 h-3 mr-1" /> Iniciar Pase
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
 
           {/* Photo upload */}
           <div className="space-y-1 pb-2">
@@ -616,10 +665,13 @@ export default function Jugadores() {
                 <Label>Activo (Club)</Label>
                 <div className="flex items-center gap-3 h-10">
                   <Switch
-                    checked={form.activo_club}
+                    checked={editingClubInactivo ? false : form.activo_club}
+                    disabled={editingClubInactivo}
                     onCheckedChange={(v) => setForm({ ...form, activo_club: v })}
                   />
-                  <span className="text-sm">{form.activo_club ? 'Activo' : 'Inactivo'}</span>
+                  <span className="text-sm">
+                    {editingClubInactivo ? 'Inactivo (club dado de baja)' : (form.activo_club ? 'Activo' : 'Inactivo')}
+                  </span>
                 </div>
               </div>
             )}

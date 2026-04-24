@@ -80,7 +80,13 @@ export default function Equipos() {
     },
     onSuccess: (nuevo) => {
       queryClient.invalidateQueries({ queryKey: ['equipos'] });
-      toast({ title: `Club ${nuevo === 'activo' ? 'activado' : 'desactivado'}` });
+      queryClient.invalidateQueries({ queryKey: ['jugadores'] });
+      queryClient.invalidateQueries({ queryKey: ['jugador-counts'] });
+      toast({
+        title: nuevo === 'inactivo'
+          ? 'Club dado de baja. Jugadores marcados como inactivos.'
+          : 'Club activado',
+      });
       setToggleTarget(null);
     },
     onError: (err: Error) => {
@@ -163,6 +169,11 @@ export default function Equipos() {
             </AlertDialogTitle>
             <AlertDialogDescription>
               ¿Confirmás {toggleTarget?.estado === 'activo' ? 'desactivar' : 'activar'} el club <strong>{toggleTarget?.nombre_equipo}</strong>?
+              {toggleTarget?.estado === 'activo' && (
+                <span className="block mt-2 text-destructive font-medium">
+                  Al dar de baja el club, todos sus jugadores quedarán INACTIVOS (CLUB) y solo podrán pasar a otro club.
+                </span>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
