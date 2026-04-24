@@ -583,7 +583,7 @@ export default function ListasBuenaFe() {
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => changeEstadoMutation.mutate({ id: selectedLista.id, estado: 'observada' })}
+                  onClick={() => openMotivoDialog('observada')}
                   disabled={changeEstadoMutation.isPending}
                   className="gap-1"
                 >
@@ -591,7 +591,7 @@ export default function ListasBuenaFe() {
                 </Button>
                 <Button
                   variant="destructive"
-                  onClick={() => changeEstadoMutation.mutate({ id: selectedLista.id, estado: 'rechazada' })}
+                  onClick={() => openMotivoDialog('rechazada')}
                   disabled={changeEstadoMutation.isPending}
                   className="gap-1"
                 >
@@ -611,6 +611,46 @@ export default function ListasBuenaFe() {
             )}
 
             <Button variant="outline" onClick={() => setDetailOpen(false)}>Cerrar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Motivo Dialog (Observar / Rechazar) */}
+      <Dialog open={motivoDialog.open} onOpenChange={(o) => !o && setMotivoDialog({ open: false, estado: null })}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {motivoDialog.estado === 'observada' ? 'Observar lista' : 'Rechazar lista'}
+            </DialogTitle>
+            <DialogDescription>
+              Indicá un motivo breve (máx. 50 caracteres). Será visible para el delegado.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="motivo">Motivo *</Label>
+            <Textarea
+              id="motivo"
+              value={motivo}
+              onChange={(e) => setMotivo(e.target.value.slice(0, 50))}
+              maxLength={50}
+              rows={3}
+              placeholder={motivoDialog.estado === 'observada' ? 'Ej: Falta DNI de jugador X' : 'Ej: Lista incompleta'}
+            />
+            <p className={`text-xs text-right ${motivo.length >= 50 ? 'text-destructive' : 'text-muted-foreground'}`}>
+              {motivo.length}/50
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMotivoDialog({ open: false, estado: null })}>
+              Cancelar
+            </Button>
+            <Button
+              variant={motivoDialog.estado === 'rechazada' ? 'destructive' : 'default'}
+              onClick={confirmMotivo}
+              disabled={!motivo.trim() || motivo.length > 50 || changeEstadoMutation.isPending}
+            >
+              {motivoDialog.estado === 'observada' ? 'Confirmar Observación' : 'Confirmar Rechazo'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
