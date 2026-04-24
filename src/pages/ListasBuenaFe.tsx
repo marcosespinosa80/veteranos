@@ -77,14 +77,14 @@ export default function ListasBuenaFe() {
     },
   });
 
-  // Jugadores for the selected lista's team + category
+  // Jugadores for the selected lista's team + category (with deuda flag)
   const { data: jugadoresDisponibles = [] } = useQuery({
     queryKey: ['jugadores-lista', selectedLista?.equipo_id, selectedLista?.categoria_id],
     enabled: !!selectedLista,
     queryFn: async () => {
       let query = supabase
         .from('jugadores')
-        .select('id, nombre, apellido, dni, estado')
+        .select('id, nombre, apellido, dni, estado, suspendido_fechas')
         .eq('equipo_id', selectedLista.equipo_id)
         .order('apellido');
       if (selectedLista.categoria_id) {
@@ -92,21 +92,50 @@ export default function ListasBuenaFe() {
       }
       const { data, error } = await query;
       if (error) throw error;
-      return data;
+
+      // Fetch pending debts for these jugadores
+      const ids = (data || []).map((j: any) => j.id);
+      let deudaSet = new Set<string>();
+      if (ids.length > 0) {
+        const { data: cargos, error: cargosErr } = await supabase
+          .from('cargos')
+          .select('jugador_id')
+          .in('jugador_id', ids)
+          .eq('estado_pago', 'pendiente');
+        if (cargosErr) throw cargosErr;
+        deudaSet = new Set((cargos || []).map((c: any) => c.jugador_id).filter(Boolean));
+      }
+
+      return (data || []).map((j: any) => ({ ...j, tiene_deuda: deudaSet.has(j.id) }));
     },
   });
 
-  // Items of the selected lista
+  // Items of the selected lista (incluye deuda + suspensión del jugador)
   const { data: listaItems = [] } = useQuery({
     queryKey: ['lista-items', selectedLista?.id],
     enabled: !!selectedLista,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('lista_buena_fe_items')
-        .select('*, jugador:jugadores(nombre, apellido, dni, estado)')
+        .select('*, jugador:jugadores(id, nombre, apellido, dni, estado, suspendido_fechas)')
         .eq('lista_id', selectedLista.id);
       if (error) throw error;
-      return data;
+
+      const ids = (data || []).map((i: any) => i.jugador?.id).filter(Boolean);
+      let deudaSet = new Set<string>();
+      if (ids.length > 0) {
+        const { data: cargos } = await supabase
+          .from('cargos')
+          .select('jugador_id')
+          .in('jugador_id', ids)
+          .eq('estado_pago', 'pendiente');
+        deudaSet = new Set((cargos || []).map((c: any) => c.jugador_id).filter(Boolean));
+      }
+
+      return (data || []).map((i: any) => ({
+        ...i,
+        tiene_deuda: i.jugador?.id ? deudaSet.has(i.jugador.id) : false,
+      }));
     },
   });
 
