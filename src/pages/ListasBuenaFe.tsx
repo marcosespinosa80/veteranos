@@ -34,6 +34,7 @@ const estadoLabels: Record<string, string> = {
 
 export default function ListasBuenaFe() {
   const { user, role } = useAuth();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [filterEquipo, setFilterEquipo] = useState<string>('all');
