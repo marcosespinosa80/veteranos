@@ -334,7 +334,10 @@ export default function Jugadores() {
   // ── Filter ──
 
   const filtered = jugadores.filter((j: any) => {
-    const matchSearch = `${j.nombre} ${j.apellido} ${j.dni}`.toLowerCase().includes(search.toLowerCase());
+    const searchDigits = search.replace(/\D/g, '');
+    const matchSearch =
+      `${j.nombre} ${j.apellido} ${j.dni}`.toLowerCase().includes(search.toLowerCase()) ||
+      (searchDigits.length > 0 && (j.dni || '').replace(/\D/g, '').includes(searchDigits));
     const matchEquipo = filterEquipo === 'all' || j.equipo_id === filterEquipo;
     const matchCategoria = filterCategoria === 'all' || j.categoria_id === filterCategoria;
     return matchSearch && matchEquipo && matchCategoria;
