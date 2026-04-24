@@ -335,9 +335,21 @@ export default function Pases() {
                       {p.monto ? `$${Number(p.monto).toLocaleString('es-AR')}` : '—'}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={estadoColors[p.estado] || ''}>
-                        {estadoLabels[p.estado] || p.estado}
-                      </Badge>
+                      <div className="flex items-center gap-1">
+                        <Badge variant="outline" className={estadoColors[p.estado] || ''}>
+                          {estadoLabels[p.estado] || p.estado}
+                        </Badge>
+                        {p.estado === 'observado' && p.motivo_observacion && (
+                          <AlertCircle className="w-4 h-4 text-warning" aria-label={p.motivo_observacion}>
+                            <title>{p.motivo_observacion}</title>
+                          </AlertCircle>
+                        )}
+                        {p.estado === 'rechazado' && p.motivo_rechazo && (
+                          <XCircle className="w-4 h-4 text-destructive" aria-label={p.motivo_rechazo}>
+                            <title>{p.motivo_rechazo}</title>
+                          </XCircle>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <Button size="icon" variant="ghost" onClick={() => openDetail(p)}>
