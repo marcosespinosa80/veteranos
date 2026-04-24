@@ -89,13 +89,9 @@ export default function Carnets() {
       const existentes = (habilitados || []).length - sinCarnet.length;
 
       if (sinCarnet.length > 0) {
-        const hoy = new Date();
-        const hasta = new Date(hoy.getFullYear() + 1, hoy.getMonth(), hoy.getDate());
         const rows = sinCarnet.map((j: any) => ({
           jugador_id: j.id,
           codigo: `LVFC-${(j.dni || '').replace(/\D/g, '')}`,
-          vigencia_desde: hoy.toISOString().slice(0, 10),
-          vigencia_hasta: hasta.toISOString().slice(0, 10),
           estado: 'activo' as const,
         }));
 
