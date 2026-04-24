@@ -77,14 +77,14 @@ export default function ListasBuenaFe() {
     },
   });
 
-  // Jugadores for the selected lista's team + category
+  // Jugadores for the selected lista's team + category (with deuda flag)
   const { data: jugadoresDisponibles = [] } = useQuery({
     queryKey: ['jugadores-lista', selectedLista?.equipo_id, selectedLista?.categoria_id],
     enabled: !!selectedLista,
     queryFn: async () => {
       let query = supabase
         .from('jugadores')
-        .select('id, nombre, apellido, dni, estado')
+        .select('id, nombre, apellido, dni, estado, suspendido_fechas')
         .eq('equipo_id', selectedLista.equipo_id)
         .order('apellido');
       if (selectedLista.categoria_id) {
@@ -92,21 +92,50 @@ export default function ListasBuenaFe() {
       }
       const { data, error } = await query;
       if (error) throw error;
-      return data;
+
+      // Fetch pending debts for these jugadores
+      const ids = (data || []).map((j: any) => j.id);
+      let deudaSet = new Set<string>();
+      if (ids.length > 0) {
+        const { data: cargos, error: cargosErr } = await supabase
+          .from('cargos')
+          .select('jugador_id')
+          .in('jugador_id', ids)
+          .eq('estado_pago', 'pendiente');
+        if (cargosErr) throw cargosErr;
+        deudaSet = new Set((cargos || []).map((c: any) => c.jugador_id).filter(Boolean));
+      }
+
+      return (data || []).map((j: any) => ({ ...j, tiene_deuda: deudaSet.has(j.id) }));
     },
   });
 
-  // Items of the selected lista
+  // Items of the selected lista (incluye deuda + suspensión del jugador)
   const { data: listaItems = [] } = useQuery({
     queryKey: ['lista-items', selectedLista?.id],
     enabled: !!selectedLista,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('lista_buena_fe_items')
-        .select('*, jugador:jugadores(nombre, apellido, dni, estado)')
+        .select('*, jugador:jugadores(id, nombre, apellido, dni, estado, suspendido_fechas)')
         .eq('lista_id', selectedLista.id);
       if (error) throw error;
-      return data;
+
+      const ids = (data || []).map((i: any) => i.jugador?.id).filter(Boolean);
+      let deudaSet = new Set<string>();
+      if (ids.length > 0) {
+        const { data: cargos } = await supabase
+          .from('cargos')
+          .select('jugador_id')
+          .in('jugador_id', ids)
+          .eq('estado_pago', 'pendiente');
+        deudaSet = new Set((cargos || []).map((c: any) => c.jugador_id).filter(Boolean));
+      }
+
+      return (data || []).map((i: any) => ({
+        ...i,
+        tiene_deuda: i.jugador?.id ? deudaSet.has(i.jugador.id) : false,
+      }));
     },
   });
 
@@ -195,10 +224,27 @@ export default function ListasBuenaFe() {
   });
 
   const jugadoresYaEnLista = new Set(listaItems.map((i: any) => i.jugador_id));
-  const jugadoresParaAgregar = jugadoresDisponibles.filter((j: any) => !jugadoresYaEnLista.has(j.id));
+  const jugadoresEnEquipo = jugadoresDisponibles.filter((j: any) => !jugadoresYaEnLista.has(j.id));
+  const jugadoresAptos = jugadoresEnEquipo.filter((j: any) => (j.suspendido_fechas ?? 0) === 0 && !j.tiene_deuda);
+  const jugadoresBloqueados = jugadoresEnEquipo.filter((j: any) => (j.suspendido_fechas ?? 0) > 0 || j.tiene_deuda);
+  const jugadoresParaAgregar = jugadoresAptos;
   const isBorrador = selectedLista?.estado === 'borrador';
   const isObservada = selectedLista?.estado === 'observada';
   const canEdit = isBorrador || isObservada;
+  const itemsNoAptos = listaItems.filter((i: any) => (i.jugador?.suspendido_fechas ?? 0) > 0 || i.tiene_deuda);
+  const puedeEnviar = listaItems.length > 0 && itemsNoAptos.length === 0;
+
+  const handleEnviar = () => {
+    if (itemsNoAptos.length > 0) {
+      toast({
+        title: 'No se puede enviar la lista',
+        description: 'Hay jugadores suspendidos o con deuda. Eliminarlos o regularizar antes de enviar.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    changeEstadoMutation.mutate({ id: selectedLista.id, estado: 'enviada' });
+  };
 
   return (
     <div className="space-y-4">
@@ -369,24 +415,42 @@ export default function ListasBuenaFe() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {listaItems.map((item: any) => (
-                      <TableRow key={item.id}>
-                        <TableCell className="text-sm">{item.jugador?.apellido}, {item.jugador?.nombre}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{item.jugador?.dni}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={item.estado_item === 'incluido' ? 'bg-primary/15 text-primary border-primary/30 text-xs' : 'text-xs'}>
-                            {item.estado_item}
-                          </Badge>
-                        </TableCell>
-                        {canEdit && (
+                    {listaItems.map((item: any) => {
+                      const susp = item.jugador?.suspendido_fechas ?? 0;
+                      const noApto = susp > 0 || item.tiene_deuda;
+                      return (
+                        <TableRow key={item.id} className={noApto ? 'bg-destructive/5' : ''}>
+                          <TableCell className="text-sm">{item.jugador?.apellido}, {item.jugador?.nombre}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{item.jugador?.dni}</TableCell>
                           <TableCell>
-                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => removeItemMutation.mutate(item.id)}>
-                              <XCircle className="w-4 h-4 text-destructive" />
-                            </Button>
+                            <div className="flex flex-wrap gap-1">
+                              {susp > 0 && (
+                                <Badge variant="outline" className="bg-destructive/15 text-destructive border-destructive/30 text-xs">
+                                  SUSPENDIDO ({susp})
+                                </Badge>
+                              )}
+                              {item.tiene_deuda && (
+                                <Badge variant="outline" className="bg-destructive/15 text-destructive border-destructive/30 text-xs">
+                                  CON DEUDA
+                                </Badge>
+                              )}
+                              {!noApto && (
+                                <Badge variant="outline" className="bg-primary/15 text-primary border-primary/30 text-xs">
+                                  HABILITADO
+                                </Badge>
+                              )}
+                            </div>
                           </TableCell>
-                        )}
-                      </TableRow>
-                    ))}
+                          {canEdit && (
+                            <TableCell>
+                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => removeItemMutation.mutate(item.id)}>
+                                <XCircle className="w-4 h-4 text-destructive" />
+                              </Button>
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
@@ -394,25 +458,63 @@ export default function ListasBuenaFe() {
           </div>
 
           {/* Add jugadores (only in borrador/observada) */}
-          {canEdit && jugadoresParaAgregar.length > 0 && (
+          {canEdit && jugadoresEnEquipo.length > 0 && (
             <div className="space-y-3 border-t pt-3">
-              <h4 className="text-sm font-medium">Agregar jugadores</h4>
-              <div className="border rounded-md max-h-40 overflow-y-auto p-2 space-y-1">
-                {jugadoresParaAgregar.map((j: any) => (
-                  <label key={j.id} className="flex items-center gap-2 text-sm p-1 rounded hover:bg-muted cursor-pointer">
-                    <Checkbox
-                      checked={selectedJugadores.includes(j.id)}
-                      onCheckedChange={(checked) => {
-                        setSelectedJugadores(prev =>
-                          checked ? [...prev, j.id] : prev.filter(id => id !== j.id)
-                        );
-                      }}
-                    />
-                    <span>{j.apellido}, {j.nombre}</span>
-                    <span className="text-muted-foreground ml-auto">{j.dni}</span>
-                  </label>
-                ))}
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <h4 className="text-sm font-medium">Agregar jugadores</h4>
+                <p className="text-xs text-muted-foreground">
+                  {jugadoresAptos.length} disponible{jugadoresAptos.length !== 1 ? 's' : ''} / {jugadoresBloqueados.length} bloqueado{jugadoresBloqueados.length !== 1 ? 's' : ''}
+                </p>
               </div>
+
+              {jugadoresAptos.length > 0 ? (
+                <div className="border rounded-md max-h-40 overflow-y-auto p-2 space-y-1">
+                  {jugadoresAptos.map((j: any) => (
+                    <label key={j.id} className="flex items-center gap-2 text-sm p-1 rounded hover:bg-muted cursor-pointer">
+                      <Checkbox
+                        checked={selectedJugadores.includes(j.id)}
+                        onCheckedChange={(checked) => {
+                          setSelectedJugadores(prev =>
+                            checked ? [...prev, j.id] : prev.filter(id => id !== j.id)
+                          );
+                        }}
+                      />
+                      <span>{j.apellido}, {j.nombre}</span>
+                      <span className="text-muted-foreground ml-auto">{j.dni}</span>
+                    </label>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">No hay jugadores disponibles para agregar.</p>
+              )}
+
+              {jugadoresBloqueados.length > 0 && (
+                <details className="text-xs">
+                  <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+                    Ver {jugadoresBloqueados.length} jugador{jugadoresBloqueados.length !== 1 ? 'es' : ''} bloqueado{jugadoresBloqueados.length !== 1 ? 's' : ''}
+                  </summary>
+                  <div className="border rounded-md max-h-32 overflow-y-auto p-2 space-y-1 mt-2">
+                    {jugadoresBloqueados.map((j: any) => (
+                      <div key={j.id} className="flex items-center gap-2 p-1">
+                        <span className="text-muted-foreground">{j.apellido}, {j.nombre}</span>
+                        <div className="ml-auto flex gap-1">
+                          {(j.suspendido_fechas ?? 0) > 0 && (
+                            <Badge variant="outline" className="bg-destructive/15 text-destructive border-destructive/30 text-[10px]">
+                              SUSP. ({j.suspendido_fechas})
+                            </Badge>
+                          )}
+                          {j.tiene_deuda && (
+                            <Badge variant="outline" className="bg-destructive/15 text-destructive border-destructive/30 text-[10px]">
+                              DEUDA
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              )}
+
               {selectedJugadores.length > 0 && (
                 <Button size="sm" onClick={() => addItemsMutation.mutate(selectedJugadores)} disabled={addItemsMutation.isPending}>
                   Agregar {selectedJugadores.length} jugador{selectedJugadores.length !== 1 ? 'es' : ''}
@@ -421,14 +523,30 @@ export default function ListasBuenaFe() {
             </div>
           )}
 
+          {/* Aviso si hay jugadores no aptos en la lista */}
+          {canEdit && itemsNoAptos.length > 0 && (
+            <div className="border-t pt-3">
+              <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                <div>
+                  <p className="font-medium">No se puede enviar la lista</p>
+                  <p className="text-xs mt-0.5">
+                    Hay {itemsNoAptos.length} jugador{itemsNoAptos.length !== 1 ? 'es' : ''} suspendido{itemsNoAptos.length !== 1 ? 's' : ''} o con deuda. Eliminalos o regularizá su situación antes de enviar.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Actions */}
           <DialogFooter className="flex-col sm:flex-row gap-2">
             {/* Delegado/Admin: send borrador */}
             {(isBorrador || isObservada) && listaItems.length > 0 && (
               <Button
-                onClick={() => changeEstadoMutation.mutate({ id: selectedLista.id, estado: 'enviada' })}
-                disabled={changeEstadoMutation.isPending}
+                onClick={handleEnviar}
+                disabled={changeEstadoMutation.isPending || !puedeEnviar}
                 className="gap-1"
+                title={!puedeEnviar ? 'Hay jugadores suspendidos o con deuda' : undefined}
               >
                 <Send className="w-4 h-4" /> Enviar para aprobación
               </Button>
