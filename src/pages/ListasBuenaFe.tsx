@@ -463,6 +463,16 @@ export default function ListasBuenaFe() {
               </>
             )}
 
+            {selectedLista?.estado === 'aprobada' && (
+              <Button
+                variant="default"
+                className="gap-1"
+                onClick={() => window.open(`/listas-buena-fe/${selectedLista.id}/pdf`, '_blank')}
+              >
+                <FileDown className="w-4 h-4" /> Descargar PDF
+              </Button>
+            )}
+
             <Button variant="outline" onClick={() => setDetailOpen(false)}>Cerrar</Button>
           </DialogFooter>
         </DialogContent>
