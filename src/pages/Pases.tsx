@@ -634,6 +634,54 @@ export default function Pases() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Motivo Dialog (Observar / Rechazar) */}
+      <Dialog open={motivoDialog.open} onOpenChange={(o) => setMotivoDialog((s) => ({ ...s, open: o, ...(o ? {} : { texto: '', estado: null, paseId: null }) }))}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {motivoDialog.estado === 'observado' ? 'Observar Pase' : 'Rechazar Pase'}
+            </DialogTitle>
+            <DialogDescription>
+              Indicá el motivo (obligatorio, máx. 50 caracteres). El delegado podrá verlo.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>Motivo *</Label>
+            <Textarea
+              value={motivoDialog.texto}
+              onChange={(e) => setMotivoDialog((s) => ({ ...s, texto: e.target.value.slice(0, 50) }))}
+              maxLength={50}
+              placeholder={motivoDialog.estado === 'observado' ? 'Ej: Falta firma del delegado' : 'Ej: Documentación inválida'}
+              rows={3}
+            />
+            <p className={`text-xs text-right ${motivoDialog.texto.length > 50 ? 'text-destructive' : 'text-muted-foreground'}`}>
+              {motivoDialog.texto.length}/50
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMotivoDialog({ open: false, estado: null, paseId: null, texto: '' })}>
+              Cancelar
+            </Button>
+            <Button
+              variant={motivoDialog.estado === 'rechazado' ? 'destructive' : 'default'}
+              disabled={!motivoDialog.texto.trim() || motivoDialog.texto.length > 50 || changeEstadoMutation.isPending}
+              onClick={() => {
+                if (!motivoDialog.paseId || !motivoDialog.estado) return;
+                const extra = motivoDialog.estado === 'observado'
+                  ? { motivo_observacion: motivoDialog.texto.trim() }
+                  : { motivo_rechazo: motivoDialog.texto.trim() };
+                changeEstadoMutation.mutate(
+                  { id: motivoDialog.paseId, estado: motivoDialog.estado, extra },
+                  { onSuccess: () => setMotivoDialog({ open: false, estado: null, paseId: null, texto: '' }) }
+                );
+              }}
+            >
+              {motivoDialog.estado === 'observado' ? 'Confirmar Observación' : 'Confirmar Rechazo'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
