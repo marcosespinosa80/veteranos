@@ -249,7 +249,8 @@ export default function ListasBuenaFe() {
   const jugadoresParaAgregar = jugadoresAptos;
   const isBorrador = selectedLista?.estado === 'borrador';
   const isObservada = selectedLista?.estado === 'observada';
-  const canEdit = isBorrador || isObservada;
+  const isCongelada = selectedLista?.estado === 'aprobada' || selectedLista?.cerrada === true;
+  const canEdit = (isBorrador || isObservada) && !isCongelada;
   const itemsNoAptos = listaItems.filter((i: any) => (i.jugador?.suspendido_fechas ?? 0) > 0 || i.tiene_deuda);
   const puedeEnviar = listaItems.length > 0 && itemsNoAptos.length === 0;
 
@@ -334,7 +335,7 @@ export default function ListasBuenaFe() {
                     <TableCell>
                       <div className="flex items-center gap-1">
                         <Badge variant="outline" className={estadoColors[l.estado] || ''}>
-                          {estadoLabels[l.estado] || l.estado}
+                          {l.estado === 'aprobada' || l.cerrada ? 'APROBADA (CONGELADA)' : (estadoLabels[l.estado] || l.estado)}
                         </Badge>
                         {(l.estado === 'observada' && l.motivo_observacion) && (
                           <AlertCircle className="w-3.5 h-3.5 text-warning" aria-label={l.motivo_observacion}>
@@ -444,6 +445,18 @@ export default function ListasBuenaFe() {
               <div>
                 <p className="font-medium text-destructive">Motivo del rechazo</p>
                 <p className="text-xs mt-0.5 text-foreground">{selectedLista.motivo_rechazo}</p>
+              </div>
+            </div>
+          )}
+
+          {isCongelada && (
+            <div className="flex items-start gap-2 rounded-md border border-primary/30 bg-primary/10 p-3 text-sm">
+              <CheckCircle className="w-4 h-4 mt-0.5 shrink-0 text-primary" />
+              <div>
+                <p className="font-medium text-primary">LISTA APROBADA — CONGELADA</p>
+                <p className="text-xs mt-0.5 text-foreground">
+                  No se puede modificar hasta finalizar el campeonato. Para el próximo torneo se debe crear una nueva lista.
+                </p>
               </div>
             </div>
           )}
