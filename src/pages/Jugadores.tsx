@@ -146,7 +146,7 @@ export default function Jugadores() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('jugadores')
-        .select('*, equipo:equipos!jugadores_equipo_id_fkey(nombre_equipo), categoria:categorias(nombre_categoria)')
+        .select('*, equipo:equipos!jugadores_equipo_id_fkey(nombre_equipo, estado), categoria:categorias(nombre_categoria)')
         .order('apellido');
       if (error) throw error;
       return data;
