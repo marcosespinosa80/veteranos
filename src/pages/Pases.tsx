@@ -555,10 +555,10 @@ export default function Pases() {
                       <Button size="sm" className="gap-1" onClick={() => changeEstadoMutation.mutate({ id: selectedPase.id, estado: 'aprobado' })} disabled={changeEstadoMutation.isPending}>
                         <CheckCircle className="w-4 h-4" /> Aprobar
                       </Button>
-                      <Button size="sm" variant="outline" className="gap-1" onClick={() => changeEstadoMutation.mutate({ id: selectedPase.id, estado: 'observado' })} disabled={changeEstadoMutation.isPending}>
+                      <Button size="sm" variant="outline" className="gap-1" onClick={() => setMotivoDialog({ open: true, estado: 'observado', paseId: selectedPase.id, texto: '' })} disabled={changeEstadoMutation.isPending}>
                         <AlertCircle className="w-4 h-4" /> Observar
                       </Button>
-                      <Button size="sm" variant="destructive" className="gap-1" onClick={() => changeEstadoMutation.mutate({ id: selectedPase.id, estado: 'rechazado' })} disabled={changeEstadoMutation.isPending}>
+                      <Button size="sm" variant="destructive" className="gap-1" onClick={() => setMotivoDialog({ open: true, estado: 'rechazado', paseId: selectedPase.id, texto: '' })} disabled={changeEstadoMutation.isPending}>
                         <XCircle className="w-4 h-4" /> Rechazar
                       </Button>
                     </div>
