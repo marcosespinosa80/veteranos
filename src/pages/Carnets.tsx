@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -8,55 +8,48 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Search, CreditCard, RefreshCw, QrCode, Users, Download } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import logoLvfc from '@/assets/logo-lvfc.png';
 
+type EstadoFiltro = 'todos' | 'pendientes' | 'generados';
+
 export default function Carnets() {
   const { role, user, loading } = useAuth();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
+  const [estadoFiltro, setEstadoFiltro] = useState<EstadoFiltro>('todos');
   const [selectedJugador, setSelectedJugador] = useState<any>(null);
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
   const [bulkResult, setBulkResult] = useState<{ creados: number; existentes: number; errores: number } | null>(null);
   const isAdmin = role === 'admin_general' || role === 'admin_comun';
   const carnetRef = useRef<HTMLDivElement>(null);
 
-  const { data: carnetsData = [], isLoading } = useQuery({
-    queryKey: ['carnets', user?.id, role],
+  // Fetch all jugadores with their carnet (left join)
+  const { data: jugadores = [], isLoading } = useQuery({
+    queryKey: ['carnets-jugadores', user?.id, role],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('carnets')
-        .select('*, jugador:jugadores(id, nombre, apellido, dni, estado, foto_url, fecha_nacimiento, suspendido_fechas, equipo:equipos!jugadores_equipo_id_fkey(nombre_equipo), categoria:categorias(nombre_categoria))')
-        .order('created_at', { ascending: false });
+        .from('jugadores')
+        .select(`
+          id, nombre, apellido, dni, estado, foto_url, fecha_nacimiento, suspendido_fechas,
+          equipo:equipos!jugadores_equipo_id_fkey(nombre_equipo),
+          categoria:categorias(nombre_categoria),
+          carnet:carnets(id, numero_carnet, qr_token, estado, codigo, vigencia_desde, vigencia_hasta)
+        `)
+        .order('apellido', { ascending: true });
       if (error) throw error;
-      return data;
+      return data || [];
     },
     enabled: !loading && !!user,
   });
 
-  const { data: jugadoresBusqueda = [] } = useQuery({
-    queryKey: ['jugadores-busqueda-carnet', search],
-    enabled: search.length >= 2 && isAdmin,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('jugadores')
-        .select('id, nombre, apellido, dni, estado, foto_url, equipo:equipos!jugadores_equipo_id_fkey(nombre_equipo), categoria:categorias(nombre_categoria)')
-        .or(`dni.ilike.%${search}%,apellido.ilike.%${search}%`)
-        .order('apellido')
-        .limit(20);
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  const carnetMap = new Map(carnetsData.map((c: any) => [c.jugador_id, c]));
-
   const generateMutation = useMutation({
     mutationFn: async (jugador: { id: string; dni: string }) => {
-      const codigo = `LVFC-${jugador.dni}`;
+      const codigo = `LVFC-${jugador.dni.replace(/\D/g, '')}`;
       const hoy = new Date();
       const hasta = new Date(hoy.getFullYear() + 1, hoy.getMonth(), hoy.getDate());
       const { error } = await supabase.from('carnets').insert({
@@ -66,11 +59,15 @@ export default function Carnets() {
         vigencia_hasta: hasta.toISOString().slice(0, 10),
         estado: 'activo',
       });
-      if (error) throw error;
+      if (error) {
+        if (error.code === '23505') {
+          throw new Error('Ya tiene carnet');
+        }
+        throw error;
+      }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['carnets'] });
-      queryClient.invalidateQueries({ queryKey: ['jugadores-busqueda-carnet'] });
+      queryClient.invalidateQueries({ queryKey: ['carnets-jugadores'] });
       toast({ title: 'Carnet generado correctamente' });
     },
     onError: (err: Error) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
@@ -88,21 +85,8 @@ export default function Carnets() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['carnets'] });
+      queryClient.invalidateQueries({ queryKey: ['carnets-jugadores'] });
       toast({ title: 'Vigencia renovada' });
-    },
-    onError: (err: Error) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
-  });
-
-  const toggleEstadoMutation = useMutation({
-    mutationFn: async ({ id, estado }: { id: string; estado: string }) => {
-      const newEstado = estado === 'activo' ? 'inactivo' : 'activo';
-      const { error } = await supabase.from('carnets').update({ estado: newEstado }).eq('id', id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['carnets'] });
-      toast({ title: 'Estado actualizado' });
     },
     onError: (err: Error) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
   });
@@ -131,7 +115,7 @@ export default function Carnets() {
         const hasta = new Date(hoy.getFullYear() + 1, hoy.getMonth(), hoy.getDate());
         const rows = sinCarnet.map((j: any) => ({
           jugador_id: j.id,
-          codigo: `LVFC-${j.dni}`,
+          codigo: `LVFC-${(j.dni || '').replace(/\D/g, '')}`,
           vigencia_desde: hoy.toISOString().slice(0, 10),
           vigencia_hasta: hasta.toISOString().slice(0, 10),
           estado: 'activo' as const,
@@ -146,23 +130,54 @@ export default function Carnets() {
     },
     onSuccess: (result) => {
       setBulkResult(result);
-      queryClient.invalidateQueries({ queryKey: ['carnets'] });
-      queryClient.invalidateQueries({ queryKey: ['jugadores-busqueda-carnet'] });
+      queryClient.invalidateQueries({ queryKey: ['carnets-jugadores'] });
     },
     onError: (err: Error) => {
       toast({ title: 'Error en generación masiva', description: err.message, variant: 'destructive' });
     },
   });
 
-  const filtered = carnetsData.filter((c: any) => {
-    if (!search) return true;
-    const j = c.jugador;
-    return `${j?.nombre} ${j?.apellido} ${j?.dni}`.toLowerCase().includes(search.toLowerCase());
-  });
+  // Normalize jugadores: carnet may come as array or object from supabase
+  const rows = useMemo(() => {
+    return jugadores.map((j: any) => {
+      const carnet = Array.isArray(j.carnet) ? j.carnet[0] : j.carnet;
+      return { ...j, carnet };
+    });
+  }, [jugadores]);
+
+  // Filter + sort
+  const filtered = useMemo(() => {
+    const searchDigits = search.replace(/\D/g, '');
+    const searchLower = search.toLowerCase().trim();
+
+    const result = rows.filter((j: any) => {
+      // Estado filter
+      if (estadoFiltro === 'pendientes' && j.carnet) return false;
+      if (estadoFiltro === 'generados' && !j.carnet) return false;
+
+      // Search filter
+      if (searchLower) {
+        const matchDni = searchDigits && (j.dni || '').replace(/\D/g, '').includes(searchDigits);
+        const matchName = `${j.apellido} ${j.nombre}`.toLowerCase().includes(searchLower);
+        if (!matchDni && !matchName) return false;
+      }
+      return true;
+    });
+
+    // Sort: pendientes primero, luego por apellido
+    return result.sort((a: any, b: any) => {
+      const aPend = !a.carnet ? 0 : 1;
+      const bPend = !b.carnet ? 0 : 1;
+      if (aPend !== bPend) return aPend - bPend;
+      return (a.apellido || '').localeCompare(b.apellido || '');
+    });
+  }, [rows, search, estadoFiltro]);
+
+  const totalPendientes = rows.filter((j: any) => !j.carnet).length;
+  const totalGenerados = rows.filter((j: any) => !!j.carnet).length;
 
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
 
-  // Download PDF handler
   const handleDownloadPDF = async () => {
     if (!carnetRef.current) return;
     try {
@@ -170,7 +185,7 @@ export default function Carnets() {
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [90, 130] });
       pdf.addImage(imgData, 'PNG', 0, 0, 90, 130);
-      const j = selectedJugador?.jugador;
+      const j = selectedJugador;
       pdf.save(`carnet_${j?.apellido || 'jugador'}_${j?.nombre || ''}.pdf`);
     } catch {
       toast({ title: 'Error al generar PDF', variant: 'destructive' });
@@ -180,9 +195,21 @@ export default function Carnets() {
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <div className="relative w-full sm:w-72">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder="Buscar por DNI o apellido..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <div className="relative w-full sm:w-72">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input placeholder="Buscar por DNI o apellido..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+          </div>
+          <Select value={estadoFiltro} onValueChange={(v) => setEstadoFiltro(v as EstadoFiltro)}>
+            <SelectTrigger className="w-full sm:w-56">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos ({rows.length})</SelectItem>
+              <SelectItem value="pendientes">Pendientes de generar ({totalPendientes})</SelectItem>
+              <SelectItem value="generados">Con carnet ({totalGenerados})</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         {isAdmin && (
           <Button onClick={() => { setBulkResult(null); setBulkDialogOpen(true); }} variant="outline" className="shrink-0">
@@ -191,50 +218,18 @@ export default function Carnets() {
         )}
       </div>
 
-      {isAdmin && search.length >= 2 && jugadoresBusqueda.length > 0 && (
-        <Card>
-          <CardContent className="p-3">
-            <p className="text-xs font-medium text-muted-foreground mb-2">Resultados de búsqueda:</p>
-            <div className="space-y-2">
-              {jugadoresBusqueda.map((j: any) => {
-                const existingCarnet = carnetMap.get(j.id);
-                return (
-                  <div key={j.id} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
-                    <div>
-                      <span className="font-medium text-sm">{j.apellido}, {j.nombre}</span>
-                      <span className="text-xs text-muted-foreground ml-2">DNI {j.dni}</span>
-                      <span className="text-xs text-muted-foreground ml-2">{(j.equipo as any)?.nombre_equipo || 'Sin equipo'}</span>
-                      {existingCarnet && (
-                        <Badge variant="outline" className="ml-2 text-xs bg-primary/15 text-primary border-primary/30">
-                          Tiene carnet
-                        </Badge>
-                      )}
-                    </div>
-                    {existingCarnet ? (
-                      <Button size="sm" variant="outline" onClick={() => renewMutation.mutate(existingCarnet.id)} disabled={renewMutation.isPending}>
-                        <RefreshCw className="w-3 h-3 mr-1" /> Renovar carnet
-                      </Button>
-                    ) : (
-                      <Button size="sm" onClick={() => generateMutation.mutate({ id: j.id, dni: j.dni })} disabled={generateMutation.isPending}>
-                        <CreditCard className="w-3 h-3 mr-1" /> Generar carnet
-                      </Button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      <p className="text-xs text-muted-foreground">{filtered.length} carnet{filtered.length !== 1 ? 's' : ''}</p>
+      <p className="text-xs text-muted-foreground">
+        {filtered.length} jugador{filtered.length !== 1 ? 'es' : ''}
+      </p>
 
       <Card>
         <CardContent className="p-0">
           {isLoading ? (
             <div className="p-8 text-center text-muted-foreground">Cargando...</div>
           ) : filtered.length === 0 ? (
-            <div className="p-8 text-center text-muted-foreground">No se encontraron carnets</div>
+            <div className="p-8 text-center text-muted-foreground">
+              {estadoFiltro === 'pendientes' ? 'No hay jugadores pendientes de carnet' : 'No se encontraron jugadores'}
+            </div>
           ) : (
             <Table>
               <TableHeader>
@@ -244,33 +239,48 @@ export default function Carnets() {
                   <TableHead className="hidden sm:table-cell">DNI</TableHead>
                   <TableHead className="hidden md:table-cell">Club</TableHead>
                   <TableHead className="hidden lg:table-cell">Categoría</TableHead>
-                  <TableHead className="w-32" />
+                  <TableHead>Estado</TableHead>
+                  <TableHead className="w-40 text-right">Acción</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((c: any) => {
-                  const j = c.jugador;
+                {filtered.map((j: any) => {
+                  const carnet = j.carnet;
                   return (
-                    <TableRow key={c.id}>
-                      <TableCell className="font-mono text-sm font-bold">{c.numero_carnet}</TableCell>
-                      <TableCell className="font-medium">{j?.apellido}, {j?.nombre}</TableCell>
-                      <TableCell className="hidden sm:table-cell text-muted-foreground">{j?.dni}</TableCell>
-                      <TableCell className="hidden md:table-cell text-sm">{j?.equipo?.nombre_equipo || '—'}</TableCell>
-                      <TableCell className="hidden lg:table-cell text-sm">{j?.categoria?.nombre_categoria || '—'}</TableCell>
+                    <TableRow key={j.id}>
+                      <TableCell className="font-mono text-sm font-bold">{carnet?.numero_carnet || '—'}</TableCell>
+                      <TableCell className="font-medium">{j.apellido}, {j.nombre}</TableCell>
+                      <TableCell className="hidden sm:table-cell text-muted-foreground">{j.dni}</TableCell>
+                      <TableCell className="hidden md:table-cell text-sm">{j.equipo?.nombre_equipo || '—'}</TableCell>
+                      <TableCell className="hidden lg:table-cell text-sm">{j.categoria?.nombre_categoria || '—'}</TableCell>
                       <TableCell>
-                        <div className="flex gap-1">
-                          <Button size="icon" variant="ghost" title="Ver credencial" onClick={() => setSelectedJugador(c)}>
-                            <QrCode className="w-4 h-4" />
-                          </Button>
-                          {isAdmin && (
+                        {carnet ? (
+                          <Badge className="bg-primary/15 text-primary border-primary/30 hover:bg-primary/20">Generado</Badge>
+                        ) : (
+                          <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-700">
+                            Pendiente
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex gap-1 justify-end">
+                          {carnet ? (
                             <>
-                              <Button size="icon" variant="ghost" title="Renovar vigencia" onClick={() => renewMutation.mutate(c.id)} disabled={renewMutation.isPending}>
-                                <RefreshCw className="w-4 h-4" />
+                              <Button size="sm" variant="outline" onClick={() => setSelectedJugador({ ...j, ...carnet, jugador: j })}>
+                                <QrCode className="w-3 h-3 mr-1" /> Ver carnet
                               </Button>
-                              <Button size="sm" variant="ghost" onClick={() => toggleEstadoMutation.mutate({ id: c.id, estado: c.estado })}>
-                                {c.estado === 'activo' ? 'Desactivar' : 'Activar'}
-                              </Button>
+                              {isAdmin && (
+                                <Button size="icon" variant="ghost" title="Renovar vigencia" onClick={() => renewMutation.mutate(carnet.id)} disabled={renewMutation.isPending}>
+                                  <RefreshCw className="w-4 h-4" />
+                                </Button>
+                              )}
                             </>
+                          ) : (
+                            isAdmin && (
+                              <Button size="sm" onClick={() => generateMutation.mutate({ id: j.id, dni: j.dni })} disabled={generateMutation.isPending}>
+                                <CreditCard className="w-3 h-3 mr-1" /> Generar carnet
+                              </Button>
+                            )
                           )}
                         </div>
                       </TableCell>
@@ -291,14 +301,13 @@ export default function Carnets() {
             <DialogDescription>Constancia de inscripción en la Liga</DialogDescription>
           </DialogHeader>
           {selectedJugador && (() => {
-            const j = selectedJugador.jugador;
+            const j = selectedJugador.jugador || selectedJugador;
             const fechaNac = j?.fecha_nacimiento
               ? new Date(j.fecha_nacimiento + 'T00:00:00').toLocaleDateString('es-AR')
               : '—';
             return (
               <>
                 <div ref={carnetRef} className="border rounded-xl p-5 space-y-4 bg-white text-black" style={{ minWidth: 300 }}>
-                  {/* Header: Logo + Title + Carnet Number */}
                   <div className="flex items-center justify-between border-b pb-3">
                     <div className="flex items-center gap-2">
                       <img src={logoLvfc} alt="LVFC" className="w-10 h-10" />
@@ -314,7 +323,6 @@ export default function Carnets() {
                     </div>
                   </div>
 
-                  {/* Photo + Name */}
                   <div className="flex items-start gap-4">
                     <div className="w-24 h-28 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden shrink-0 border border-gray-200">
                       {j?.foto_url ? (
@@ -330,7 +338,6 @@ export default function Carnets() {
                     </div>
                   </div>
 
-                  {/* Key data: DNI, Club, Categoría */}
                   <div className="space-y-2">
                     <div className="rounded-lg bg-gray-100 p-2 text-center">
                       <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">DNI</p>
@@ -348,7 +355,6 @@ export default function Carnets() {
                     </div>
                   </div>
 
-                  {/* QR */}
                   <div className="border-t pt-3 flex flex-col items-center">
                     <div className="bg-black p-3 rounded-lg">
                       <img
@@ -361,7 +367,6 @@ export default function Carnets() {
                   </div>
                 </div>
 
-                {/* Download button only */}
                 <div className="pt-2">
                   <Button className="w-full" onClick={handleDownloadPDF}>
                     <Download className="w-4 h-4 mr-1" /> Descargar PDF
