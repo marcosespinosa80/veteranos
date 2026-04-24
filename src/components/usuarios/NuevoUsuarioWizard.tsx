@@ -265,11 +265,11 @@ export default function NuevoUsuarioWizard({ open, onOpenChange }: Props) {
                 <div className="flex-1 space-y-2">
                   <Label>DNI del jugador *</Label>
                   <div className="flex gap-2">
-                    <Input
+                    <DniInput
                       placeholder="Ingresá el DNI"
                       value={dniSearch}
-                      onChange={(e) => {
-                        setDniSearch(e.target.value);
+                      onChange={(v) => {
+                        setDniSearch(v);
                         setJugadorFound(null);
                         setJugadorError('');
                         setVinculado(false);
