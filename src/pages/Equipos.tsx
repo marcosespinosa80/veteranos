@@ -169,6 +169,11 @@ export default function Equipos() {
             </AlertDialogTitle>
             <AlertDialogDescription>
               ¿Confirmás {toggleTarget?.estado === 'activo' ? 'desactivar' : 'activar'} el club <strong>{toggleTarget?.nombre_equipo}</strong>?
+              {toggleTarget?.estado === 'activo' && (
+                <span className="block mt-2 text-destructive font-medium">
+                  Al dar de baja el club, todos sus jugadores quedarán INACTIVOS (CLUB) y solo podrán pasar a otro club.
+                </span>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
