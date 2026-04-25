@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -6,10 +5,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { DollarSign, AlertTriangle, Tag } from 'lucide-react';
 import { TarifasTab } from '@/components/finanzas/TarifasTab';
-import { PagosTab } from '@/components/finanzas/PagosTab';
 import { DeudasTab } from '@/components/finanzas/DeudasTab';
 import { ReportesTab } from '@/components/finanzas/ReportesTab';
-import { AsignarMultaDialog } from '@/components/finanzas/AsignarMultaDialog';
 
 export default function Finanzas() {
   const { user, role } = useAuth();
