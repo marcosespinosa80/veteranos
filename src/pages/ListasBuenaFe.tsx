@@ -582,7 +582,7 @@ export default function ListasBuenaFe() {
                     {jugadoresBloqueados.map((j: any) => (
                       <div key={j.id} className="flex items-center gap-2 p-1">
                         <span className="text-muted-foreground">{j.apellido}, {j.nombre}</span>
-                        <div className="ml-auto flex gap-1">
+                        <div className="ml-auto flex gap-1 flex-wrap justify-end">
                           {(j.suspendido_fechas ?? 0) > 0 && (
                             <Badge variant="outline" className="bg-destructive/15 text-destructive border-destructive/30 text-[10px]">
                               SUSP. ({j.suspendido_fechas})
@@ -591,6 +591,15 @@ export default function ListasBuenaFe() {
                           {j.tiene_deuda && (
                             <Badge variant="outline" className="bg-destructive/15 text-destructive border-destructive/30 text-[10px]">
                               DEUDA
+                            </Badge>
+                          )}
+                          {j.ya_aprobado_en && (
+                            <Badge
+                              variant="outline"
+                              className="bg-warning/15 text-warning border-warning/30 text-[10px]"
+                              title={`Ya aprobado en: ${j.ya_aprobado_en}`}
+                            >
+                              YA EN LISTA APROBADA
                             </Badge>
                           )}
                         </div>
