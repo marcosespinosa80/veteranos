@@ -21,6 +21,7 @@ import NotFound from "./pages/NotFound";
 import PlaceholderPage from "./pages/PlaceholderPage";
 import CanchasPage from "./pages/CanchasPage";
 import FinanzasPage from "./pages/FinanzasPage";
+import MultasPage from "./pages/MultasPage";
 
 const queryClient = new QueryClient();
 
@@ -88,6 +89,9 @@ const App = () => (
             } />
             <Route path="/canchas" element={
               <ProtectedRoute><CanchasPage /></ProtectedRoute>
+            } />
+            <Route path="/tribunal/multas" element={
+              <ProtectedRoute><MultasPage /></ProtectedRoute>
             } />
             
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
