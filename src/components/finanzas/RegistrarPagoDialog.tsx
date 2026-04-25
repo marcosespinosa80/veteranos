@@ -105,8 +105,23 @@ export function RegistrarPagoDialog({ open, onOpenChange, preload }: Props) {
       setMedioPago('efectivo');
       setReferencia('');
       setObservaciones('');
+    } else if (preload) {
+      setTargetType(preload.type);
+      if (preload.type === 'jugador' && preload.jugadorDni) {
+        setSearchDni(preload.jugadorDni);
+      }
+      if (preload.type === 'equipo' && preload.equipoId) {
+        setSelectedEquipoId(preload.equipoId);
+      }
     }
-  }, [open]);
+  }, [open, preload]);
+
+  // Auto-select all pending cargos (payment is total, no partial)
+  useEffect(() => {
+    if (cargosPendientes.length > 0) {
+      setSelectedCargos(cargosPendientes.map((c: any) => c.id));
+    }
+  }, [cargosPendientes]);
 
   const totalSelected = cargosPendientes
     .filter((c: any) => selectedCargos.includes(c.id))
