@@ -266,8 +266,8 @@ export default function ListasBuenaFe() {
 
   const jugadoresYaEnLista = new Set(listaItems.map((i: any) => i.jugador_id));
   const jugadoresEnEquipo = jugadoresDisponibles.filter((j: any) => !jugadoresYaEnLista.has(j.id));
-  const jugadoresAptos = jugadoresEnEquipo.filter((j: any) => (j.suspendido_fechas ?? 0) === 0 && !j.tiene_deuda);
-  const jugadoresBloqueados = jugadoresEnEquipo.filter((j: any) => (j.suspendido_fechas ?? 0) > 0 || j.tiene_deuda);
+  const jugadoresAptos = jugadoresEnEquipo.filter((j: any) => (j.suspendido_fechas ?? 0) === 0 && !j.tiene_deuda && !j.ya_aprobado_en);
+  const jugadoresBloqueados = jugadoresEnEquipo.filter((j: any) => (j.suspendido_fechas ?? 0) > 0 || j.tiene_deuda || j.ya_aprobado_en);
   const jugadoresParaAgregar = jugadoresAptos;
   const isBorrador = selectedLista?.estado === 'borrador';
   const isObservada = selectedLista?.estado === 'observada';
