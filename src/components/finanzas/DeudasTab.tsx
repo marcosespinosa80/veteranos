@@ -102,6 +102,7 @@ export function DeudasTab() {
   });
 
   return (
+    <>
     <Tabs defaultValue="jugadores" className="w-full">
       <TabsList>
         <TabsTrigger value="jugadores">Por Jugador</TabsTrigger>
@@ -125,6 +126,7 @@ export function DeudasTab() {
                 <TableHead>DNI</TableHead>
                 <TableHead>Cargos</TableHead>
                 <TableHead>Deuda Total</TableHead>
+                <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -133,7 +135,16 @@ export function DeudasTab() {
                   <TableCell className="font-medium">{d.nombre}</TableCell>
                   <TableCell>{d.dni}</TableCell>
                   <TableCell><Badge variant="outline">{d.count}</Badge></TableCell>
-                  <TableCell className="font-bold text-red-600">{formatMoney(d.total)}</TableCell>
+                  <TableCell className="font-bold text-destructive">{formatMoney(d.total)}</TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      size="sm"
+                      onClick={() => openPagoJugador(id, d.dni)}
+                      disabled={d.total <= 0}
+                    >
+                      <DollarSign className="w-4 h-4 mr-1" /> Pagar
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -157,6 +168,7 @@ export function DeudasTab() {
                 <TableHead>Club</TableHead>
                 <TableHead>Cargos</TableHead>
                 <TableHead>Deuda Total</TableHead>
+                <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -164,7 +176,16 @@ export function DeudasTab() {
                 <TableRow key={id}>
                   <TableCell className="font-medium">{d.nombre}</TableCell>
                   <TableCell><Badge variant="outline">{d.count}</Badge></TableCell>
-                  <TableCell className="font-bold text-red-600">{formatMoney(d.total)}</TableCell>
+                  <TableCell className="font-bold text-destructive">{formatMoney(d.total)}</TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      size="sm"
+                      onClick={() => openPagoEquipo(id)}
+                      disabled={d.total <= 0}
+                    >
+                      <DollarSign className="w-4 h-4 mr-1" /> Pagar
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -172,5 +193,7 @@ export function DeudasTab() {
         )}
       </TabsContent>
     </Tabs>
+    <RegistrarPagoDialog open={pagoOpen} onOpenChange={setPagoOpen} preload={pagoPreload} />
+    </>
   );
 }
