@@ -77,6 +77,7 @@ export function getDefaultModules(role: UserRole): Record<ModuleKey, boolean> {
       break;
     case 'tribunal':
       all.dashboard = true;
+      all.multas = true;
       break;
   }
 
