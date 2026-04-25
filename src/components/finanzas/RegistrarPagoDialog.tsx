@@ -23,12 +23,20 @@ const TIPO_LABELS: Record<string, string> = {
   otro: 'Otro',
 };
 
+interface PreloadTarget {
+  type: 'jugador' | 'equipo';
+  jugadorId?: string;
+  jugadorDni?: string;
+  equipoId?: string;
+}
+
 interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  preload?: PreloadTarget | null;
 }
 
-export function RegistrarPagoDialog({ open, onOpenChange }: Props) {
+export function RegistrarPagoDialog({ open, onOpenChange, preload }: Props) {
   const { user } = useAuth();
   const qc = useQueryClient();
   const [saving, setSaving] = useState(false);
