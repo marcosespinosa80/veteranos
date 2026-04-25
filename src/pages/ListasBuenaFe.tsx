@@ -125,7 +125,29 @@ export default function ListasBuenaFe() {
         deudaSet = new Set((cargos || []).map((c: any) => c.jugador_id).filter(Boolean));
       }
 
-      return (data || []).map((j: any) => ({ ...j, tiene_deuda: deudaSet.has(j.id) }));
+      // Fetch players already in an APPROVED lista for same season+category (other clubs)
+      let conflictMap = new Map<string, string>(); // jugador_id -> nombre_equipo
+      if (ids.length > 0 && selectedLista.categoria_id) {
+        const { data: conflictItems } = await supabase
+          .from('lista_buena_fe_items')
+          .select('jugador_id, lista:listas_buena_fe!inner(id, estado, temporada, categoria_id, equipo:equipos(nombre_equipo))')
+          .in('jugador_id', ids)
+          .eq('lista.estado', 'aprobada')
+          .eq('lista.temporada', selectedLista.temporada)
+          .eq('lista.categoria_id', selectedLista.categoria_id)
+          .neq('lista.id', selectedLista.id);
+        (conflictItems || []).forEach((c: any) => {
+          if (c.jugador_id && c.lista?.equipo?.nombre_equipo) {
+            conflictMap.set(c.jugador_id, c.lista.equipo.nombre_equipo);
+          }
+        });
+      }
+
+      return (data || []).map((j: any) => ({
+        ...j,
+        tiene_deuda: deudaSet.has(j.id),
+        ya_aprobado_en: conflictMap.get(j.id) || null,
+      }));
     },
   });
 
@@ -244,8 +266,8 @@ export default function ListasBuenaFe() {
 
   const jugadoresYaEnLista = new Set(listaItems.map((i: any) => i.jugador_id));
   const jugadoresEnEquipo = jugadoresDisponibles.filter((j: any) => !jugadoresYaEnLista.has(j.id));
-  const jugadoresAptos = jugadoresEnEquipo.filter((j: any) => (j.suspendido_fechas ?? 0) === 0 && !j.tiene_deuda);
-  const jugadoresBloqueados = jugadoresEnEquipo.filter((j: any) => (j.suspendido_fechas ?? 0) > 0 || j.tiene_deuda);
+  const jugadoresAptos = jugadoresEnEquipo.filter((j: any) => (j.suspendido_fechas ?? 0) === 0 && !j.tiene_deuda && !j.ya_aprobado_en);
+  const jugadoresBloqueados = jugadoresEnEquipo.filter((j: any) => (j.suspendido_fechas ?? 0) > 0 || j.tiene_deuda || j.ya_aprobado_en);
   const jugadoresParaAgregar = jugadoresAptos;
   const isBorrador = selectedLista?.estado === 'borrador';
   const isObservada = selectedLista?.estado === 'observada';
@@ -560,7 +582,7 @@ export default function ListasBuenaFe() {
                     {jugadoresBloqueados.map((j: any) => (
                       <div key={j.id} className="flex items-center gap-2 p-1">
                         <span className="text-muted-foreground">{j.apellido}, {j.nombre}</span>
-                        <div className="ml-auto flex gap-1">
+                        <div className="ml-auto flex gap-1 flex-wrap justify-end">
                           {(j.suspendido_fechas ?? 0) > 0 && (
                             <Badge variant="outline" className="bg-destructive/15 text-destructive border-destructive/30 text-[10px]">
                               SUSP. ({j.suspendido_fechas})
@@ -569,6 +591,15 @@ export default function ListasBuenaFe() {
                           {j.tiene_deuda && (
                             <Badge variant="outline" className="bg-destructive/15 text-destructive border-destructive/30 text-[10px]">
                               DEUDA
+                            </Badge>
+                          )}
+                          {j.ya_aprobado_en && (
+                            <Badge
+                              variant="outline"
+                              className="bg-warning/15 text-warning border-warning/30 text-[10px]"
+                              title={`Ya aprobado en: ${j.ya_aprobado_en}`}
+                            >
+                              YA EN LISTA APROBADA
                             </Badge>
                           )}
                         </div>
