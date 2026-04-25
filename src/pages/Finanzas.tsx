@@ -10,7 +10,6 @@ import { ReportesTab } from '@/components/finanzas/ReportesTab';
 
 export default function Finanzas() {
   const { user, role } = useAuth();
-  const isAdmin = role === 'admin_general' || role === 'admin_comun';
 
   // KPI: Total recaudado
   const { data: totalRecaudado = 0 } = useQuery({
