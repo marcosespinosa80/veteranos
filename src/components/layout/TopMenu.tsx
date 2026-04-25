@@ -50,6 +50,12 @@ const menuGroups: MenuGroup[] = [
       { label: 'Canchas', href: '/canchas', moduleKey: 'canchas' },
     ],
   },
+  {
+    title: 'TRIBUNAL',
+    items: [
+      { label: 'Multas', href: '/tribunal/multas', moduleKey: 'multas' },
+    ],
+  },
 ];
 
 export function TopMenu() {

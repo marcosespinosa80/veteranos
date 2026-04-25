@@ -5,6 +5,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { DollarSign } from 'lucide-react';
+import { RegistrarPagoDialog } from './RegistrarPagoDialog';
 
 const TIPO_LABELS: Record<string, string> = {
   inscripcion_jugador: 'Inscripción Jugador',
@@ -19,6 +22,17 @@ const TIPO_LABELS: Record<string, string> = {
 export function DeudasTab() {
   const [searchJugador, setSearchJugador] = useState('');
   const [searchEquipo, setSearchEquipo] = useState('');
+  const [pagoOpen, setPagoOpen] = useState(false);
+  const [pagoPreload, setPagoPreload] = useState<any>(null);
+
+  const openPagoJugador = (jugadorId: string, dni: string) => {
+    setPagoPreload({ type: 'jugador', jugadorId, jugadorDni: dni });
+    setPagoOpen(true);
+  };
+  const openPagoEquipo = (equipoId: string) => {
+    setPagoPreload({ type: 'equipo', equipoId });
+    setPagoOpen(true);
+  };
 
   // Cargos pendientes de jugadores
   const { data: cargosJugadores = [] } = useQuery({
@@ -88,6 +102,7 @@ export function DeudasTab() {
   });
 
   return (
+    <>
     <Tabs defaultValue="jugadores" className="w-full">
       <TabsList>
         <TabsTrigger value="jugadores">Por Jugador</TabsTrigger>
@@ -111,6 +126,7 @@ export function DeudasTab() {
                 <TableHead>DNI</TableHead>
                 <TableHead>Cargos</TableHead>
                 <TableHead>Deuda Total</TableHead>
+                <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -119,7 +135,16 @@ export function DeudasTab() {
                   <TableCell className="font-medium">{d.nombre}</TableCell>
                   <TableCell>{d.dni}</TableCell>
                   <TableCell><Badge variant="outline">{d.count}</Badge></TableCell>
-                  <TableCell className="font-bold text-red-600">{formatMoney(d.total)}</TableCell>
+                  <TableCell className="font-bold text-destructive">{formatMoney(d.total)}</TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      size="sm"
+                      onClick={() => openPagoJugador(id, d.dni)}
+                      disabled={d.total <= 0}
+                    >
+                      <DollarSign className="w-4 h-4 mr-1" /> Pagar
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -143,6 +168,7 @@ export function DeudasTab() {
                 <TableHead>Club</TableHead>
                 <TableHead>Cargos</TableHead>
                 <TableHead>Deuda Total</TableHead>
+                <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -150,7 +176,16 @@ export function DeudasTab() {
                 <TableRow key={id}>
                   <TableCell className="font-medium">{d.nombre}</TableCell>
                   <TableCell><Badge variant="outline">{d.count}</Badge></TableCell>
-                  <TableCell className="font-bold text-red-600">{formatMoney(d.total)}</TableCell>
+                  <TableCell className="font-bold text-destructive">{formatMoney(d.total)}</TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      size="sm"
+                      onClick={() => openPagoEquipo(id)}
+                      disabled={d.total <= 0}
+                    >
+                      <DollarSign className="w-4 h-4 mr-1" /> Pagar
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -158,5 +193,7 @@ export function DeudasTab() {
         )}
       </TabsContent>
     </Tabs>
+    <RegistrarPagoDialog open={pagoOpen} onOpenChange={setPagoOpen} preload={pagoPreload} />
+    </>
   );
 }

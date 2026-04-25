@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -6,14 +5,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { DollarSign, AlertTriangle, Tag } from 'lucide-react';
 import { TarifasTab } from '@/components/finanzas/TarifasTab';
-import { PagosTab } from '@/components/finanzas/PagosTab';
 import { DeudasTab } from '@/components/finanzas/DeudasTab';
 import { ReportesTab } from '@/components/finanzas/ReportesTab';
-import { AsignarMultaDialog } from '@/components/finanzas/AsignarMultaDialog';
 
 export default function Finanzas() {
   const { user, role } = useAuth();
-  const isAdmin = role === 'admin_general' || role === 'admin_comun';
 
   // KPI: Total recaudado
   const { data: totalRecaudado = 0 } = useQuery({
@@ -59,9 +55,8 @@ export default function Finanzas() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Gestión Financiera</h1>
-          <p className="text-muted-foreground text-sm">Tarifas, pagos y deudas de la liga</p>
+          <p className="text-muted-foreground text-sm">Tarifas y deudas de la liga</p>
         </div>
-        {isAdmin && <AsignarMultaDialog />}
       </div>
 
       {/* KPIs */}
@@ -103,14 +98,12 @@ export default function Finanzas() {
 
       {/* Tabs */}
       <Tabs defaultValue="tarifas" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="tarifas">Tarifas</TabsTrigger>
-          <TabsTrigger value="pagos">Pagos</TabsTrigger>
           <TabsTrigger value="deudas">Deudas</TabsTrigger>
-          <TabsTrigger value="reportes">Reportes</TabsTrigger>
+          <TabsTrigger value="reportes">Informes</TabsTrigger>
         </TabsList>
         <TabsContent value="tarifas"><TarifasTab /></TabsContent>
-        <TabsContent value="pagos"><PagosTab /></TabsContent>
         <TabsContent value="deudas"><DeudasTab /></TabsContent>
         <TabsContent value="reportes"><ReportesTab /></TabsContent>
       </Tabs>

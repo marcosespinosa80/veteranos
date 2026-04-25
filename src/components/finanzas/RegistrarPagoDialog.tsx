@@ -23,12 +23,20 @@ const TIPO_LABELS: Record<string, string> = {
   otro: 'Otro',
 };
 
+interface PreloadTarget {
+  type: 'jugador' | 'equipo';
+  jugadorId?: string;
+  jugadorDni?: string;
+  equipoId?: string;
+}
+
 interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  preload?: PreloadTarget | null;
 }
 
-export function RegistrarPagoDialog({ open, onOpenChange }: Props) {
+export function RegistrarPagoDialog({ open, onOpenChange, preload }: Props) {
   const { user } = useAuth();
   const qc = useQueryClient();
   const [saving, setSaving] = useState(false);
@@ -97,8 +105,23 @@ export function RegistrarPagoDialog({ open, onOpenChange }: Props) {
       setMedioPago('efectivo');
       setReferencia('');
       setObservaciones('');
+    } else if (preload) {
+      setTargetType(preload.type);
+      if (preload.type === 'jugador' && preload.jugadorDni) {
+        setSearchDni(preload.jugadorDni);
+      }
+      if (preload.type === 'equipo' && preload.equipoId) {
+        setSelectedEquipoId(preload.equipoId);
+      }
     }
-  }, [open]);
+  }, [open, preload]);
+
+  // Auto-select all pending cargos (payment is total, no partial)
+  useEffect(() => {
+    if (cargosPendientes.length > 0) {
+      setSelectedCargos(cargosPendientes.map((c: any) => c.id));
+    }
+  }, [cargosPendientes]);
 
   const totalSelected = cargosPendientes
     .filter((c: any) => selectedCargos.includes(c.id))
