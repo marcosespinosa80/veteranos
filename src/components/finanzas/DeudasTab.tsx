@@ -22,6 +22,17 @@ const TIPO_LABELS: Record<string, string> = {
 export function DeudasTab() {
   const [searchJugador, setSearchJugador] = useState('');
   const [searchEquipo, setSearchEquipo] = useState('');
+  const [pagoOpen, setPagoOpen] = useState(false);
+  const [pagoPreload, setPagoPreload] = useState<any>(null);
+
+  const openPagoJugador = (jugadorId: string, dni: string) => {
+    setPagoPreload({ type: 'jugador', jugadorId, jugadorDni: dni });
+    setPagoOpen(true);
+  };
+  const openPagoEquipo = (equipoId: string) => {
+    setPagoPreload({ type: 'equipo', equipoId });
+    setPagoOpen(true);
+  };
 
   // Cargos pendientes de jugadores
   const { data: cargosJugadores = [] } = useQuery({
