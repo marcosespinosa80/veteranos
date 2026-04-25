@@ -125,7 +125,29 @@ export default function ListasBuenaFe() {
         deudaSet = new Set((cargos || []).map((c: any) => c.jugador_id).filter(Boolean));
       }
 
-      return (data || []).map((j: any) => ({ ...j, tiene_deuda: deudaSet.has(j.id) }));
+      // Fetch players already in an APPROVED lista for same season+category (other clubs)
+      let conflictMap = new Map<string, string>(); // jugador_id -> nombre_equipo
+      if (ids.length > 0 && selectedLista.categoria_id) {
+        const { data: conflictItems } = await supabase
+          .from('lista_buena_fe_items')
+          .select('jugador_id, lista:listas_buena_fe!inner(id, estado, temporada, categoria_id, equipo:equipos(nombre_equipo))')
+          .in('jugador_id', ids)
+          .eq('lista.estado', 'aprobada')
+          .eq('lista.temporada', selectedLista.temporada)
+          .eq('lista.categoria_id', selectedLista.categoria_id)
+          .neq('lista.id', selectedLista.id);
+        (conflictItems || []).forEach((c: any) => {
+          if (c.jugador_id && c.lista?.equipo?.nombre_equipo) {
+            conflictMap.set(c.jugador_id, c.lista.equipo.nombre_equipo);
+          }
+        });
+      }
+
+      return (data || []).map((j: any) => ({
+        ...j,
+        tiene_deuda: deudaSet.has(j.id),
+        ya_aprobado_en: conflictMap.get(j.id) || null,
+      }));
     },
   });
 
