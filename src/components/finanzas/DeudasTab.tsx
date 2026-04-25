@@ -5,6 +5,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { DollarSign } from 'lucide-react';
+import { RegistrarPagoDialog } from './RegistrarPagoDialog';
 
 const TIPO_LABELS: Record<string, string> = {
   inscripcion_jugador: 'Inscripción Jugador',
