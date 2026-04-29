@@ -124,6 +124,7 @@ export default function Jugadores() {
   const [search, setSearch] = useState('');
   const [filterEquipo, setFilterEquipo] = useState<string>('all');
   const [filterCategoria, setFilterCategoria] = useState<string>('all');
+  const [filterEstado, setFilterEstado] = useState<'all' | 'activos' | 'baja'>('all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<JugadorForm>(emptyForm);
