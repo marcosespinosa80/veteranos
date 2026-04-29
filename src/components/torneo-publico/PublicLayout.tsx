@@ -16,16 +16,13 @@ export default function PublicLayout() {
   return (
     <div className="min-h-screen bg-background">
       <header className="bg-primary text-primary-foreground border-b border-border">
-        <div className="container mx-auto px-4 py-5 flex items-center justify-between">
+        <div className="container mx-auto px-4 py-5 flex items-center">
           <Link to="/torneo" className="flex items-center gap-3">
             <Trophy className="h-7 w-7 text-accent" />
             <div>
               <h1 className="text-xl font-bold tracking-tight">Liga de Veteranos de Catamarca</h1>
               <p className="text-xs opacity-80">Portal oficial del torneo</p>
             </div>
-          </Link>
-          <Link to="/login" className="text-sm underline opacity-80 hover:opacity-100">
-            Acceso administrativo
           </Link>
         </div>
         {torneoId && (
