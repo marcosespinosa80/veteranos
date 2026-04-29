@@ -118,10 +118,10 @@ export function EditarPartidoDialog({ partido, open, onOpenChange, onSaved }: Pr
 
           <div className="col-span-2">
             <Label>Cancha</Label>
-            <Select value={canchaId} onValueChange={setCanchaId}>
+            <Select value={canchaId || '__none__'} onValueChange={(v) => setCanchaId(v === '__none__' ? '' : v)}>
               <SelectTrigger><SelectValue placeholder="Sin asignar" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">— Sin cancha —</SelectItem>
+                <SelectItem value="__none__">— Sin cancha —</SelectItem>
                 {canchas.map((c: any) => <SelectItem key={c.id} value={c.id}>{c.nombre}</SelectItem>)}
               </SelectContent>
             </Select>
@@ -133,10 +133,10 @@ export function EditarPartidoDialog({ partido, open, onOpenChange, onSaved }: Pr
 
           <div className="col-span-2">
             <Label>Árbitro</Label>
-            <Select value={arbitroId} onValueChange={setArbitroId}>
+            <Select value={arbitroId || '__none__'} onValueChange={(v) => setArbitroId(v === '__none__' ? '' : v)}>
               <SelectTrigger><SelectValue placeholder="Sin asignar" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">— Sin árbitro —</SelectItem>
+                <SelectItem value="__none__">— Sin árbitro —</SelectItem>
                 {arbitros.map((a: any) => (
                   <SelectItem key={a.id} value={a.id}>{a.apellido} {a.nombre}</SelectItem>
                 ))}
