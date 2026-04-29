@@ -529,9 +529,20 @@ export default function Jugadores() {
                               <ArrowRightLeft className="w-3 h-3 mr-1" /> Pase
                             </Button>
                           )}
-                          <Button size="icon" variant="ghost" onClick={() => openEdit(j)}>
+                          <Button size="icon" variant="ghost" onClick={() => openEdit(j)} title="Editar">
                             <Pencil className="w-4 h-4" />
                           </Button>
+                          {isAdmin && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => setDeleteTarget(j)}
+                              title="Eliminar"
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
