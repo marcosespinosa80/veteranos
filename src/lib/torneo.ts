@@ -24,18 +24,15 @@ export function calcularDistribucionZonas(
 }
 
 /**
- * Reparte los equipos en zonas (round-robin sencillo).
+ * Reparte los equipos en zonas de forma secuencial respetando cantidades.
+ * Ej: 26 equipos con [9,9,8] -> primeros 9 a Zona A, siguientes 9 a Zona B, últimos 8 a Zona C.
  */
 export function repartirEquiposEnZonas<T>(equipos: T[], cantidades: number[]): T[][] {
-  const zonas: T[][] = cantidades.map(() => []);
-  let idx = 0;
-  for (const eq of equipos) {
-    zonas[idx].push(eq);
-    idx = (idx + 1) % cantidades.length;
-    // adjust if a zone is full
-    while (zonas[idx].length >= cantidades[idx]) {
-      idx = (idx + 1) % cantidades.length;
-    }
+  const zonas: T[][] = [];
+  let cursor = 0;
+  for (const cant of cantidades) {
+    zonas.push(equipos.slice(cursor, cursor + cant));
+    cursor += cant;
   }
   return zonas;
 }
