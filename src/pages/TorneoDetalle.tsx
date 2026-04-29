@@ -10,12 +10,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { ArrowLeft, Plus, Users, Layers, CalendarDays, Trash2, Wand2, Pencil, Goal, BarChart3, Trophy } from 'lucide-react';
+import { ArrowLeft, Plus, Users, Layers, CalendarDays, Trash2, Wand2, Pencil, Goal, BarChart3, Trophy, ClipboardList } from 'lucide-react';
 import { calcularDistribucionZonas, repartirEquiposEnZonas, generarFixtureRoundRobin } from '@/lib/torneo';
 import { EditarPartidoDialog } from '@/components/torneo/EditarPartidoDialog';
 import { CargarResultadoDialog } from '@/components/torneo/CargarResultadoDialog';
 import { TablaPosiciones } from '@/components/torneo/TablaPosiciones';
 import { FasesFinalesTab } from '@/components/torneo/FasesFinalesTab';
+import { PlanillaArbitralDialog } from '@/components/torneo/PlanillaArbitralDialog';
+import { GoleadoresPanel } from '@/components/torneo/GoleadoresPanel';
 import { format } from 'date-fns';
 
 export default function TorneoDetalle() {
