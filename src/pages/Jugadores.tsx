@@ -14,8 +14,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Plus, Pencil, Search, Filter, Upload, X, User, Camera, AlertTriangle, ArrowRightLeft } from 'lucide-react';
+import { Plus, Pencil, Search, Filter, Upload, X, User, Camera, AlertTriangle, ArrowRightLeft, Trash2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 // ── Helpers ──
 
@@ -132,6 +136,47 @@ export default function Jugadores() {
   const isAdmin = role === 'admin_general' || role === 'admin_comun';
   const isDelegado = role === 'delegado';
   const canEditEstado = isAdmin || role === 'tribunal';
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const jid = deleteTarget.id;
+      // Check related records in parallel
+      const [carnets, pases, items, goles, planilla, cargos] = await Promise.all([
+        supabase.from('carnets').select('id', { count: 'exact', head: true }).eq('jugador_id', jid),
+        supabase.from('pases').select('id', { count: 'exact', head: true }).eq('jugador_id', jid),
+        supabase.from('lista_buena_fe_items').select('id', { count: 'exact', head: true }).eq('jugador_id', jid),
+        supabase.from('goles_jugador').select('id', { count: 'exact', head: true }).eq('jugador_id', jid),
+        supabase.from('planilla_arbitral_items').select('id', { count: 'exact', head: true }).eq('jugador_id', jid),
+        supabase.from('cargos').select('id', { count: 'exact', head: true }).eq('jugador_id', jid),
+      ]);
+      const total = (carnets.count || 0) + (pases.count || 0) + (items.count || 0)
+        + (goles.count || 0) + (planilla.count || 0) + (cargos.count || 0);
+      if (total > 0) {
+        toast({
+          title: 'No se puede eliminar',
+          description: 'Este jugador tiene movimientos registrados. Podés deshabilitarlo o marcarlo como no habilitado.',
+          variant: 'destructive',
+        });
+        setDeleteTarget(null);
+        setDeleting(false);
+        return;
+      }
+      const { error } = await supabase.from('jugadores').delete().eq('id', jid);
+      if (error) throw error;
+      toast({ title: 'Jugador eliminado' });
+      queryClient.invalidateQueries({ queryKey: ['jugadores'] });
+      queryClient.invalidateQueries({ queryKey: ['jugador-counts'] });
+      setDeleteTarget(null);
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const errors = useMemo(() => validateForm(form), [form]);
   const hasErrors = Object.keys(errors).length > 0;
@@ -484,9 +529,20 @@ export default function Jugadores() {
                               <ArrowRightLeft className="w-3 h-3 mr-1" /> Pase
                             </Button>
                           )}
-                          <Button size="icon" variant="ghost" onClick={() => openEdit(j)}>
+                          <Button size="icon" variant="ghost" onClick={() => openEdit(j)} title="Editar">
                             <Pencil className="w-4 h-4" />
                           </Button>
+                          {isAdmin && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => setDeleteTarget(j)}
+                              title="Eliminar"
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -738,6 +794,27 @@ export default function Jugadores() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && !deleting && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar jugador</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Seguro que querés eliminar a {deleteTarget?.apellido}, {deleteTarget?.nombre}? Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleDelete(); }}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? 'Eliminando...' : 'Eliminar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
