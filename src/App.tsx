@@ -24,6 +24,13 @@ import FinanzasPage from "./pages/FinanzasPage";
 import MultasPage from "./pages/MultasPage";
 import TorneosPage from "./pages/TorneosPage";
 import TorneoDetallePage from "./pages/TorneoDetallePage";
+import PublicLayout from "./components/torneo-publico/PublicLayout";
+import TorneoIndex from "./pages/publico/TorneoIndex";
+import TorneoInicio from "./pages/publico/TorneoInicio";
+import TorneoFixture from "./pages/publico/TorneoFixture";
+import TorneoPosiciones from "./pages/publico/TorneoPosiciones";
+import TorneoResultados from "./pages/publico/TorneoResultados";
+import TorneoGoleadores from "./pages/publico/TorneoGoleadores";
 
 const queryClient = new QueryClient();
 
@@ -40,6 +47,14 @@ const App = () => (
             
             {/* Public */}
             <Route path="/boletines" element={<BoletinesPublicPage />} />
+            <Route path="/torneo" element={<PublicLayout />}>
+              <Route index element={<TorneoIndex />} />
+              <Route path=":torneoId" element={<TorneoInicio />} />
+              <Route path=":torneoId/fixture" element={<TorneoFixture />} />
+              <Route path=":torneoId/posiciones" element={<TorneoPosiciones />} />
+              <Route path=":torneoId/resultados" element={<TorneoResultados />} />
+              <Route path=":torneoId/goleadores" element={<TorneoGoleadores />} />
+            </Route>
 
             {/* Protected */}
             <Route path="/dashboard" element={
