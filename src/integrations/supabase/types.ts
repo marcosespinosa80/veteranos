@@ -359,6 +359,172 @@ export type Database = {
           },
         ]
       }
+      fechas_torneo: {
+        Row: {
+          created_at: string
+          fase: string
+          fecha_calendario: string | null
+          id: string
+          nombre: string | null
+          numero: number
+          torneo_categoria_id: string
+          zona_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          fase?: string
+          fecha_calendario?: string | null
+          id?: string
+          nombre?: string | null
+          numero: number
+          torneo_categoria_id: string
+          zona_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          fase?: string
+          fecha_calendario?: string | null
+          id?: string
+          nombre?: string | null
+          numero?: number
+          torneo_categoria_id?: string
+          zona_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fechas_torneo_torneo_categoria_id_fkey"
+            columns: ["torneo_categoria_id"]
+            isOneToOne: false
+            referencedRelation: "torneo_categorias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fechas_torneo_zona_id_fkey"
+            columns: ["zona_id"]
+            isOneToOne: false
+            referencedRelation: "zonas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      goles_jugador: {
+        Row: {
+          cantidad: number
+          created_at: string
+          equipo_id: string
+          id: string
+          jugador_id: string
+          partido_id: string
+        }
+        Insert: {
+          cantidad?: number
+          created_at?: string
+          equipo_id: string
+          id?: string
+          jugador_id: string
+          partido_id: string
+        }
+        Update: {
+          cantidad?: number
+          created_at?: string
+          equipo_id?: string
+          id?: string
+          jugador_id?: string
+          partido_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goles_jugador_equipo_id_fkey"
+            columns: ["equipo_id"]
+            isOneToOne: false
+            referencedRelation: "equipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "goles_jugador_jugador_id_fkey"
+            columns: ["jugador_id"]
+            isOneToOne: false
+            referencedRelation: "jugadores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "goles_jugador_partido_id_fkey"
+            columns: ["partido_id"]
+            isOneToOne: false
+            referencedRelation: "partidos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      historico_torneos: {
+        Row: {
+          campeon_equipo_id: string | null
+          categoria_id: string
+          created_at: string
+          datos_finales: Json | null
+          goleador_jugador_id: string | null
+          id: string
+          subcampeon_equipo_id: string | null
+          torneo_id: string
+        }
+        Insert: {
+          campeon_equipo_id?: string | null
+          categoria_id: string
+          created_at?: string
+          datos_finales?: Json | null
+          goleador_jugador_id?: string | null
+          id?: string
+          subcampeon_equipo_id?: string | null
+          torneo_id: string
+        }
+        Update: {
+          campeon_equipo_id?: string | null
+          categoria_id?: string
+          created_at?: string
+          datos_finales?: Json | null
+          goleador_jugador_id?: string | null
+          id?: string
+          subcampeon_equipo_id?: string | null
+          torneo_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "historico_torneos_campeon_equipo_id_fkey"
+            columns: ["campeon_equipo_id"]
+            isOneToOne: false
+            referencedRelation: "equipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "historico_torneos_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "categorias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "historico_torneos_goleador_jugador_id_fkey"
+            columns: ["goleador_jugador_id"]
+            isOneToOne: false
+            referencedRelation: "jugadores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "historico_torneos_subcampeon_equipo_id_fkey"
+            columns: ["subcampeon_equipo_id"]
+            isOneToOne: false
+            referencedRelation: "equipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "historico_torneos_torneo_id_fkey"
+            columns: ["torneo_id"]
+            isOneToOne: false
+            referencedRelation: "torneos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       jugadores: {
         Row: {
           activo_club: boolean
@@ -633,6 +799,216 @@ export type Database = {
           },
         ]
       }
+      partido_auditoria: {
+        Row: {
+          accion: string
+          cambiado_por: string | null
+          created_at: string
+          datos_anteriores: Json | null
+          datos_nuevos: Json | null
+          id: string
+          motivo: string | null
+          partido_id: string
+        }
+        Insert: {
+          accion: string
+          cambiado_por?: string | null
+          created_at?: string
+          datos_anteriores?: Json | null
+          datos_nuevos?: Json | null
+          id?: string
+          motivo?: string | null
+          partido_id: string
+        }
+        Update: {
+          accion?: string
+          cambiado_por?: string | null
+          created_at?: string
+          datos_anteriores?: Json | null
+          datos_nuevos?: Json | null
+          id?: string
+          motivo?: string | null
+          partido_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partido_auditoria_cambiado_por_fkey"
+            columns: ["cambiado_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partido_auditoria_partido_id_fkey"
+            columns: ["partido_id"]
+            isOneToOne: false
+            referencedRelation: "partidos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partidos: {
+        Row: {
+          arbitro_user_id: string | null
+          cancha_id: string | null
+          cancha_texto: string | null
+          categoria_id: string
+          created_at: string
+          dia: string | null
+          equipo_libre_id: string | null
+          equipo_local_id: string | null
+          equipo_visitante_id: string | null
+          estado: string
+          fase: string
+          fecha_numero: number | null
+          fecha_torneo_id: string | null
+          ganador_id: string | null
+          goles_local: number | null
+          goles_visitante: number | null
+          hora: string | null
+          hubo_penales: boolean
+          id: string
+          penales_local: number | null
+          penales_visitante: number | null
+          torneo_categoria_id: string
+          torneo_id: string
+          updated_at: string
+          zona_id: string | null
+        }
+        Insert: {
+          arbitro_user_id?: string | null
+          cancha_id?: string | null
+          cancha_texto?: string | null
+          categoria_id: string
+          created_at?: string
+          dia?: string | null
+          equipo_libre_id?: string | null
+          equipo_local_id?: string | null
+          equipo_visitante_id?: string | null
+          estado?: string
+          fase?: string
+          fecha_numero?: number | null
+          fecha_torneo_id?: string | null
+          ganador_id?: string | null
+          goles_local?: number | null
+          goles_visitante?: number | null
+          hora?: string | null
+          hubo_penales?: boolean
+          id?: string
+          penales_local?: number | null
+          penales_visitante?: number | null
+          torneo_categoria_id: string
+          torneo_id: string
+          updated_at?: string
+          zona_id?: string | null
+        }
+        Update: {
+          arbitro_user_id?: string | null
+          cancha_id?: string | null
+          cancha_texto?: string | null
+          categoria_id?: string
+          created_at?: string
+          dia?: string | null
+          equipo_libre_id?: string | null
+          equipo_local_id?: string | null
+          equipo_visitante_id?: string | null
+          estado?: string
+          fase?: string
+          fecha_numero?: number | null
+          fecha_torneo_id?: string | null
+          ganador_id?: string | null
+          goles_local?: number | null
+          goles_visitante?: number | null
+          hora?: string | null
+          hubo_penales?: boolean
+          id?: string
+          penales_local?: number | null
+          penales_visitante?: number | null
+          torneo_categoria_id?: string
+          torneo_id?: string
+          updated_at?: string
+          zona_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partidos_arbitro_user_id_fkey"
+            columns: ["arbitro_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partidos_cancha_id_fkey"
+            columns: ["cancha_id"]
+            isOneToOne: false
+            referencedRelation: "canchas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partidos_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "categorias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partidos_equipo_libre_id_fkey"
+            columns: ["equipo_libre_id"]
+            isOneToOne: false
+            referencedRelation: "equipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partidos_equipo_local_id_fkey"
+            columns: ["equipo_local_id"]
+            isOneToOne: false
+            referencedRelation: "equipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partidos_equipo_visitante_id_fkey"
+            columns: ["equipo_visitante_id"]
+            isOneToOne: false
+            referencedRelation: "equipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partidos_fecha_torneo_id_fkey"
+            columns: ["fecha_torneo_id"]
+            isOneToOne: false
+            referencedRelation: "fechas_torneo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partidos_ganador_id_fkey"
+            columns: ["ganador_id"]
+            isOneToOne: false
+            referencedRelation: "equipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partidos_torneo_categoria_id_fkey"
+            columns: ["torneo_categoria_id"]
+            isOneToOne: false
+            referencedRelation: "torneo_categorias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partidos_torneo_id_fkey"
+            columns: ["torneo_id"]
+            isOneToOne: false
+            referencedRelation: "torneos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partidos_zona_id_fkey"
+            columns: ["zona_id"]
+            isOneToOne: false
+            referencedRelation: "zonas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pases: {
         Row: {
           archivo_formulario_url: string | null
@@ -742,6 +1118,115 @@ export type Database = {
           },
         ]
       }
+      planilla_arbitral: {
+        Row: {
+          arbitro_user_id: string | null
+          created_at: string
+          enviada: boolean
+          fecha_envio: string | null
+          id: string
+          observaciones: string | null
+          partido_id: string
+          updated_at: string
+        }
+        Insert: {
+          arbitro_user_id?: string | null
+          created_at?: string
+          enviada?: boolean
+          fecha_envio?: string | null
+          id?: string
+          observaciones?: string | null
+          partido_id: string
+          updated_at?: string
+        }
+        Update: {
+          arbitro_user_id?: string | null
+          created_at?: string
+          enviada?: boolean
+          fecha_envio?: string | null
+          id?: string
+          observaciones?: string | null
+          partido_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "planilla_arbitral_arbitro_user_id_fkey"
+            columns: ["arbitro_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "planilla_arbitral_partido_id_fkey"
+            columns: ["partido_id"]
+            isOneToOne: true
+            referencedRelation: "partidos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      planilla_arbitral_items: {
+        Row: {
+          amarillas: number
+          created_at: string
+          equipo_id: string
+          expulsado: boolean
+          goles: number
+          id: string
+          jugador_id: string
+          observaciones: string | null
+          planilla_id: string
+          rojas: number
+        }
+        Insert: {
+          amarillas?: number
+          created_at?: string
+          equipo_id: string
+          expulsado?: boolean
+          goles?: number
+          id?: string
+          jugador_id: string
+          observaciones?: string | null
+          planilla_id: string
+          rojas?: number
+        }
+        Update: {
+          amarillas?: number
+          created_at?: string
+          equipo_id?: string
+          expulsado?: boolean
+          goles?: number
+          id?: string
+          jugador_id?: string
+          observaciones?: string | null
+          planilla_id?: string
+          rojas?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "planilla_arbitral_items_equipo_id_fkey"
+            columns: ["equipo_id"]
+            isOneToOne: false
+            referencedRelation: "equipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "planilla_arbitral_items_jugador_id_fkey"
+            columns: ["jugador_id"]
+            isOneToOne: false
+            referencedRelation: "jugadores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "planilla_arbitral_items_planilla_id_fkey"
+            columns: ["planilla_id"]
+            isOneToOne: false
+            referencedRelation: "planilla_arbitral"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           activo: boolean
@@ -786,6 +1271,82 @@ export type Database = {
           },
         ]
       }
+      tabla_posiciones_snapshot: {
+        Row: {
+          created_at: string
+          dg: number
+          equipo_id: string
+          gc: number
+          gf: number
+          id: string
+          orden: number
+          pe: number
+          pg: number
+          pj: number
+          pp: number
+          pts: number
+          tipo: string
+          torneo_categoria_id: string
+          zona_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          dg?: number
+          equipo_id: string
+          gc?: number
+          gf?: number
+          id?: string
+          orden?: number
+          pe?: number
+          pg?: number
+          pj?: number
+          pp?: number
+          pts?: number
+          tipo: string
+          torneo_categoria_id: string
+          zona_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          dg?: number
+          equipo_id?: string
+          gc?: number
+          gf?: number
+          id?: string
+          orden?: number
+          pe?: number
+          pg?: number
+          pj?: number
+          pp?: number
+          pts?: number
+          tipo?: string
+          torneo_categoria_id?: string
+          zona_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tabla_posiciones_snapshot_equipo_id_fkey"
+            columns: ["equipo_id"]
+            isOneToOne: false
+            referencedRelation: "equipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tabla_posiciones_snapshot_torneo_categoria_id_fkey"
+            columns: ["torneo_categoria_id"]
+            isOneToOne: false
+            referencedRelation: "torneo_categorias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tabla_posiciones_snapshot_zona_id_fkey"
+            columns: ["zona_id"]
+            isOneToOne: false
+            referencedRelation: "zonas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tarifas: {
         Row: {
           created_at: string
@@ -824,6 +1385,168 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      temporadas: {
+        Row: {
+          anio: number
+          created_at: string
+          estado: string
+          id: string
+        }
+        Insert: {
+          anio: number
+          created_at?: string
+          estado?: string
+          id?: string
+        }
+        Update: {
+          anio?: number
+          created_at?: string
+          estado?: string
+          id?: string
+        }
+        Relationships: []
+      }
+      torneo_categorias: {
+        Row: {
+          cantidad_zonas: number | null
+          categoria_id: string
+          clasificacion_config: Json | null
+          created_at: string
+          estado: string
+          id: string
+          max_equipos_zona: number
+          min_equipos_zona: number
+          torneo_id: string
+          updated_at: string
+        }
+        Insert: {
+          cantidad_zonas?: number | null
+          categoria_id: string
+          clasificacion_config?: Json | null
+          created_at?: string
+          estado?: string
+          id?: string
+          max_equipos_zona?: number
+          min_equipos_zona?: number
+          torneo_id: string
+          updated_at?: string
+        }
+        Update: {
+          cantidad_zonas?: number | null
+          categoria_id?: string
+          clasificacion_config?: Json | null
+          created_at?: string
+          estado?: string
+          id?: string
+          max_equipos_zona?: number
+          min_equipos_zona?: number
+          torneo_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "torneo_categorias_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "categorias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "torneo_categorias_torneo_id_fkey"
+            columns: ["torneo_id"]
+            isOneToOne: false
+            referencedRelation: "torneos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      torneo_equipos: {
+        Row: {
+          created_at: string
+          equipo_id: string
+          id: string
+          origen_referencia: string | null
+          posicion_referencia: number | null
+          torneo_categoria_id: string
+        }
+        Insert: {
+          created_at?: string
+          equipo_id: string
+          id?: string
+          origen_referencia?: string | null
+          posicion_referencia?: number | null
+          torneo_categoria_id: string
+        }
+        Update: {
+          created_at?: string
+          equipo_id?: string
+          id?: string
+          origen_referencia?: string | null
+          posicion_referencia?: number | null
+          torneo_categoria_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "torneo_equipos_equipo_id_fkey"
+            columns: ["equipo_id"]
+            isOneToOne: false
+            referencedRelation: "equipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "torneo_equipos_torneo_categoria_id_fkey"
+            columns: ["torneo_categoria_id"]
+            isOneToOne: false
+            referencedRelation: "torneo_categorias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      torneos: {
+        Row: {
+          created_at: string
+          estado: string
+          id: string
+          nombre: string
+          temporada_id: string
+          torneo_referencia_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          estado?: string
+          id?: string
+          nombre: string
+          temporada_id: string
+          torneo_referencia_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          estado?: string
+          id?: string
+          nombre?: string
+          temporada_id?: string
+          torneo_referencia_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "torneos_temporada_id_fkey"
+            columns: ["temporada_id"]
+            isOneToOne: false
+            referencedRelation: "temporadas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "torneos_torneo_referencia_id_fkey"
+            columns: ["torneo_referencia_id"]
+            isOneToOne: false
+            referencedRelation: "torneos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_module_permissions: {
         Row: {
@@ -866,6 +1589,77 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      zona_equipos: {
+        Row: {
+          created_at: string
+          equipo_id: string
+          id: string
+          orden: number
+          zona_id: string
+        }
+        Insert: {
+          created_at?: string
+          equipo_id: string
+          id?: string
+          orden?: number
+          zona_id: string
+        }
+        Update: {
+          created_at?: string
+          equipo_id?: string
+          id?: string
+          orden?: number
+          zona_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "zona_equipos_equipo_id_fkey"
+            columns: ["equipo_id"]
+            isOneToOne: false
+            referencedRelation: "equipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "zona_equipos_zona_id_fkey"
+            columns: ["zona_id"]
+            isOneToOne: false
+            referencedRelation: "zonas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      zonas: {
+        Row: {
+          created_at: string
+          id: string
+          nombre: string
+          orden: number
+          torneo_categoria_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nombre: string
+          orden?: number
+          torneo_categoria_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nombre?: string
+          orden?: number
+          torneo_categoria_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "zonas_torneo_categoria_id_fkey"
+            columns: ["torneo_categoria_id"]
+            isOneToOne: false
+            referencedRelation: "torneo_categorias"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

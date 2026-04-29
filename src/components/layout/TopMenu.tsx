@@ -36,6 +36,7 @@ const menuGroups: MenuGroup[] = [
   {
     title: 'COMPETICIÓN',
     items: [
+      { label: 'Torneos', href: '/admin/torneos', moduleKey: 'torneos' },
       { label: 'Partidos', href: '/partidos', placeholder: true },
       { label: 'Fixture', href: '/fixture', placeholder: true },
       { label: 'Tabla', href: '/tabla', placeholder: true },

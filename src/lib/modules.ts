@@ -12,6 +12,7 @@ export const MODULE_KEYS = [
   'canchas',
   'finanzas',
   'multas',
+  'torneos',
 ] as const;
 
 export type ModuleKey = (typeof MODULE_KEYS)[number];
@@ -28,6 +29,7 @@ export const MODULE_LABELS: Record<ModuleKey, string> = {
   canchas: 'Canchas',
   finanzas: 'Gestión Financiera',
   multas: 'Tribunal — Multas',
+  torneos: 'Torneos',
 };
 
 // Map route paths to module keys
@@ -43,6 +45,7 @@ export const ROUTE_MODULE_MAP: Record<string, ModuleKey> = {
   '/canchas': 'canchas',
   '/finanzas': 'finanzas',
   '/tribunal/multas': 'multas',
+  '/admin/torneos': 'torneos',
 };
 
 export function getDefaultModules(role: UserRole): Record<ModuleKey, boolean> {
@@ -63,6 +66,7 @@ export function getDefaultModules(role: UserRole): Record<ModuleKey, boolean> {
       all.canchas = true;
       all.finanzas = true;
       all.multas = true;
+      all.torneos = true;
       break;
     case 'delegado':
       all.dashboard = true;
