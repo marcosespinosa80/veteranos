@@ -309,28 +309,54 @@ function CategoriaPanel({ torneoCategoriaId, torneoId, categoriaId, temporadaAni
   };
 
   // ---- Zonas ----
+  const [generandoZonas, setGenerandoZonas] = useState(false);
   const generarZonas = async () => {
+    if (generandoZonas) return;
     const total = equipos.length;
-    const { ok, zonas: cant, mensaje } = calcularDistribucionZonas(total);
-    if (!ok) return toast.error(mensaje || 'No se puede distribuir');
+    if (total === 0) return toast.error('Primero agregá equipos a la categoría.');
+    if (total < 7) return toast.error('No hay equipos suficientes para formar una zona válida.');
+    if (tieneFixture) return toast.error('No se pueden regenerar zonas porque ya existe fixture generado.');
     if (tieneResultados) return toast.error('Hay resultados cargados; no se pueden regenerar zonas.');
 
-    await supabase.from('zonas').delete().eq('torneo_categoria_id', torneoCategoriaId);
+    const { ok, zonas: cant, mensaje } = calcularDistribucionZonas(total);
+    if (!ok || cant.length === 0) return toast.error(mensaje || 'No se puede distribuir');
 
-    const grupos = repartirEquiposEnZonas(equipos, cant);
-    for (let i = 0; i < grupos.length; i++) {
-      const nombre = `Zona ${String.fromCharCode(65 + i)}`;
-      const { data: z, error } = await supabase
-        .from('zonas')
-        .insert({ torneo_categoria_id: torneoCategoriaId, nombre, orden: i })
-        .select('id')
-        .single();
-      if (error) return toast.error(error.message);
-      const rows = grupos[i].map((eq: any, idx) => ({ zona_id: z.id, equipo_id: eq.equipo_id, orden: idx }));
-      await supabase.from('zona_equipos').insert(rows);
+    if (zonas.length > 0) {
+      if (!confirm('Ya existen zonas. ¿Querés reemplazarlas?')) return;
     }
-    toast.success(`Zonas generadas: ${cant.join(' / ')}`);
-    refetchZonas();
+
+    setGenerandoZonas(true);
+    const tId = toast.loading('Generando zonas...');
+    try {
+      const zIdsExist = zonas.map((z: any) => z.id);
+      if (zIdsExist.length > 0) {
+        await supabase.from('zona_equipos').delete().in('zona_id', zIdsExist);
+        await supabase.from('zonas').delete().in('id', zIdsExist);
+      }
+
+      const grupos = repartirEquiposEnZonas(equipos, cant);
+      for (let i = 0; i < grupos.length; i++) {
+        const nombre = `Zona ${String.fromCharCode(65 + i)}`;
+        const { data: z, error } = await supabase
+          .from('zonas')
+          .insert({ torneo_categoria_id: torneoCategoriaId, nombre, orden: i })
+          .select('id')
+          .single();
+        if (error) throw error;
+        const rows = grupos[i].map((eq: any, idx) => ({ zona_id: z.id, equipo_id: eq.equipo_id, orden: idx }));
+        if (rows.length > 0) {
+          const { error: e2 } = await supabase.from('zona_equipos').insert(rows);
+          if (e2) throw e2;
+        }
+      }
+      toast.success(`Zonas generadas: ${cant.join(' / ')}`, { id: tId });
+      await refetchZonas();
+      await qc.invalidateQueries({ queryKey: ['torneo-categorias'] });
+    } catch (e: any) {
+      toast.error(e?.message || 'Error generando zonas', { id: tId });
+    } finally {
+      setGenerandoZonas(false);
+    }
   };
 
   const crearZonaManual = async () => {
