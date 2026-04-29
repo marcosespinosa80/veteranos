@@ -574,7 +574,7 @@ export default function Jugadores() {
                             <Button
                               size="icon"
                               variant="ghost"
-                              onClick={() => setDeleteTarget(j)}
+                              onClick={() => openDeleteDialog(j)}
                               title="Eliminar"
                               className="text-destructive hover:text-destructive hover:bg-destructive/10"
                             >
