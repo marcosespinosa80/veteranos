@@ -836,20 +836,38 @@ export default function Jugadores() {
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && !deleting && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Eliminar jugador</AlertDialogTitle>
+            <AlertDialogTitle>
+              {checkingMovimientos ? 'Verificando...' : (hasMovimientos ? 'Dar de baja jugador' : 'Eliminar jugador')}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              ¿Seguro que querés eliminar a {deleteTarget?.apellido}, {deleteTarget?.nombre}? Esta acción no se puede deshacer.
+              {checkingMovimientos
+                ? 'Estamos verificando si este jugador tiene movimientos registrados.'
+                : hasMovimientos
+                  ? `${deleteTarget?.apellido}, ${deleteTarget?.nombre} tiene movimientos registrados (carnets, pases, listas, goles, planillas o cargos). No se puede eliminar para preservar el historial. Podés darlo de baja: pasará a estado NO HABILITADO e INACTIVO en el club.`
+                  : `¿Seguro que querés eliminar a ${deleteTarget?.apellido}, ${deleteTarget?.nombre}? Esta acción no se puede deshacer.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => { e.preventDefault(); handleDelete(); }}
-              disabled={deleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {deleting ? 'Eliminando...' : 'Eliminar'}
-            </AlertDialogAction>
+            {!checkingMovimientos && (
+              hasMovimientos ? (
+                <AlertDialogAction
+                  onClick={(e) => { e.preventDefault(); handleDarDeBaja(); }}
+                  disabled={deleting}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  {deleting ? 'Procesando...' : 'Dar de baja'}
+                </AlertDialogAction>
+              ) : (
+                <AlertDialogAction
+                  onClick={(e) => { e.preventDefault(); handleDelete(); }}
+                  disabled={deleting}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  {deleting ? 'Eliminando...' : 'Eliminar'}
+                </AlertDialogAction>
+              )
+            )}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
