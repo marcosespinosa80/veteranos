@@ -551,7 +551,9 @@ function CategoriaPanel({ torneoCategoriaId, torneoId, categoriaId, temporadaAni
         <TabsContent value="zonas">
           <div className="flex justify-end mb-2 gap-2">
             <Button variant="outline" onClick={crearZonaManual}><Plus className="w-4 h-4" /> Nueva zona</Button>
-            <Button onClick={generarZonas}><Wand2 className="w-4 h-4" /> Generar automáticamente</Button>
+            <Button onClick={generarZonas} disabled={generandoZonas}>
+              <Wand2 className="w-4 h-4" /> {generandoZonas ? 'Generando zonas...' : 'Generar automáticamente'}
+            </Button>
           </div>
           {zonas.length === 0 ? (
             <Card><CardContent className="py-10 text-center text-muted-foreground">Sin zonas. Generalas o creá una manual.</CardContent></Card>
