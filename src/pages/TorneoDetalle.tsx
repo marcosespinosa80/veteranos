@@ -395,7 +395,7 @@ function CategoriaPanel({ torneoCategoriaId }: { torneoCategoriaId: string }) {
   );
 }
 
-function FixtureView({ partidos, zonas, onEditar, onResultado }: { partidos: any[]; zonas: any[]; onEditar: (p: any) => void; onResultado: (p: any) => void; }) {
+function FixtureView({ partidos, zonas, onEditar, onResultado, onPlanilla }: { partidos: any[]; zonas: any[]; onEditar: (p: any) => void; onResultado: (p: any) => void; onPlanilla: (p: any) => void; }) {
   const porZona: Record<string, Record<number, any[]>> = {};
   for (const p of partidos) {
     const zid = p.zona_id || 'sin';
@@ -435,9 +435,14 @@ function FixtureView({ partidos, zonas, onEditar, onResultado }: { partidos: any
                         {p.dia && <Badge variant="secondary" className="text-xs">{format(new Date(p.dia), 'dd/MM')} {p.hora ? String(p.hora).slice(0,5) : ''}</Badge>}
                         <div className="flex items-center gap-1 ml-2">
                           {p.equipo_local_id && p.equipo_visitante_id && (
-                            <Button size="icon" variant="ghost" onClick={() => onResultado(p)} title="Cargar resultado">
-                              <Goal className="w-4 h-4" />
-                            </Button>
+                            <>
+                              <Button size="icon" variant="ghost" onClick={() => onPlanilla(p)} title="Planilla arbitral">
+                                <ClipboardList className="w-4 h-4" />
+                              </Button>
+                              <Button size="icon" variant="ghost" onClick={() => onResultado(p)} title="Cargar resultado">
+                                <Goal className="w-4 h-4" />
+                              </Button>
+                            </>
                           )}
                           <Button size="icon" variant="ghost" onClick={() => onEditar(p)} title="Editar partido">
                             <Pencil className="w-4 h-4" />
