@@ -412,7 +412,11 @@ export default function Jugadores() {
       (searchDigits.length > 0 && (j.dni || '').replace(/\D/g, '').includes(searchDigits));
     const matchEquipo = filterEquipo === 'all' || j.equipo_id === filterEquipo;
     const matchCategoria = filterCategoria === 'all' || j.categoria_id === filterCategoria;
-    return matchSearch && matchEquipo && matchCategoria;
+    const esBaja = !j.activo_club || j.estado === 'no_habilitado';
+    const matchEstado = filterEstado === 'all'
+      || (filterEstado === 'activos' && j.activo_club && j.estado !== 'no_habilitado')
+      || (filterEstado === 'baja' && esBaja);
+    return matchSearch && matchEquipo && matchCategoria && matchEstado;
   });
 
   // ── Inline error helper ──
