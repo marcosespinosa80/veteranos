@@ -472,8 +472,16 @@ export default function Jugadores() {
               {categorias.map((c) => <SelectItem key={c.id} value={c.id}>{c.nombre_categoria}</SelectItem>)}
             </SelectContent>
           </Select>
-          {(filterEquipo !== 'all' || filterCategoria !== 'all') && (
-            <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => { setFilterEquipo('all'); setFilterCategoria('all'); }}>
+          <Select value={filterEstado} onValueChange={(v) => setFilterEstado(v as any)}>
+            <SelectTrigger className="w-44 h-8 text-xs"><SelectValue placeholder="Estado" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="activos">Activos</SelectItem>
+              <SelectItem value="baja">Dados de baja / No habilitados</SelectItem>
+            </SelectContent>
+          </Select>
+          {(filterEquipo !== 'all' || filterCategoria !== 'all' || filterEstado !== 'all') && (
+            <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => { setFilterEquipo('all'); setFilterCategoria('all'); setFilterEstado('all'); }}>
               Limpiar filtros
             </Button>
           )}
