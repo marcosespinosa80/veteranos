@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Trophy, Wand2, Trash2, Goal, Pencil } from 'lucide-react';
+import { Trophy, Wand2, Trash2, Goal, Pencil, ClipboardList } from 'lucide-react';
 import { calcularTabla } from '@/lib/posiciones';
 import {
   obtenerClasificados,
@@ -21,6 +21,7 @@ import {
 } from '@/lib/finales';
 import { CargarResultadoDialog } from './CargarResultadoDialog';
 import { EditarPartidoDialog } from './EditarPartidoDialog';
+import { PlanillaArbitralDialog } from './PlanillaArbitralDialog';
 
 type Props = { torneoCategoriaId: string };
 
