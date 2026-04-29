@@ -71,6 +71,11 @@ export function EditarPartidoDialog({ partido, open, onOpenChange, onSaved }: Pr
 
   const guardar = async () => {
     if (!partido) return;
+    const anteriores = {
+      dia: partido.dia, hora: partido.hora, cancha_id: partido.cancha_id, cancha_texto: partido.cancha_texto,
+      arbitro_user_id: partido.arbitro_user_id, estado: partido.estado,
+      equipo_local_id: partido.equipo_local_id, equipo_visitante_id: partido.equipo_visitante_id,
+    };
     const payload: any = {
       dia: dia || null,
       hora: hora || null,
@@ -81,8 +86,25 @@ export function EditarPartidoDialog({ partido, open, onOpenChange, onSaved }: Pr
       equipo_local_id: localId || null,
       equipo_visitante_id: visitanteId || null,
     };
+    const cambios: Record<string, any> = {};
+    Object.keys(payload).forEach((k) => {
+      if ((anteriores as any)[k] !== payload[k]) cambios[k] = { antes: (anteriores as any)[k], despues: payload[k] };
+    });
     const { error } = await supabase.from('partidos').update(payload).eq('id', partido.id);
     if (error) return toast.error(error.message);
+
+    // Auditoría si hubo cambios estructurales
+    if (Object.keys(cambios).length > 0) {
+      const { data: u } = await supabase.auth.getUser();
+      await supabase.from('partido_auditoria').insert({
+        partido_id: partido.id,
+        accion: 'editar',
+        cambiado_por: u?.user?.id,
+        datos_anteriores: anteriores,
+        datos_nuevos: payload,
+      });
+    }
+
     toast.success('Partido actualizado');
     onSaved();
     onOpenChange(false);
