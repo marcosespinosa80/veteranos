@@ -10,12 +10,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { ArrowLeft, Plus, Users, Layers, CalendarDays, Trash2, Wand2, Pencil, Goal, BarChart3, Trophy } from 'lucide-react';
+import { ArrowLeft, Plus, Users, Layers, CalendarDays, Trash2, Wand2, Pencil, Goal, BarChart3, Trophy, ClipboardList } from 'lucide-react';
 import { calcularDistribucionZonas, repartirEquiposEnZonas, generarFixtureRoundRobin } from '@/lib/torneo';
 import { EditarPartidoDialog } from '@/components/torneo/EditarPartidoDialog';
 import { CargarResultadoDialog } from '@/components/torneo/CargarResultadoDialog';
 import { TablaPosiciones } from '@/components/torneo/TablaPosiciones';
 import { FasesFinalesTab } from '@/components/torneo/FasesFinalesTab';
+import { PlanillaArbitralDialog } from '@/components/torneo/PlanillaArbitralDialog';
+import { GoleadoresPanel } from '@/components/torneo/GoleadoresPanel';
 import { format } from 'date-fns';
 
 export default function TorneoDetalle() {
@@ -292,6 +294,7 @@ function CategoriaPanel({ torneoCategoriaId }: { torneoCategoriaId: string }) {
 
   const [editPartido, setEditPartido] = useState<any | null>(null);
   const [resPartido, setResPartido] = useState<any | null>(null);
+  const [planillaPartido, setPlanillaPartido] = useState<any | null>(null);
 
   return (
     <div className="space-y-4 mt-4">
@@ -302,6 +305,7 @@ function CategoriaPanel({ torneoCategoriaId }: { torneoCategoriaId: string }) {
           <TabsTrigger value="fixture"><CalendarDays className="w-4 h-4 mr-1" /> Fixture ({partidos.length})</TabsTrigger>
           <TabsTrigger value="posiciones"><BarChart3 className="w-4 h-4 mr-1" /> Posiciones</TabsTrigger>
           <TabsTrigger value="finales"><Trophy className="w-4 h-4 mr-1" /> Fases finales</TabsTrigger>
+          <TabsTrigger value="goleadores"><Goal className="w-4 h-4 mr-1" /> Goleadores</TabsTrigger>
         </TabsList>
 
         <TabsContent value="equipos">
@@ -367,7 +371,7 @@ function CategoriaPanel({ torneoCategoriaId }: { torneoCategoriaId: string }) {
           {partidos.length === 0 ? (
             <Card><CardContent className="py-10 text-center text-muted-foreground">Sin partidos. Generá el fixture.</CardContent></Card>
           ) : (
-            <FixtureView partidos={partidos} zonas={zonas} onEditar={setEditPartido} onResultado={setResPartido} />
+            <FixtureView partidos={partidos} zonas={zonas} onEditar={setEditPartido} onResultado={setResPartido} onPlanilla={setPlanillaPartido} />
           )}
         </TabsContent>
 
@@ -378,15 +382,20 @@ function CategoriaPanel({ torneoCategoriaId }: { torneoCategoriaId: string }) {
         <TabsContent value="finales">
           <FasesFinalesTab torneoCategoriaId={torneoCategoriaId} />
         </TabsContent>
+
+        <TabsContent value="goleadores">
+          <GoleadoresPanel torneoCategoriaId={torneoCategoriaId} />
+        </TabsContent>
       </Tabs>
 
       <EditarPartidoDialog partido={editPartido} open={!!editPartido} onOpenChange={(v) => !v && setEditPartido(null)} onSaved={refetchPartidos} />
       <CargarResultadoDialog partido={resPartido} open={!!resPartido} onOpenChange={(v) => !v && setResPartido(null)} onSaved={refetchPartidos} />
+      <PlanillaArbitralDialog partido={planillaPartido} open={!!planillaPartido} onOpenChange={(v) => !v && setPlanillaPartido(null)} onSaved={refetchPartidos} />
     </div>
   );
 }
 
-function FixtureView({ partidos, zonas, onEditar, onResultado }: { partidos: any[]; zonas: any[]; onEditar: (p: any) => void; onResultado: (p: any) => void; }) {
+function FixtureView({ partidos, zonas, onEditar, onResultado, onPlanilla }: { partidos: any[]; zonas: any[]; onEditar: (p: any) => void; onResultado: (p: any) => void; onPlanilla: (p: any) => void; }) {
   const porZona: Record<string, Record<number, any[]>> = {};
   for (const p of partidos) {
     const zid = p.zona_id || 'sin';
@@ -426,9 +435,14 @@ function FixtureView({ partidos, zonas, onEditar, onResultado }: { partidos: any
                         {p.dia && <Badge variant="secondary" className="text-xs">{format(new Date(p.dia), 'dd/MM')} {p.hora ? String(p.hora).slice(0,5) : ''}</Badge>}
                         <div className="flex items-center gap-1 ml-2">
                           {p.equipo_local_id && p.equipo_visitante_id && (
-                            <Button size="icon" variant="ghost" onClick={() => onResultado(p)} title="Cargar resultado">
-                              <Goal className="w-4 h-4" />
-                            </Button>
+                            <>
+                              <Button size="icon" variant="ghost" onClick={() => onPlanilla(p)} title="Planilla arbitral">
+                                <ClipboardList className="w-4 h-4" />
+                              </Button>
+                              <Button size="icon" variant="ghost" onClick={() => onResultado(p)} title="Cargar resultado">
+                                <Goal className="w-4 h-4" />
+                              </Button>
+                            </>
                           )}
                           <Button size="icon" variant="ghost" onClick={() => onEditar(p)} title="Editar partido">
                             <Pencil className="w-4 h-4" />

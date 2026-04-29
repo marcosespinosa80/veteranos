@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Trophy, Wand2, Trash2, Goal, Pencil } from 'lucide-react';
+import { Trophy, Wand2, Trash2, Goal, Pencil, ClipboardList } from 'lucide-react';
 import { calcularTabla } from '@/lib/posiciones';
 import {
   obtenerClasificados,
@@ -21,6 +21,7 @@ import {
 } from '@/lib/finales';
 import { CargarResultadoDialog } from './CargarResultadoDialog';
 import { EditarPartidoDialog } from './EditarPartidoDialog';
+import { PlanillaArbitralDialog } from './PlanillaArbitralDialog';
 
 type Props = { torneoCategoriaId: string };
 
@@ -235,6 +236,7 @@ export function FasesFinalesTab({ torneoCategoriaId }: Props) {
 
   const [resPartido, setResPartido] = useState<any | null>(null);
   const [editPartido, setEditPartido] = useState<any | null>(null);
+  const [planillaPartido, setPlanillaPartido] = useState<any | null>(null);
 
   return (
     <div className="space-y-4 mt-4">
@@ -315,7 +317,7 @@ export function FasesFinalesTab({ torneoCategoriaId }: Props) {
               )}
             </CardHeader>
             <CardContent>
-              <PartidosLista partidos={ps} onResultado={setResPartido} onEditar={setEditPartido} />
+              <PartidosLista partidos={ps} onResultado={setResPartido} onEditar={setEditPartido} onPlanilla={setPlanillaPartido} />
             </CardContent>
           </Card>
         );
@@ -325,18 +327,19 @@ export function FasesFinalesTab({ torneoCategoriaId }: Props) {
         <Card>
           <CardHeader><CardTitle className="text-base">Posicionamiento (no clasificados)</CardTitle></CardHeader>
           <CardContent>
-            <PartidosLista partidos={porFase['posicionamiento']} onResultado={setResPartido} onEditar={setEditPartido} />
+            <PartidosLista partidos={porFase['posicionamiento']} onResultado={setResPartido} onEditar={setEditPartido} onPlanilla={setPlanillaPartido} />
           </CardContent>
         </Card>
       )}
 
       <CargarResultadoDialog partido={resPartido} open={!!resPartido} onOpenChange={(v) => !v && setResPartido(null)} onSaved={refetchFinales} />
       <EditarPartidoDialog partido={editPartido} open={!!editPartido} onOpenChange={(v) => !v && setEditPartido(null)} onSaved={refetchFinales} />
+      <PlanillaArbitralDialog partido={planillaPartido} open={!!planillaPartido} onOpenChange={(v) => !v && setPlanillaPartido(null)} onSaved={refetchFinales} />
     </div>
   );
 }
 
-function PartidosLista({ partidos, onResultado, onEditar }: { partidos: any[]; onResultado: (p: any) => void; onEditar: (p: any) => void }) {
+function PartidosLista({ partidos, onResultado, onEditar, onPlanilla }: { partidos: any[]; onResultado: (p: any) => void; onEditar: (p: any) => void; onPlanilla: (p: any) => void; }) {
   return (
     <ul className="space-y-1 text-sm">
       {partidos.map((p) => (
@@ -353,9 +356,14 @@ function PartidosLista({ partidos, onResultado, onEditar }: { partidos: any[]; o
           <span className="flex-1 font-medium">{p.visitante?.nombre_equipo || '—'}</span>
           <div className="flex items-center gap-1">
             {p.equipo_local_id && p.equipo_visitante_id && (
-              <Button size="icon" variant="ghost" onClick={() => onResultado(p)} title="Cargar resultado">
-                <Goal className="w-4 h-4" />
-              </Button>
+              <>
+                <Button size="icon" variant="ghost" onClick={() => onPlanilla(p)} title="Planilla arbitral">
+                  <ClipboardList className="w-4 h-4" />
+                </Button>
+                <Button size="icon" variant="ghost" onClick={() => onResultado(p)} title="Cargar resultado">
+                  <Goal className="w-4 h-4" />
+                </Button>
+              </>
             )}
             <Button size="icon" variant="ghost" onClick={() => onEditar(p)} title="Editar partido">
               <Pencil className="w-4 h-4" />
