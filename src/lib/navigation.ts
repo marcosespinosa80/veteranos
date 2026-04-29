@@ -63,6 +63,12 @@ export const navigationItems: NavItem[] = [
     roles: ['admin_general', 'admin_comun'],
   },
   {
+    title: 'Torneos',
+    href: '/admin/torneos',
+    icon: 'Trophy',
+    roles: ['admin_general', 'admin_comun'],
+  },
+  {
     title: 'Usuarios',
     href: '/usuarios',
     icon: 'UserCog',

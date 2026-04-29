@@ -11,6 +11,7 @@ import {
   UserCog,
   MapPin,
   DollarSign,
+  Trophy,
   ChevronLeft,
   LogOut,
 } from 'lucide-react';
@@ -31,6 +32,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   UserCog,
   MapPin,
   DollarSign,
+  Trophy,
 };
 
 interface AppSidebarProps {
