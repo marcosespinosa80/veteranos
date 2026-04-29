@@ -10,11 +10,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { ArrowLeft, Plus, Users, Layers, CalendarDays, Trash2, Wand2, Pencil, Goal, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Plus, Users, Layers, CalendarDays, Trash2, Wand2, Pencil, Goal, BarChart3, Trophy } from 'lucide-react';
 import { calcularDistribucionZonas, repartirEquiposEnZonas, generarFixtureRoundRobin } from '@/lib/torneo';
 import { EditarPartidoDialog } from '@/components/torneo/EditarPartidoDialog';
 import { CargarResultadoDialog } from '@/components/torneo/CargarResultadoDialog';
 import { TablaPosiciones } from '@/components/torneo/TablaPosiciones';
+import { FasesFinalesTab } from '@/components/torneo/FasesFinalesTab';
 import { format } from 'date-fns';
 
 export default function TorneoDetalle() {
@@ -300,6 +301,7 @@ function CategoriaPanel({ torneoCategoriaId }: { torneoCategoriaId: string }) {
           <TabsTrigger value="zonas"><Layers className="w-4 h-4 mr-1" /> Zonas ({zonas.length})</TabsTrigger>
           <TabsTrigger value="fixture"><CalendarDays className="w-4 h-4 mr-1" /> Fixture ({partidos.length})</TabsTrigger>
           <TabsTrigger value="posiciones"><BarChart3 className="w-4 h-4 mr-1" /> Posiciones</TabsTrigger>
+          <TabsTrigger value="finales"><Trophy className="w-4 h-4 mr-1" /> Fases finales</TabsTrigger>
         </TabsList>
 
         <TabsContent value="equipos">
@@ -371,6 +373,10 @@ function CategoriaPanel({ torneoCategoriaId }: { torneoCategoriaId: string }) {
 
         <TabsContent value="posiciones">
           <TablaPosiciones partidos={partidos as any} zonas={zonas} equipos={equipos as any} />
+        </TabsContent>
+
+        <TabsContent value="finales">
+          <FasesFinalesTab torneoCategoriaId={torneoCategoriaId} />
         </TabsContent>
       </Tabs>
 
