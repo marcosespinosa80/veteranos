@@ -124,6 +124,7 @@ export default function Jugadores() {
   const [search, setSearch] = useState('');
   const [filterEquipo, setFilterEquipo] = useState<string>('all');
   const [filterCategoria, setFilterCategoria] = useState<string>('all');
+  const [filterEstado, setFilterEstado] = useState<'all' | 'activos' | 'baja'>('all');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<JugadorForm>(emptyForm);
@@ -138,13 +139,15 @@ export default function Jugadores() {
   const canEditEstado = isAdmin || role === 'tribunal';
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [hasMovimientos, setHasMovimientos] = useState(false);
+  const [checkingMovimientos, setCheckingMovimientos] = useState(false);
 
-  const handleDelete = async () => {
-    if (!deleteTarget) return;
-    setDeleting(true);
+  const openDeleteDialog = async (j: any) => {
+    setDeleteTarget(j);
+    setHasMovimientos(false);
+    setCheckingMovimientos(true);
     try {
-      const jid = deleteTarget.id;
-      // Check related records in parallel
+      const jid = j.id;
       const [carnets, pases, items, goles, planilla, cargos] = await Promise.all([
         supabase.from('carnets').select('id', { count: 'exact', head: true }).eq('jugador_id', jid),
         supabase.from('pases').select('id', { count: 'exact', head: true }).eq('jugador_id', jid),
@@ -155,19 +158,42 @@ export default function Jugadores() {
       ]);
       const total = (carnets.count || 0) + (pases.count || 0) + (items.count || 0)
         + (goles.count || 0) + (planilla.count || 0) + (cargos.count || 0);
-      if (total > 0) {
-        toast({
-          title: 'No se puede eliminar',
-          description: 'Este jugador tiene movimientos registrados. Podés deshabilitarlo o marcarlo como no habilitado.',
-          variant: 'destructive',
-        });
-        setDeleteTarget(null);
-        setDeleting(false);
-        return;
-      }
-      const { error } = await supabase.from('jugadores').delete().eq('id', jid);
+      setHasMovimientos(total > 0);
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+      setHasMovimientos(true); // fail-safe: ofrecer baja
+    } finally {
+      setCheckingMovimientos(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const { error } = await supabase.from('jugadores').delete().eq('id', deleteTarget.id);
       if (error) throw error;
       toast({ title: 'Jugador eliminado' });
+      queryClient.invalidateQueries({ queryKey: ['jugadores'] });
+      queryClient.invalidateQueries({ queryKey: ['jugador-counts'] });
+      setDeleteTarget(null);
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleDarDeBaja = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('jugadores')
+        .update({ estado: 'no_habilitado', activo_club: false, es_delegado: false })
+        .eq('id', deleteTarget.id);
+      if (error) throw error;
+      toast({ title: 'Jugador dado de baja correctamente' });
       queryClient.invalidateQueries({ queryKey: ['jugadores'] });
       queryClient.invalidateQueries({ queryKey: ['jugador-counts'] });
       setDeleteTarget(null);
@@ -386,7 +412,11 @@ export default function Jugadores() {
       (searchDigits.length > 0 && (j.dni || '').replace(/\D/g, '').includes(searchDigits));
     const matchEquipo = filterEquipo === 'all' || j.equipo_id === filterEquipo;
     const matchCategoria = filterCategoria === 'all' || j.categoria_id === filterCategoria;
-    return matchSearch && matchEquipo && matchCategoria;
+    const esBaja = !j.activo_club || j.estado === 'no_habilitado';
+    const matchEstado = filterEstado === 'all'
+      || (filterEstado === 'activos' && j.activo_club && j.estado !== 'no_habilitado')
+      || (filterEstado === 'baja' && esBaja);
+    return matchSearch && matchEquipo && matchCategoria && matchEstado;
   });
 
   // ── Inline error helper ──
@@ -442,8 +472,16 @@ export default function Jugadores() {
               {categorias.map((c) => <SelectItem key={c.id} value={c.id}>{c.nombre_categoria}</SelectItem>)}
             </SelectContent>
           </Select>
-          {(filterEquipo !== 'all' || filterCategoria !== 'all') && (
-            <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => { setFilterEquipo('all'); setFilterCategoria('all'); }}>
+          <Select value={filterEstado} onValueChange={(v) => setFilterEstado(v as any)}>
+            <SelectTrigger className="w-44 h-8 text-xs"><SelectValue placeholder="Estado" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="activos">Activos</SelectItem>
+              <SelectItem value="baja">Dados de baja / No habilitados</SelectItem>
+            </SelectContent>
+          </Select>
+          {(filterEquipo !== 'all' || filterCategoria !== 'all' || filterEstado !== 'all') && (
+            <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => { setFilterEquipo('all'); setFilterCategoria('all'); setFilterEstado('all'); }}>
               Limpiar filtros
             </Button>
           )}
@@ -536,7 +574,7 @@ export default function Jugadores() {
                             <Button
                               size="icon"
                               variant="ghost"
-                              onClick={() => setDeleteTarget(j)}
+                              onClick={() => openDeleteDialog(j)}
                               title="Eliminar"
                               className="text-destructive hover:text-destructive hover:bg-destructive/10"
                             >
@@ -798,20 +836,38 @@ export default function Jugadores() {
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && !deleting && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Eliminar jugador</AlertDialogTitle>
+            <AlertDialogTitle>
+              {checkingMovimientos ? 'Verificando...' : (hasMovimientos ? 'Dar de baja jugador' : 'Eliminar jugador')}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              ¿Seguro que querés eliminar a {deleteTarget?.apellido}, {deleteTarget?.nombre}? Esta acción no se puede deshacer.
+              {checkingMovimientos
+                ? 'Estamos verificando si este jugador tiene movimientos registrados.'
+                : hasMovimientos
+                  ? `${deleteTarget?.apellido}, ${deleteTarget?.nombre} tiene movimientos registrados (carnets, pases, listas, goles, planillas o cargos). No se puede eliminar para preservar el historial. Podés darlo de baja: pasará a estado NO HABILITADO e INACTIVO en el club.`
+                  : `¿Seguro que querés eliminar a ${deleteTarget?.apellido}, ${deleteTarget?.nombre}? Esta acción no se puede deshacer.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => { e.preventDefault(); handleDelete(); }}
-              disabled={deleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {deleting ? 'Eliminando...' : 'Eliminar'}
-            </AlertDialogAction>
+            {!checkingMovimientos && (
+              hasMovimientos ? (
+                <AlertDialogAction
+                  onClick={(e) => { e.preventDefault(); handleDarDeBaja(); }}
+                  disabled={deleting}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  {deleting ? 'Procesando...' : 'Dar de baja'}
+                </AlertDialogAction>
+              ) : (
+                <AlertDialogAction
+                  onClick={(e) => { e.preventDefault(); handleDelete(); }}
+                  disabled={deleting}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  {deleting ? 'Eliminando...' : 'Eliminar'}
+                </AlertDialogAction>
+              )
+            )}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
