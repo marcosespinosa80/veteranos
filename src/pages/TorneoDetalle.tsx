@@ -294,6 +294,7 @@ function CategoriaPanel({ torneoCategoriaId }: { torneoCategoriaId: string }) {
 
   const [editPartido, setEditPartido] = useState<any | null>(null);
   const [resPartido, setResPartido] = useState<any | null>(null);
+  const [planillaPartido, setPlanillaPartido] = useState<any | null>(null);
 
   return (
     <div className="space-y-4 mt-4">
@@ -304,6 +305,7 @@ function CategoriaPanel({ torneoCategoriaId }: { torneoCategoriaId: string }) {
           <TabsTrigger value="fixture"><CalendarDays className="w-4 h-4 mr-1" /> Fixture ({partidos.length})</TabsTrigger>
           <TabsTrigger value="posiciones"><BarChart3 className="w-4 h-4 mr-1" /> Posiciones</TabsTrigger>
           <TabsTrigger value="finales"><Trophy className="w-4 h-4 mr-1" /> Fases finales</TabsTrigger>
+          <TabsTrigger value="goleadores"><Goal className="w-4 h-4 mr-1" /> Goleadores</TabsTrigger>
         </TabsList>
 
         <TabsContent value="equipos">
@@ -369,7 +371,7 @@ function CategoriaPanel({ torneoCategoriaId }: { torneoCategoriaId: string }) {
           {partidos.length === 0 ? (
             <Card><CardContent className="py-10 text-center text-muted-foreground">Sin partidos. Generá el fixture.</CardContent></Card>
           ) : (
-            <FixtureView partidos={partidos} zonas={zonas} onEditar={setEditPartido} onResultado={setResPartido} />
+            <FixtureView partidos={partidos} zonas={zonas} onEditar={setEditPartido} onResultado={setResPartido} onPlanilla={setPlanillaPartido} />
           )}
         </TabsContent>
 
@@ -380,10 +382,15 @@ function CategoriaPanel({ torneoCategoriaId }: { torneoCategoriaId: string }) {
         <TabsContent value="finales">
           <FasesFinalesTab torneoCategoriaId={torneoCategoriaId} />
         </TabsContent>
+
+        <TabsContent value="goleadores">
+          <GoleadoresPanel torneoCategoriaId={torneoCategoriaId} />
+        </TabsContent>
       </Tabs>
 
       <EditarPartidoDialog partido={editPartido} open={!!editPartido} onOpenChange={(v) => !v && setEditPartido(null)} onSaved={refetchPartidos} />
       <CargarResultadoDialog partido={resPartido} open={!!resPartido} onOpenChange={(v) => !v && setResPartido(null)} onSaved={refetchPartidos} />
+      <PlanillaArbitralDialog partido={planillaPartido} open={!!planillaPartido} onOpenChange={(v) => !v && setPlanillaPartido(null)} onSaved={refetchPartidos} />
     </div>
   );
 }
