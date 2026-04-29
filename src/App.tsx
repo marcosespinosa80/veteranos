@@ -22,6 +22,8 @@ import PlaceholderPage from "./pages/PlaceholderPage";
 import CanchasPage from "./pages/CanchasPage";
 import FinanzasPage from "./pages/FinanzasPage";
 import MultasPage from "./pages/MultasPage";
+import TorneosPage from "./pages/TorneosPage";
+import TorneoDetallePage from "./pages/TorneoDetallePage";
 
 const queryClient = new QueryClient();
 
@@ -92,6 +94,12 @@ const App = () => (
             } />
             <Route path="/tribunal/multas" element={
               <ProtectedRoute><MultasPage /></ProtectedRoute>
+            } />
+            <Route path="/admin/torneos" element={
+              <ProtectedRoute><TorneosPage /></ProtectedRoute>
+            } />
+            <Route path="/admin/torneos/:id" element={
+              <ProtectedRoute><TorneoDetallePage /></ProtectedRoute>
             } />
             
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
