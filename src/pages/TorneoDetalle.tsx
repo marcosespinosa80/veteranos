@@ -8,9 +8,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
-import { ArrowLeft, Plus, Users, Layers, CalendarDays, Trash2, Wand2, Pencil, Goal, BarChart3, Trophy, ClipboardList } from 'lucide-react';
+import {
+  ArrowLeft, Plus, Users, Layers, CalendarDays, Trash2, Wand2, Pencil, Goal, BarChart3, Trophy, ClipboardList,
+  MoreVertical, Settings, X, Ban,
+} from 'lucide-react';
 import { calcularDistribucionZonas, repartirEquiposEnZonas, generarFixtureRoundRobin } from '@/lib/torneo';
 import { EditarPartidoDialog } from '@/components/torneo/EditarPartidoDialog';
 import { CargarResultadoDialog } from '@/components/torneo/CargarResultadoDialog';
@@ -18,6 +25,9 @@ import { TablaPosiciones } from '@/components/torneo/TablaPosiciones';
 import { FasesFinalesTab } from '@/components/torneo/FasesFinalesTab';
 import { PlanillaArbitralDialog } from '@/components/torneo/PlanillaArbitralDialog';
 import { GoleadoresPanel } from '@/components/torneo/GoleadoresPanel';
+import { ConfirmDialog } from '@/components/torneo/ConfirmDialog';
+import { ConfigCategoriaDialog } from '@/components/torneo/ConfigCategoriaDialog';
+import { CrearPartidoDialog } from '@/components/torneo/CrearPartidoDialog';
 import { format } from 'date-fns';
 
 export default function TorneoDetalle() {
@@ -60,17 +70,16 @@ export default function TorneoDetalle() {
 
   const [openAdd, setOpenAdd] = useState(false);
   const [catSel, setCatSel] = useState('');
+  const [configTc, setConfigTc] = useState<any | null>(null);
 
   const agregarCategoria = async () => {
     if (!catSel || !torneoId) return;
-    // 1. crear torneo_categoria
     const { data: tc, error } = await supabase
       .from('torneo_categorias')
       .insert({ torneo_id: torneoId, categoria_id: catSel })
       .select('id')
       .single();
     if (error) return toast.error(error.message);
-    // 2. cargar equipos desde equipo_categoria de la temporada del torneo
     const anio = torneo?.temporadas?.anio;
     const { data: ecs } = await supabase
       .from('equipo_categoria')
@@ -89,6 +98,29 @@ export default function TorneoDetalle() {
     setCatSel('');
     refetchCats();
     qc.invalidateQueries({ queryKey: ['torneo-list'] });
+  };
+
+  // Quitar categoría: revisa si hay partidos con resultado
+  const quitarCategoria = async (tc: any) => {
+    const { count: conResultado } = await supabase
+      .from('partidos').select('id', { count: 'exact', head: true })
+      .eq('torneo_categoria_id', tc.id)
+      .not('goles_local', 'is', null);
+    if ((conResultado ?? 0) > 0) {
+      return toast.error(`No se puede quitar: hay ${conResultado} partido(s) con resultado. Archivá la categoría.`);
+    }
+    // Borrar en cascada manual: partidos -> fechas_torneo -> zona_equipos -> zonas -> torneo_equipos -> torneo_categoria
+    await supabase.from('partidos').delete().eq('torneo_categoria_id', tc.id);
+    await supabase.from('fechas_torneo').delete().eq('torneo_categoria_id', tc.id);
+    const { data: zs } = await supabase.from('zonas').select('id').eq('torneo_categoria_id', tc.id);
+    const zIds = (zs || []).map((z: any) => z.id);
+    if (zIds.length > 0) await supabase.from('zona_equipos').delete().in('zona_id', zIds);
+    await supabase.from('zonas').delete().eq('torneo_categoria_id', tc.id);
+    await supabase.from('torneo_equipos').delete().eq('torneo_categoria_id', tc.id);
+    const { error } = await supabase.from('torneo_categorias').delete().eq('id', tc.id);
+    if (error) return toast.error(error.message);
+    toast.success('Categoría quitada del torneo');
+    refetchCats();
   };
 
   const catsDisponibles = categorias.filter((c) => !torneoCats.some((tc) => tc.categoria_id === c.id));
@@ -136,16 +168,40 @@ export default function TorneoDetalle() {
           </TabsList>
           {torneoCats.map((tc) => (
             <TabsContent key={tc.id} value={tc.id}>
-              <CategoriaPanel torneoCategoriaId={tc.id} />
+              <div className="flex justify-end gap-2 mt-2">
+                <Button variant="outline" size="sm" onClick={() => setConfigTc(tc)}>
+                  <Settings className="w-4 h-4" /> Configurar categoría
+                </Button>
+                <ConfirmDialog
+                  trigger={
+                    <Button variant="outline" size="sm" className="text-destructive">
+                      <Trash2 className="w-4 h-4" /> Quitar categoría
+                    </Button>
+                  }
+                  title="¿Quitar categoría del torneo?"
+                  description="Si la categoría ya tiene fixture generado, se eliminarán zonas y partidos asociados. Si hay resultados cargados, no se podrá quitar."
+                  onConfirm={() => quitarCategoria(tc)}
+                  danger
+                  confirmLabel="Quitar"
+                />
+              </div>
+              <CategoriaPanel torneoCategoriaId={tc.id} torneoId={torneoId!} categoriaId={tc.categoria_id} temporadaAnio={torneo?.temporadas?.anio} />
             </TabsContent>
           ))}
         </Tabs>
       )}
+
+      <ConfigCategoriaDialog
+        torneoCategoria={configTc}
+        open={!!configTc}
+        onOpenChange={(v) => !v && setConfigTc(null)}
+        onSaved={refetchCats}
+      />
     </div>
   );
 }
 
-function CategoriaPanel({ torneoCategoriaId }: { torneoCategoriaId: string }) {
+function CategoriaPanel({ torneoCategoriaId, torneoId, categoriaId, temporadaAnio }: { torneoCategoriaId: string; torneoId: string; categoriaId: string; temporadaAnio?: number }) {
   const { user } = useAuth();
   const qc = useQueryClient();
 
@@ -185,19 +241,80 @@ function CategoriaPanel({ torneoCategoriaId }: { torneoCategoriaId: string }) {
         .eq('torneo_categoria_id', torneoCategoriaId)
         .order('zona_id')
         .order('fecha_numero');
-      if (error) return [] as any[]; // FK aliases pueden variar; fallback simple
+      if (error) return [] as any[];
       return data as any[];
     },
     enabled: !!user,
   });
 
-  // ---- Generar zonas ----
+  // Equipos disponibles (en equipo_categoria de la temporada y aún no inscriptos en este torneo_categoria)
+  const { data: equiposDisponibles = [] } = useQuery({
+    queryKey: ['eq-disp', torneoCategoriaId, categoriaId, temporadaAnio, user?.id, equipos.length],
+    queryFn: async () => {
+      if (!temporadaAnio) return [];
+      const { data: ecs } = await supabase
+        .from('equipo_categoria')
+        .select('equipo_id, equipos(id, nombre_equipo)')
+        .eq('categoria_id', categoriaId)
+        .eq('temporada', temporadaAnio);
+      const yaIds = new Set(equipos.map((e: any) => e.equipo_id));
+      return (ecs || [])
+        .filter((x: any) => !yaIds.has(x.equipo_id))
+        .map((x: any) => x.equipos)
+        .filter(Boolean);
+    },
+    enabled: !!user && !!temporadaAnio,
+  });
+
+  const tieneFixture = partidos.length > 0;
+  const tieneResultados = partidos.some((p: any) => p.goles_local != null);
+
+  // ---- Equipos participantes ----
+  const [agregarEqId, setAgregarEqId] = useState<string>('');
+  const agregarEquipo = async () => {
+    if (!agregarEqId) return;
+    const { error } = await supabase.from('torneo_equipos').insert({
+      torneo_categoria_id: torneoCategoriaId,
+      equipo_id: agregarEqId,
+    });
+    if (error) return toast.error(error.message);
+    toast.success('Equipo agregado');
+    setAgregarEqId('');
+    refetchEqs();
+  };
+
+  const quitarEquipo = async (te: any) => {
+    // Bloquear si hay partidos con resultado donde participa
+    const { count } = await supabase
+      .from('partidos').select('id', { count: 'exact', head: true })
+      .eq('torneo_categoria_id', torneoCategoriaId)
+      .or(`equipo_local_id.eq.${te.equipo_id},equipo_visitante_id.eq.${te.equipo_id}`)
+      .not('goles_local', 'is', null);
+    if ((count ?? 0) > 0) {
+      return toast.error('No se puede quitar: el equipo tiene partidos con resultado cargado.');
+    }
+    // Quitar de zona_equipos y partidos sin resultado
+    const zIds = zonas.map((z: any) => z.id);
+    if (zIds.length > 0) {
+      await supabase.from('zona_equipos').delete().eq('equipo_id', te.equipo_id).in('zona_id', zIds);
+    }
+    await supabase.from('partidos').delete()
+      .eq('torneo_categoria_id', torneoCategoriaId)
+      .or(`equipo_local_id.eq.${te.equipo_id},equipo_visitante_id.eq.${te.equipo_id}`)
+      .is('goles_local', null);
+    const { error } = await supabase.from('torneo_equipos').delete().eq('id', te.id);
+    if (error) return toast.error(error.message);
+    toast.success('Equipo quitado');
+    refetchEqs(); refetchZonas(); refetchPartidos();
+  };
+
+  // ---- Zonas ----
   const generarZonas = async () => {
     const total = equipos.length;
     const { ok, zonas: cant, mensaje } = calcularDistribucionZonas(total);
     if (!ok) return toast.error(mensaje || 'No se puede distribuir');
+    if (tieneResultados) return toast.error('Hay resultados cargados; no se pueden regenerar zonas.');
 
-    // borrar zonas anteriores
     await supabase.from('zonas').delete().eq('torneo_categoria_id', torneoCategoriaId);
 
     const grupos = repartirEquiposEnZonas(equipos, cant);
@@ -216,6 +333,18 @@ function CategoriaPanel({ torneoCategoriaId }: { torneoCategoriaId: string }) {
     refetchZonas();
   };
 
+  const crearZonaManual = async () => {
+    const proxLetra = String.fromCharCode(65 + zonas.length);
+    const { error } = await supabase.from('zonas').insert({
+      torneo_categoria_id: torneoCategoriaId,
+      nombre: `Zona ${proxLetra}`,
+      orden: zonas.length,
+    });
+    if (error) return toast.error(error.message);
+    toast.success('Zona creada');
+    refetchZonas();
+  };
+
   const moverEquipo = async (zonaEquipoId: string, nuevaZonaId: string) => {
     const { error } = await supabase.from('zona_equipos').update({ zona_id: nuevaZonaId }).eq('id', zonaEquipoId);
     if (error) return toast.error(error.message);
@@ -229,18 +358,42 @@ function CategoriaPanel({ torneoCategoriaId }: { torneoCategoriaId: string }) {
   };
 
   const eliminarZona = async (zonaId: string) => {
-    if (!confirm('¿Eliminar esta zona y sus partidos?')) return;
+    // Bloquear si hay partidos con resultado en esa zona
+    const { count } = await supabase
+      .from('partidos').select('id', { count: 'exact', head: true })
+      .eq('zona_id', zonaId).not('goles_local', 'is', null);
+    if ((count ?? 0) > 0) return toast.error('La zona tiene partidos con resultado; no se puede eliminar.');
+    await supabase.from('partidos').delete().eq('zona_id', zonaId);
+    await supabase.from('zona_equipos').delete().eq('zona_id', zonaId);
     await supabase.from('zonas').delete().eq('id', zonaId);
     refetchZonas();
     refetchPartidos();
+    toast.success('Zona eliminada');
   };
 
-  // ---- Generar fixture ----
+  const quitarEquipoDeZona = async (ze: any) => {
+    const { error } = await supabase.from('zona_equipos').delete().eq('id', ze.id);
+    if (error) return toast.error(error.message);
+    refetchZonas();
+  };
+
+  // Equipos sin zona (para agregar a una zona)
+  const equiposEnZonas = new Set<string>();
+  for (const z of zonas) for (const ze of (z.zona_equipos || [])) equiposEnZonas.add(ze.equipo_id);
+  const equiposSinZona = equipos.filter((e: any) => !equiposEnZonas.has(e.equipo_id));
+
+  const agregarEqAZona = async (zonaId: string, equipoId: string) => {
+    const { error } = await supabase.from('zona_equipos').insert({ zona_id: zonaId, equipo_id: equipoId, orden: 0 });
+    if (error) return toast.error(error.message);
+    refetchZonas();
+  };
+
+  // ---- Fixture ----
   const generarFixture = async () => {
     if (zonas.length === 0) return toast.error('Generá zonas primero');
+    if (tieneResultados) return toast.error('Hay resultados cargados; no se puede regenerar el fixture.');
     if (!confirm('Esto regenerará el fixture de todas las zonas (y borrará partidos previos de fase grupos). ¿Continuar?')) return;
 
-    // datos torneo
     const { data: tc } = await supabase
       .from('torneo_categorias')
       .select('torneo_id, categoria_id')
@@ -248,7 +401,6 @@ function CategoriaPanel({ torneoCategoriaId }: { torneoCategoriaId: string }) {
       .single();
     if (!tc) return toast.error('No se encontró torneo_categoria');
 
-    // borrar partidos y fechas previos de fase grupos
     await supabase.from('partidos').delete().eq('torneo_categoria_id', torneoCategoriaId).eq('fase', 'grupos');
     await supabase.from('fechas_torneo').delete().eq('torneo_categoria_id', torneoCategoriaId);
 
@@ -292,9 +444,28 @@ function CategoriaPanel({ torneoCategoriaId }: { torneoCategoriaId: string }) {
     refetchPartidos();
   };
 
+  const eliminarPartido = async (p: any) => {
+    if (p.goles_local != null) return toast.error('Tiene resultado cargado; no se puede eliminar.');
+    const { count } = await supabase.from('planilla_arbitral').select('id', { count: 'exact', head: true }).eq('partido_id', p.id);
+    if ((count ?? 0) > 0) return toast.error('Tiene planilla arbitral; no se puede eliminar.');
+    const { error } = await supabase.from('partidos').delete().eq('id', p.id);
+    if (error) return toast.error(error.message);
+    toast.success('Partido eliminado');
+    refetchPartidos();
+  };
+
+  const suspenderPartido = async (p: any) => {
+    const nuevo = p.estado === 'suspendido' ? 'programado' : 'suspendido';
+    const { error } = await supabase.from('partidos').update({ estado: nuevo }).eq('id', p.id);
+    if (error) return toast.error(error.message);
+    toast.success(nuevo === 'suspendido' ? 'Partido suspendido' : 'Partido reprogramado');
+    refetchPartidos();
+  };
+
   const [editPartido, setEditPartido] = useState<any | null>(null);
   const [resPartido, setResPartido] = useState<any | null>(null);
   const [planillaPartido, setPlanillaPartido] = useState<any | null>(null);
+  const [crearPartidoOpen, setCrearPartidoOpen] = useState(false);
 
   return (
     <div className="space-y-4 mt-4">
@@ -308,26 +479,56 @@ function CategoriaPanel({ torneoCategoriaId }: { torneoCategoriaId: string }) {
           <TabsTrigger value="goleadores"><Goal className="w-4 h-4 mr-1" /> Goleadores</TabsTrigger>
         </TabsList>
 
+        {/* EQUIPOS */}
         <TabsContent value="equipos">
-          <Card><CardContent className="py-4">
-            {equipos.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Sin equipos inscriptos. Asegurate de cargarlos en equipo_categoria.</p>
-            ) : (
-              <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                {equipos.map((e: any) => (
-                  <li key={e.id} className="px-3 py-2 border rounded-md text-sm">{e.equipos?.nombre_equipo}</li>
-                ))}
-              </ul>
-            )}
-          </CardContent></Card>
+          <Card>
+            <CardContent className="py-4 space-y-3">
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Select value={agregarEqId} onValueChange={setAgregarEqId}>
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder={equiposDisponibles.length > 0 ? 'Elegir equipo a agregar...' : 'Sin equipos disponibles'} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {equiposDisponibles.map((e: any) => (
+                      <SelectItem key={e.id} value={e.id}>{e.nombre_equipo}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button onClick={agregarEquipo} disabled={!agregarEqId}>
+                  <Plus className="w-4 h-4" /> Agregar equipo
+                </Button>
+              </div>
+              {equipos.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Sin equipos inscriptos.</p>
+              ) : (
+                <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                  {equipos.map((e: any) => (
+                    <li key={e.id} className="px-3 py-2 border rounded-md text-sm flex items-center gap-2">
+                      <span className="flex-1">{e.equipos?.nombre_equipo}</span>
+                      <ConfirmDialog
+                        trigger={<Button size="icon" variant="ghost" className="h-7 w-7"><X className="w-4 h-4 text-destructive" /></Button>}
+                        title="¿Quitar equipo?"
+                        description={tieneFixture ? 'El fixture ya fue generado. Se quitará al equipo de su zona y de partidos sin resultado.' : 'El equipo se quitará del torneo en esta categoría.'}
+                        onConfirm={() => quitarEquipo(e)}
+                        danger
+                        confirmLabel="Quitar"
+                      />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
+        {/* ZONAS */}
         <TabsContent value="zonas">
-          <div className="flex justify-end mb-2">
-            <Button onClick={generarZonas}><Wand2 className="w-4 h-4" /> Generar zonas automáticamente</Button>
+          <div className="flex justify-end mb-2 gap-2">
+            <Button variant="outline" onClick={crearZonaManual}><Plus className="w-4 h-4" /> Nueva zona</Button>
+            <Button onClick={generarZonas}><Wand2 className="w-4 h-4" /> Generar automáticamente</Button>
           </div>
           {zonas.length === 0 ? (
-            <Card><CardContent className="py-10 text-center text-muted-foreground">Sin zonas. Generalas automáticamente.</CardContent></Card>
+            <Card><CardContent className="py-10 text-center text-muted-foreground">Sin zonas. Generalas o creá una manual.</CardContent></Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {zonas.map((z: any) => (
@@ -336,11 +537,15 @@ function CategoriaPanel({ torneoCategoriaId }: { torneoCategoriaId: string }) {
                     <input
                       defaultValue={z.nombre}
                       onBlur={(e) => e.target.value !== z.nombre && renombrarZona(z.id, e.target.value)}
-                      className="font-bold bg-transparent border-b border-transparent hover:border-input focus:border-primary outline-none"
+                      className="font-bold bg-transparent border-b border-transparent hover:border-input focus:border-primary outline-none flex-1"
                     />
-                    <Button size="icon" variant="ghost" onClick={() => eliminarZona(z.id)}>
-                      <Trash2 className="w-4 h-4 text-destructive" />
-                    </Button>
+                    <ConfirmDialog
+                      trigger={<Button size="icon" variant="ghost"><Trash2 className="w-4 h-4 text-destructive" /></Button>}
+                      title={`¿Eliminar ${z.nombre}?`}
+                      description="Se eliminarán los partidos sin resultado y la asignación de equipos. Si hay resultados cargados, no se puede eliminar."
+                      onConfirm={() => eliminarZona(z.id)}
+                      danger
+                    />
                   </CardHeader>
                   <CardContent>
                     <ul className="space-y-1 text-sm">
@@ -348,14 +553,29 @@ function CategoriaPanel({ torneoCategoriaId }: { torneoCategoriaId: string }) {
                         <li key={ze.id} className="flex items-center gap-2">
                           <span className="flex-1">{ze.equipos?.nombre_equipo}</span>
                           <Select value={z.id} onValueChange={(v) => moverEquipo(ze.id, v)}>
-                            <SelectTrigger className="w-[120px] h-7 text-xs"><SelectValue /></SelectTrigger>
+                            <SelectTrigger className="w-[110px] h-7 text-xs"><SelectValue /></SelectTrigger>
                             <SelectContent>
                               {zonas.map((zz: any) => <SelectItem key={zz.id} value={zz.id}>{zz.nombre}</SelectItem>)}
                             </SelectContent>
                           </Select>
+                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => quitarEquipoDeZona(ze)}>
+                            <X className="w-3 h-3 text-destructive" />
+                          </Button>
                         </li>
                       ))}
                     </ul>
+                    {equiposSinZona.length > 0 && (
+                      <div className="mt-2 pt-2 border-t">
+                        <Select value="" onValueChange={(v) => agregarEqAZona(z.id, v)}>
+                          <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="+ Agregar equipo sin zona" /></SelectTrigger>
+                          <SelectContent>
+                            {equiposSinZona.map((e: any) => (
+                              <SelectItem key={e.equipo_id} value={e.equipo_id}>{e.equipos?.nombre_equipo}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                     <p className="text-xs text-muted-foreground mt-2">{(z.zona_equipos || []).length} equipo(s)</p>
                   </CardContent>
                 </Card>
@@ -364,14 +584,24 @@ function CategoriaPanel({ torneoCategoriaId }: { torneoCategoriaId: string }) {
           )}
         </TabsContent>
 
+        {/* FIXTURE */}
         <TabsContent value="fixture">
-          <div className="flex justify-end mb-2">
+          <div className="flex justify-end mb-2 gap-2">
+            <Button variant="outline" onClick={() => setCrearPartidoOpen(true)}><Plus className="w-4 h-4" /> Crear partido</Button>
             <Button onClick={generarFixture}><Wand2 className="w-4 h-4" /> Generar fixture</Button>
           </div>
           {partidos.length === 0 ? (
-            <Card><CardContent className="py-10 text-center text-muted-foreground">Sin partidos. Generá el fixture.</CardContent></Card>
+            <Card><CardContent className="py-10 text-center text-muted-foreground">Sin partidos. Generá el fixture o creá uno manual.</CardContent></Card>
           ) : (
-            <FixtureView partidos={partidos} zonas={zonas} onEditar={setEditPartido} onResultado={setResPartido} onPlanilla={setPlanillaPartido} />
+            <FixtureView
+              partidos={partidos}
+              zonas={zonas}
+              onEditar={setEditPartido}
+              onResultado={setResPartido}
+              onPlanilla={setPlanillaPartido}
+              onEliminar={eliminarPartido}
+              onSuspender={suspenderPartido}
+            />
           )}
         </TabsContent>
 
@@ -391,11 +621,27 @@ function CategoriaPanel({ torneoCategoriaId }: { torneoCategoriaId: string }) {
       <EditarPartidoDialog partido={editPartido} open={!!editPartido} onOpenChange={(v) => !v && setEditPartido(null)} onSaved={refetchPartidos} />
       <CargarResultadoDialog partido={resPartido} open={!!resPartido} onOpenChange={(v) => !v && setResPartido(null)} onSaved={refetchPartidos} />
       <PlanillaArbitralDialog partido={planillaPartido} open={!!planillaPartido} onOpenChange={(v) => !v && setPlanillaPartido(null)} onSaved={refetchPartidos} />
+      <CrearPartidoDialog
+        open={crearPartidoOpen}
+        onOpenChange={setCrearPartidoOpen}
+        torneoCategoriaId={torneoCategoriaId}
+        torneoId={torneoId}
+        categoriaId={categoriaId}
+        zonas={zonas}
+        onSaved={refetchPartidos}
+      />
     </div>
   );
 }
 
-function FixtureView({ partidos, zonas, onEditar, onResultado, onPlanilla }: { partidos: any[]; zonas: any[]; onEditar: (p: any) => void; onResultado: (p: any) => void; onPlanilla: (p: any) => void; }) {
+function FixtureView({ partidos, zonas, onEditar, onResultado, onPlanilla, onEliminar, onSuspender }: {
+  partidos: any[]; zonas: any[];
+  onEditar: (p: any) => void;
+  onResultado: (p: any) => void;
+  onPlanilla: (p: any) => void;
+  onEliminar: (p: any) => void;
+  onSuspender: (p: any) => void;
+}) {
   const porZona: Record<string, Record<number, any[]>> = {};
   for (const p of partidos) {
     const zid = p.zona_id || 'sin';
@@ -447,6 +693,24 @@ function FixtureView({ partidos, zonas, onEditar, onResultado, onPlanilla }: { p
                           <Button size="icon" variant="ghost" onClick={() => onEditar(p)} title="Editar partido">
                             <Pencil className="w-4 h-4" />
                           </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button size="icon" variant="ghost" title="Más acciones"><MoreVertical className="w-4 h-4" /></Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => onSuspender(p)}>
+                                <Ban className="w-4 h-4 mr-2" />
+                                {p.estado === 'suspendido' ? 'Reprogramar' : 'Suspender'}
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => onEliminar(p)}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" /> Eliminar partido
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </li>
                     ))}
