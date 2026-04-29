@@ -10,8 +10,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { ArrowLeft, Plus, Users, Layers, CalendarDays, Trash2, Wand2 } from 'lucide-react';
+import { ArrowLeft, Plus, Users, Layers, CalendarDays, Trash2, Wand2, Pencil, Goal, BarChart3 } from 'lucide-react';
 import { calcularDistribucionZonas, repartirEquiposEnZonas, generarFixtureRoundRobin } from '@/lib/torneo';
+import { EditarPartidoDialog } from '@/components/torneo/EditarPartidoDialog';
+import { CargarResultadoDialog } from '@/components/torneo/CargarResultadoDialog';
+import { TablaPosiciones } from '@/components/torneo/TablaPosiciones';
+import { format } from 'date-fns';
 
 export default function TorneoDetalle() {
   const { user, loading } = useAuth();
@@ -285,6 +289,9 @@ function CategoriaPanel({ torneoCategoriaId }: { torneoCategoriaId: string }) {
     refetchPartidos();
   };
 
+  const [editPartido, setEditPartido] = useState<any | null>(null);
+  const [resPartido, setResPartido] = useState<any | null>(null);
+
   return (
     <div className="space-y-4 mt-4">
       <Tabs defaultValue="equipos">
@@ -292,6 +299,7 @@ function CategoriaPanel({ torneoCategoriaId }: { torneoCategoriaId: string }) {
           <TabsTrigger value="equipos"><Users className="w-4 h-4 mr-1" /> Equipos ({equipos.length})</TabsTrigger>
           <TabsTrigger value="zonas"><Layers className="w-4 h-4 mr-1" /> Zonas ({zonas.length})</TabsTrigger>
           <TabsTrigger value="fixture"><CalendarDays className="w-4 h-4 mr-1" /> Fixture ({partidos.length})</TabsTrigger>
+          <TabsTrigger value="posiciones"><BarChart3 className="w-4 h-4 mr-1" /> Posiciones</TabsTrigger>
         </TabsList>
 
         <TabsContent value="equipos">
@@ -357,10 +365,78 @@ function CategoriaPanel({ torneoCategoriaId }: { torneoCategoriaId: string }) {
           {partidos.length === 0 ? (
             <Card><CardContent className="py-10 text-center text-muted-foreground">Sin partidos. Generá el fixture.</CardContent></Card>
           ) : (
-            <FixtureView partidos={partidos} zonas={zonas} />
+            <FixtureView partidos={partidos} zonas={zonas} onEditar={setEditPartido} onResultado={setResPartido} />
           )}
         </TabsContent>
+
+        <TabsContent value="posiciones">
+          <TablaPosiciones partidos={partidos as any} zonas={zonas} equipos={equipos as any} />
+        </TabsContent>
       </Tabs>
+
+      <EditarPartidoDialog partido={editPartido} open={!!editPartido} onOpenChange={(v) => !v && setEditPartido(null)} onSaved={refetchPartidos} />
+      <CargarResultadoDialog partido={resPartido} open={!!resPartido} onOpenChange={(v) => !v && setResPartido(null)} onSaved={refetchPartidos} />
+    </div>
+  );
+}
+
+function FixtureView({ partidos, zonas, onEditar, onResultado }: { partidos: any[]; zonas: any[]; onEditar: (p: any) => void; onResultado: (p: any) => void; }) {
+  const porZona: Record<string, Record<number, any[]>> = {};
+  for (const p of partidos) {
+    const zid = p.zona_id || 'sin';
+    porZona[zid] = porZona[zid] || {};
+    porZona[zid][p.fecha_numero || 0] = porZona[zid][p.fecha_numero || 0] || [];
+    porZona[zid][p.fecha_numero || 0].push(p);
+  }
+  const nombreZona = (zid: string) => zonas.find((z) => z.id === zid)?.nombre || 'Sin zona';
+
+  const tieneResultado = (p: any) => p.goles_local != null && p.goles_visitante != null;
+
+  return (
+    <div className="space-y-4">
+      {Object.entries(porZona).map(([zid, fechas]) => (
+        <Card key={zid}>
+          <CardHeader><CardTitle className="text-base">{nombreZona(zid)}</CardTitle></CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {Object.entries(fechas).sort(([a], [b]) => Number(a) - Number(b)).map(([n, ps]) => (
+                <div key={n}>
+                  <p className="text-xs font-semibold text-muted-foreground mb-1">FECHA {n}</p>
+                  <ul className="space-y-1 text-sm">
+                    {ps.map((p) => (
+                      <li key={p.id} className="px-3 py-1.5 border rounded flex items-center gap-2 flex-wrap">
+                        <span className="flex-1 text-right">{p.local?.nombre_equipo || '—'}</span>
+                        {tieneResultado(p) ? (
+                          <span className="font-bold text-primary tabular-nums">
+                            {p.goles_local} - {p.goles_visitante}
+                            {p.hubo_penales && <span className="text-xs text-muted-foreground ml-1">({p.penales_local}-{p.penales_visitante} pen)</span>}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">vs</span>
+                        )}
+                        <span className="flex-1">{p.visitante?.nombre_equipo || '—'}</span>
+                        {p.libre && <Badge variant="outline">Libre: {p.libre?.nombre_equipo}</Badge>}
+                        {p.estado === 'suspendido' && <Badge variant="destructive">Suspendido</Badge>}
+                        {p.dia && <Badge variant="secondary" className="text-xs">{format(new Date(p.dia), 'dd/MM')} {p.hora ? String(p.hora).slice(0,5) : ''}</Badge>}
+                        <div className="flex items-center gap-1 ml-2">
+                          {p.equipo_local_id && p.equipo_visitante_id && (
+                            <Button size="icon" variant="ghost" onClick={() => onResultado(p)} title="Cargar resultado">
+                              <Goal className="w-4 h-4" />
+                            </Button>
+                          )}
+                          <Button size="icon" variant="ghost" onClick={() => onEditar(p)} title="Editar partido">
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      ))}
     </div>
   );
 }
