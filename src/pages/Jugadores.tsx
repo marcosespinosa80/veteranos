@@ -14,8 +14,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Plus, Pencil, Search, Filter, Upload, X, User, Camera, AlertTriangle, ArrowRightLeft } from 'lucide-react';
+import { Plus, Pencil, Search, Filter, Upload, X, User, Camera, AlertTriangle, ArrowRightLeft, Trash2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 // ── Helpers ──
 
