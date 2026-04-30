@@ -49,21 +49,40 @@ export function RegistrarPagoDialog({ open, onOpenChange, preload }: Props) {
   const [referencia, setReferencia] = useState('');
   const [observaciones, setObservaciones] = useState('');
 
-  // Search jugador by DNI
+  // Search jugador by DNI (normalized: ignores dots)
+  const dniClean = searchDni.replace(/\D/g, '');
   const { data: jugadorFound } = useQuery({
-    queryKey: ['pago-buscar-jugador', searchDni],
-    enabled: targetType === 'jugador' && searchDni.length >= 6,
+    queryKey: ['pago-buscar-jugador', dniClean],
+    enabled: targetType === 'jugador' && !preloadedJugadorId && dniClean.length >= 6,
     queryFn: async () => {
-      const dniClean = searchDni.replace(/\./g, '');
-      const { data } = await supabase
+      // Fetch candidates and normalize on client to handle stored DNIs with or without dots
+      const { data, error } = await supabase
         .from('jugadores')
         .select('id, nombre, apellido, dni, equipo_id')
         .or(`dni.eq.${dniClean},dni.ilike.%${dniClean}%`)
-        .limit(1)
+        .limit(20);
+      if (error) throw error;
+      const match = (data || []).find((j: any) => (j.dni || '').replace(/\D/g, '') === dniClean);
+      return match || null;
+    },
+  });
+
+  // Preloaded jugador info (when opened from Deudas row)
+  const { data: jugadorPreloaded } = useQuery({
+    queryKey: ['pago-jugador-preloaded', preloadedJugadorId],
+    enabled: !!preloadedJugadorId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('jugadores')
+        .select('id, nombre, apellido, dni, equipo_id')
+        .eq('id', preloadedJugadorId!)
         .maybeSingle();
+      if (error) throw error;
       return data;
     },
   });
+
+  const jugadorActivo = jugadorPreloaded || jugadorFound;
 
   // Load equipos for select
   const { data: equipos = [] } = useQuery({
