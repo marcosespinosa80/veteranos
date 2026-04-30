@@ -42,6 +42,7 @@ export function RegistrarPagoDialog({ open, onOpenChange, preload }: Props) {
   const [saving, setSaving] = useState(false);
   const [targetType, setTargetType] = useState<'jugador' | 'equipo'>('jugador');
   const [searchDni, setSearchDni] = useState('');
+  const [preloadedJugadorId, setPreloadedJugadorId] = useState<string | null>(null);
   const [selectedEquipoId, setSelectedEquipoId] = useState('');
   const [selectedCargos, setSelectedCargos] = useState<string[]>([]);
   const [medioPago, setMedioPago] = useState('efectivo');
