@@ -42,27 +42,47 @@ export function RegistrarPagoDialog({ open, onOpenChange, preload }: Props) {
   const [saving, setSaving] = useState(false);
   const [targetType, setTargetType] = useState<'jugador' | 'equipo'>('jugador');
   const [searchDni, setSearchDni] = useState('');
+  const [preloadedJugadorId, setPreloadedJugadorId] = useState<string | null>(null);
   const [selectedEquipoId, setSelectedEquipoId] = useState('');
   const [selectedCargos, setSelectedCargos] = useState<string[]>([]);
   const [medioPago, setMedioPago] = useState('efectivo');
   const [referencia, setReferencia] = useState('');
   const [observaciones, setObservaciones] = useState('');
 
-  // Search jugador by DNI
+  // Search jugador by DNI (normalized: ignores dots)
+  const dniClean = searchDni.replace(/\D/g, '');
   const { data: jugadorFound } = useQuery({
-    queryKey: ['pago-buscar-jugador', searchDni],
-    enabled: targetType === 'jugador' && searchDni.length >= 6,
+    queryKey: ['pago-buscar-jugador', dniClean],
+    enabled: targetType === 'jugador' && !preloadedJugadorId && dniClean.length >= 6,
     queryFn: async () => {
-      const dniClean = searchDni.replace(/\./g, '');
-      const { data } = await supabase
+      // Fetch candidates and normalize on client to handle stored DNIs with or without dots
+      const { data, error } = await supabase
         .from('jugadores')
         .select('id, nombre, apellido, dni, equipo_id')
         .or(`dni.eq.${dniClean},dni.ilike.%${dniClean}%`)
-        .limit(1)
+        .limit(20);
+      if (error) throw error;
+      const match = (data || []).find((j: any) => (j.dni || '').replace(/\D/g, '') === dniClean);
+      return match || null;
+    },
+  });
+
+  // Preloaded jugador info (when opened from Deudas row)
+  const { data: jugadorPreloaded } = useQuery({
+    queryKey: ['pago-jugador-preloaded', preloadedJugadorId],
+    enabled: !!preloadedJugadorId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('jugadores')
+        .select('id, nombre, apellido, dni, equipo_id')
+        .eq('id', preloadedJugadorId!)
         .maybeSingle();
+      if (error) throw error;
       return data;
     },
   });
+
+  const jugadorActivo = jugadorPreloaded || jugadorFound;
 
   // Load equipos for select
   const { data: equipos = [] } = useQuery({
@@ -80,7 +100,7 @@ export function RegistrarPagoDialog({ open, onOpenChange, preload }: Props) {
   });
 
   // Load cargos pendientes
-  const targetId = targetType === 'jugador' ? jugadorFound?.id : selectedEquipoId;
+  const targetId = targetType === 'jugador' ? jugadorActivo?.id : selectedEquipoId;
   const { data: cargosPendientes = [] } = useQuery({
     queryKey: ['pago-cargos', targetType, targetId],
     enabled: !!targetId,
@@ -100,6 +120,7 @@ export function RegistrarPagoDialog({ open, onOpenChange, preload }: Props) {
   useEffect(() => {
     if (!open) {
       setSearchDni('');
+      setPreloadedJugadorId(null);
       setSelectedEquipoId('');
       setSelectedCargos([]);
       setMedioPago('efectivo');
@@ -107,8 +128,13 @@ export function RegistrarPagoDialog({ open, onOpenChange, preload }: Props) {
       setObservaciones('');
     } else if (preload) {
       setTargetType(preload.type);
-      if (preload.type === 'jugador' && preload.jugadorDni) {
-        setSearchDni(preload.jugadorDni);
+      if (preload.type === 'jugador') {
+        if (preload.jugadorId) {
+          setPreloadedJugadorId(preload.jugadorId);
+          setSearchDni('');
+        } else if (preload.jugadorDni) {
+          setSearchDni(preload.jugadorDni);
+        }
       }
       if (preload.type === 'equipo' && preload.equipoId) {
         setSelectedEquipoId(preload.equipoId);
@@ -216,18 +242,22 @@ export function RegistrarPagoDialog({ open, onOpenChange, preload }: Props) {
           {/* Search */}
           {targetType === 'jugador' ? (
             <div className="space-y-2">
-              <Label>Buscar por DNI</Label>
-              <DniInput
-                placeholder="28.404.402"
-                value={searchDni}
-                onChange={(v) => setSearchDni(v)}
-              />
-              {jugadorFound && (
+              {!preloadedJugadorId && (
+                <>
+                  <Label>Buscar por DNI</Label>
+                  <DniInput
+                    placeholder="28.404.402"
+                    value={searchDni}
+                    onChange={(v) => setSearchDni(v)}
+                  />
+                </>
+              )}
+              {jugadorActivo && (
                 <p className="text-sm text-green-600 font-medium">
-                  ✓ {jugadorFound.apellido}, {jugadorFound.nombre} — DNI: {jugadorFound.dni}
+                  ✓ {jugadorActivo.apellido}, {jugadorActivo.nombre} — DNI: {jugadorActivo.dni}
                 </p>
               )}
-              {searchDni.length >= 6 && !jugadorFound && (
+              {!preloadedJugadorId && dniClean.length >= 6 && !jugadorFound && (
                 <p className="text-sm text-muted-foreground">No se encontró jugador con ese DNI.</p>
               )}
             </div>
