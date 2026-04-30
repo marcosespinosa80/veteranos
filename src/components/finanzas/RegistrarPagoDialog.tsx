@@ -120,6 +120,7 @@ export function RegistrarPagoDialog({ open, onOpenChange, preload }: Props) {
   useEffect(() => {
     if (!open) {
       setSearchDni('');
+      setPreloadedJugadorId(null);
       setSelectedEquipoId('');
       setSelectedCargos([]);
       setMedioPago('efectivo');
@@ -127,8 +128,13 @@ export function RegistrarPagoDialog({ open, onOpenChange, preload }: Props) {
       setObservaciones('');
     } else if (preload) {
       setTargetType(preload.type);
-      if (preload.type === 'jugador' && preload.jugadorDni) {
-        setSearchDni(preload.jugadorDni);
+      if (preload.type === 'jugador') {
+        if (preload.jugadorId) {
+          setPreloadedJugadorId(preload.jugadorId);
+          setSearchDni('');
+        } else if (preload.jugadorDni) {
+          setSearchDni(preload.jugadorDni);
+        }
       }
       if (preload.type === 'equipo' && preload.equipoId) {
         setSelectedEquipoId(preload.equipoId);
