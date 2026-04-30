@@ -71,6 +71,34 @@ export default function TorneoDetalle() {
   const [openAdd, setOpenAdd] = useState(false);
   const [catSel, setCatSel] = useState('');
   const [configTc, setConfigTc] = useState<any | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab') || 'equipos';
+  const catParam = searchParams.get('cat') || '';
+
+  // Default cat selection once loaded
+  useEffect(() => {
+    if (torneoCats.length > 0 && !catParam) {
+      const next = new URLSearchParams(searchParams);
+      next.set('cat', torneoCats[0].id);
+      if (!searchParams.get('tab')) next.set('tab', 'equipos');
+      setSearchParams(next, { replace: true });
+    }
+  }, [torneoCats, catParam, searchParams, setSearchParams]);
+
+  const activeCat = catParam && torneoCats.some((t: any) => t.id === catParam) ? catParam : (torneoCats[0]?.id ?? '');
+
+  const setCat = (id: string) => {
+    const next = new URLSearchParams(searchParams);
+    next.set('cat', id);
+    if (!next.get('tab')) next.set('tab', 'equipos');
+    setSearchParams(next, { replace: true });
+  };
+  const setTab = (tab: string) => {
+    const next = new URLSearchParams(searchParams);
+    next.set('tab', tab);
+    if (activeCat) next.set('cat', activeCat);
+    setSearchParams(next, { replace: true });
+  };
 
   const agregarCategoria = async () => {
     if (!catSel || !torneoId) return;
