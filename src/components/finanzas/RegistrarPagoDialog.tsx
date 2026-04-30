@@ -242,18 +242,22 @@ export function RegistrarPagoDialog({ open, onOpenChange, preload }: Props) {
           {/* Search */}
           {targetType === 'jugador' ? (
             <div className="space-y-2">
-              <Label>Buscar por DNI</Label>
-              <DniInput
-                placeholder="28.404.402"
-                value={searchDni}
-                onChange={(v) => setSearchDni(v)}
-              />
-              {jugadorFound && (
+              {!preloadedJugadorId && (
+                <>
+                  <Label>Buscar por DNI</Label>
+                  <DniInput
+                    placeholder="28.404.402"
+                    value={searchDni}
+                    onChange={(v) => setSearchDni(v)}
+                  />
+                </>
+              )}
+              {jugadorActivo && (
                 <p className="text-sm text-green-600 font-medium">
-                  ✓ {jugadorFound.apellido}, {jugadorFound.nombre} — DNI: {jugadorFound.dni}
+                  ✓ {jugadorActivo.apellido}, {jugadorActivo.nombre} — DNI: {jugadorActivo.dni}
                 </p>
               )}
-              {searchDni.length >= 6 && !jugadorFound && (
+              {!preloadedJugadorId && dniClean.length >= 6 && !jugadorFound && (
                 <p className="text-sm text-muted-foreground">No se encontró jugador con ese DNI.</p>
               )}
             </div>
