@@ -236,7 +236,7 @@ export default function TorneoDetalle() {
   );
 }
 
-function CategoriaPanel({ torneoCategoriaId, torneoId, categoriaId, temporadaAnio }: { torneoCategoriaId: string; torneoId: string; categoriaId: string; temporadaAnio?: number }) {
+function CategoriaPanel({ torneoCategoriaId, torneoId, categoriaId, temporadaAnio, tab, onTabChange }: { torneoCategoriaId: string; torneoId: string; categoriaId: string; temporadaAnio?: number; tab?: string; onTabChange?: (t: string) => void }) {
   const { user } = useAuth();
   const qc = useQueryClient();
 
