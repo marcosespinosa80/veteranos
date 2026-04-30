@@ -100,7 +100,7 @@ export function RegistrarPagoDialog({ open, onOpenChange, preload }: Props) {
   });
 
   // Load cargos pendientes
-  const targetId = targetType === 'jugador' ? jugadorFound?.id : selectedEquipoId;
+  const targetId = targetType === 'jugador' ? jugadorActivo?.id : selectedEquipoId;
   const { data: cargosPendientes = [] } = useQuery({
     queryKey: ['pago-cargos', targetType, targetId],
     enabled: !!targetId,
