@@ -530,7 +530,7 @@ function CategoriaPanel({ torneoCategoriaId, torneoId, categoriaId, temporadaAni
 
   return (
     <div className="space-y-4 mt-4">
-      <Tabs defaultValue="equipos">
+      <Tabs value={tab || 'equipos'} onValueChange={(v) => onTabChange?.(v)}>
         <TabsList>
           <TabsTrigger value="equipos"><Users className="w-4 h-4 mr-1" /> Equipos ({equipos.length})</TabsTrigger>
           <TabsTrigger value="zonas"><Layers className="w-4 h-4 mr-1" /> Zonas ({zonas.length})</TabsTrigger>
