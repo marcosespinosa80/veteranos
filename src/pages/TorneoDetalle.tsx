@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -71,6 +71,34 @@ export default function TorneoDetalle() {
   const [openAdd, setOpenAdd] = useState(false);
   const [catSel, setCatSel] = useState('');
   const [configTc, setConfigTc] = useState<any | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab') || 'equipos';
+  const catParam = searchParams.get('cat') || '';
+
+  // Default cat selection once loaded
+  useEffect(() => {
+    if (torneoCats.length > 0 && !catParam) {
+      const next = new URLSearchParams(searchParams);
+      next.set('cat', torneoCats[0].id);
+      if (!searchParams.get('tab')) next.set('tab', 'equipos');
+      setSearchParams(next, { replace: true });
+    }
+  }, [torneoCats, catParam, searchParams, setSearchParams]);
+
+  const activeCat = catParam && torneoCats.some((t: any) => t.id === catParam) ? catParam : (torneoCats[0]?.id ?? '');
+
+  const setCat = (id: string) => {
+    const next = new URLSearchParams(searchParams);
+    next.set('cat', id);
+    if (!next.get('tab')) next.set('tab', 'equipos');
+    setSearchParams(next, { replace: true });
+  };
+  const setTab = (tab: string) => {
+    const next = new URLSearchParams(searchParams);
+    next.set('tab', tab);
+    if (activeCat) next.set('cat', activeCat);
+    setSearchParams(next, { replace: true });
+  };
 
   const agregarCategoria = async () => {
     if (!catSel || !torneoId) return;
@@ -160,7 +188,7 @@ export default function TorneoDetalle() {
           Aún no agregaste categorías a este torneo.
         </CardContent></Card>
       ) : (
-        <Tabs defaultValue={torneoCats[0].id}>
+        <Tabs value={activeCat || torneoCats[0].id} onValueChange={setCat}>
           <TabsList className="flex-wrap h-auto">
             {torneoCats.map((tc) => (
               <TabsTrigger key={tc.id} value={tc.id}>{tc.categorias?.nombre_categoria}</TabsTrigger>
@@ -185,7 +213,14 @@ export default function TorneoDetalle() {
                   confirmLabel="Quitar"
                 />
               </div>
-              <CategoriaPanel torneoCategoriaId={tc.id} torneoId={torneoId!} categoriaId={tc.categoria_id} temporadaAnio={torneo?.temporadas?.anio} />
+              <CategoriaPanel
+                torneoCategoriaId={tc.id}
+                torneoId={torneoId!}
+                categoriaId={tc.categoria_id}
+                temporadaAnio={torneo?.temporadas?.anio}
+                tab={tabParam}
+                onTabChange={setTab}
+              />
             </TabsContent>
           ))}
         </Tabs>
@@ -201,7 +236,7 @@ export default function TorneoDetalle() {
   );
 }
 
-function CategoriaPanel({ torneoCategoriaId, torneoId, categoriaId, temporadaAnio }: { torneoCategoriaId: string; torneoId: string; categoriaId: string; temporadaAnio?: number }) {
+function CategoriaPanel({ torneoCategoriaId, torneoId, categoriaId, temporadaAnio, tab, onTabChange }: { torneoCategoriaId: string; torneoId: string; categoriaId: string; temporadaAnio?: number; tab?: string; onTabChange?: (t: string) => void }) {
   const { user } = useAuth();
   const qc = useQueryClient();
 
@@ -495,7 +530,7 @@ function CategoriaPanel({ torneoCategoriaId, torneoId, categoriaId, temporadaAni
 
   return (
     <div className="space-y-4 mt-4">
-      <Tabs defaultValue="equipos">
+      <Tabs value={tab || 'equipos'} onValueChange={(v) => onTabChange?.(v)}>
         <TabsList>
           <TabsTrigger value="equipos"><Users className="w-4 h-4 mr-1" /> Equipos ({equipos.length})</TabsTrigger>
           <TabsTrigger value="zonas"><Layers className="w-4 h-4 mr-1" /> Zonas ({zonas.length})</TabsTrigger>
