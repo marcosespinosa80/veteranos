@@ -188,7 +188,7 @@ export default function TorneoDetalle() {
           Aún no agregaste categorías a este torneo.
         </CardContent></Card>
       ) : (
-        <Tabs defaultValue={torneoCats[0].id}>
+        <Tabs value={activeCat || torneoCats[0].id} onValueChange={setCat}>
           <TabsList className="flex-wrap h-auto">
             {torneoCats.map((tc) => (
               <TabsTrigger key={tc.id} value={tc.id}>{tc.categorias?.nombre_categoria}</TabsTrigger>
@@ -213,7 +213,14 @@ export default function TorneoDetalle() {
                   confirmLabel="Quitar"
                 />
               </div>
-              <CategoriaPanel torneoCategoriaId={tc.id} torneoId={torneoId!} categoriaId={tc.categoria_id} temporadaAnio={torneo?.temporadas?.anio} />
+              <CategoriaPanel
+                torneoCategoriaId={tc.id}
+                torneoId={torneoId!}
+                categoriaId={tc.categoria_id}
+                temporadaAnio={torneo?.temporadas?.anio}
+                tab={tabParam}
+                onTabChange={setTab}
+              />
             </TabsContent>
           ))}
         </Tabs>
