@@ -101,32 +101,35 @@ export default function TorneoDetalle() {
   };
 
   const agregarCategoria = async () => {
-    if (!catSel || !torneoId) return;
-    const { data: tc, error } = await supabase
+    if (catSel.length === 0 || !torneoId) return;
+    const rowsTC = catSel.map((cid) => ({ torneo_id: torneoId, categoria_id: cid }));
+    const { data: tcs, error } = await supabase
       .from('torneo_categorias')
-      .insert({ torneo_id: torneoId, categoria_id: catSel })
-      .select('id')
-      .single();
+      .insert(rowsTC as any)
+      .select('id, categoria_id');
     if (error) return toast.error(error.message);
     const anio = torneo?.temporadas?.anio;
-    const { data: ecs } = await supabase
-      .from('equipo_categoria')
-      .select('equipo_id')
-      .eq('categoria_id', catSel)
-      .eq('temporada', anio);
-    if (ecs && ecs.length > 0) {
-      const rows = ecs.map((e) => ({ torneo_categoria_id: tc.id, equipo_id: e.equipo_id }));
-      const { error: e2 } = await supabase.from('torneo_equipos').insert(rows);
-      if (e2) toast.error('Categoría creada, pero falló cargar equipos: ' + e2.message);
-      else toast.success(`Categoría agregada con ${rows.length} equipo(s)`);
-    } else {
-      toast.warning('Categoría agregada (sin equipos en equipo_categoria para esa temporada)');
+    let totalEquipos = 0;
+    for (const tc of tcs || []) {
+      const { data: ecs } = await supabase
+        .from('equipo_categoria')
+        .select('equipo_id')
+        .eq('categoria_id', tc.categoria_id)
+        .eq('temporada', anio);
+      if (ecs && ecs.length > 0) {
+        const rows = ecs.map((e) => ({ torneo_categoria_id: tc.id, equipo_id: e.equipo_id }));
+        const { error: e2 } = await supabase.from('torneo_equipos').insert(rows);
+        if (e2) toast.error('Error cargando equipos: ' + e2.message);
+        else totalEquipos += rows.length;
+      }
     }
+    toast.success(`Categorías agregadas correctamente${totalEquipos ? ` (${totalEquipos} equipo(s) cargados)` : ''}.`);
     setOpenAdd(false);
-    setCatSel('');
+    setCatSel([]);
     refetchCats();
     qc.invalidateQueries({ queryKey: ['torneo-list'] });
   };
+
 
   // Quitar categoría: revisa si hay partidos con resultado
   const quitarCategoria = async (tc: any) => {
