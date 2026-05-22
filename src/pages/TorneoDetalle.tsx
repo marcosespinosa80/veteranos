@@ -69,7 +69,7 @@ export default function TorneoDetalle() {
   });
 
   const [openAdd, setOpenAdd] = useState(false);
-  const [catSel, setCatSel] = useState('');
+  const [catSel, setCatSel] = useState<string[]>([]);
   const [configTc, setConfigTc] = useState<any | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get('tab') || 'equipos';
