@@ -1,6 +1,5 @@
 import { Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { TopMenu } from './TopMenu';
 
 interface TopBarProps {
   title: string;
@@ -17,9 +16,6 @@ export function TopBar({ title, onMenuToggle }: TopBarProps) {
           </Button>
         )}
         <h1 className="text-lg font-display font-bold text-foreground truncate">{title}</h1>
-      </div>
-      <div className="hidden md:flex items-center px-4 pb-2">
-        <TopMenu />
       </div>
     </header>
   );
