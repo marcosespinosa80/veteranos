@@ -69,7 +69,7 @@ export default function TorneoDetalle() {
   });
 
   const [openAdd, setOpenAdd] = useState(false);
-  const [catSel, setCatSel] = useState('');
+  const [catSel, setCatSel] = useState<string[]>([]);
   const [configTc, setConfigTc] = useState<any | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get('tab') || 'equipos';
@@ -101,32 +101,35 @@ export default function TorneoDetalle() {
   };
 
   const agregarCategoria = async () => {
-    if (!catSel || !torneoId) return;
-    const { data: tc, error } = await supabase
+    if (catSel.length === 0 || !torneoId) return;
+    const rowsTC = catSel.map((cid) => ({ torneo_id: torneoId, categoria_id: cid }));
+    const { data: tcs, error } = await supabase
       .from('torneo_categorias')
-      .insert({ torneo_id: torneoId, categoria_id: catSel })
-      .select('id')
-      .single();
+      .insert(rowsTC as any)
+      .select('id, categoria_id');
     if (error) return toast.error(error.message);
     const anio = torneo?.temporadas?.anio;
-    const { data: ecs } = await supabase
-      .from('equipo_categoria')
-      .select('equipo_id')
-      .eq('categoria_id', catSel)
-      .eq('temporada', anio);
-    if (ecs && ecs.length > 0) {
-      const rows = ecs.map((e) => ({ torneo_categoria_id: tc.id, equipo_id: e.equipo_id }));
-      const { error: e2 } = await supabase.from('torneo_equipos').insert(rows);
-      if (e2) toast.error('Categoría creada, pero falló cargar equipos: ' + e2.message);
-      else toast.success(`Categoría agregada con ${rows.length} equipo(s)`);
-    } else {
-      toast.warning('Categoría agregada (sin equipos en equipo_categoria para esa temporada)');
+    let totalEquipos = 0;
+    for (const tc of tcs || []) {
+      const { data: ecs } = await supabase
+        .from('equipo_categoria')
+        .select('equipo_id')
+        .eq('categoria_id', tc.categoria_id)
+        .eq('temporada', anio);
+      if (ecs && ecs.length > 0) {
+        const rows = ecs.map((e) => ({ torneo_categoria_id: tc.id, equipo_id: e.equipo_id }));
+        const { error: e2 } = await supabase.from('torneo_equipos').insert(rows);
+        if (e2) toast.error('Error cargando equipos: ' + e2.message);
+        else totalEquipos += rows.length;
+      }
     }
+    toast.success(`Categorías agregadas correctamente${totalEquipos ? ` (${totalEquipos} equipo(s) cargados)` : ''}.`);
     setOpenAdd(false);
-    setCatSel('');
+    setCatSel([]);
     refetchCats();
     qc.invalidateQueries({ queryKey: ['torneo-list'] });
   };
+
 
   // Quitar categoría: revisa si hay partidos con resultado
   const quitarCategoria = async (tc: any) => {
@@ -165,23 +168,61 @@ export default function TorneoDetalle() {
           <h2 className="text-2xl font-display font-bold">{torneo.nombre} {torneo.temporadas?.anio}</h2>
           <Badge variant="outline" className="mt-1">{torneo.estado}</Badge>
         </div>
-        <Dialog open={openAdd} onOpenChange={setOpenAdd}>
+        <Dialog open={openAdd} onOpenChange={(o) => { setOpenAdd(o); if (!o) setCatSel([]); }}>
           <DialogTrigger asChild>
-            <Button disabled={catsDisponibles.length === 0}><Plus className="w-4 h-4" /> Agregar categoría</Button>
+            <Button disabled={categorias.length === 0}><Plus className="w-4 h-4" /> Agregar categoría</Button>
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader><DialogTitle>Agregar categoría al torneo</DialogTitle></DialogHeader>
-            <Select value={catSel} onValueChange={setCatSel}>
-              <SelectTrigger><SelectValue placeholder="Elegir categoría..." /></SelectTrigger>
-              <SelectContent>
-                {catsDisponibles.map((c) => <SelectItem key={c.id} value={c.id}>{c.nombre_categoria}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">Se cargarán automáticamente los equipos inscriptos en esa categoría para la temporada {torneo.temporadas?.anio}.</p>
-            <DialogFooter><Button onClick={agregarCategoria}>Agregar</Button></DialogFooter>
+            <DialogHeader>
+              <DialogTitle>Seleccionar categorías</DialogTitle>
+              <p className="text-sm text-muted-foreground">Podés elegir una o varias categorías para agregarlas al torneo.</p>
+            </DialogHeader>
+            {catsDisponibles.length === 0 ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">Todas las categorías ya fueron agregadas a este torneo.</p>
+            ) : (
+              <>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">
+                    {catSel.length > 0 ? `${catSel.length} categoría${catSel.length === 1 ? '' : 's'} seleccionada${catSel.length === 1 ? '' : 's'}` : 'Ninguna seleccionada'}
+                  </span>
+                  <div className="flex gap-2">
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setCatSel(catsDisponibles.map((c) => c.id))}>Seleccionar todas</Button>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setCatSel([])}>Limpiar selección</Button>
+                  </div>
+                </div>
+                <div className="max-h-72 overflow-y-auto rounded-md border divide-y">
+                  {categorias.map((c) => {
+                    const yaAgregada = torneoCats.some((tc) => tc.categoria_id === c.id);
+                    const checked = catSel.includes(c.id);
+                    return (
+                      <label key={c.id} className={`flex items-center gap-3 px-3 py-2 text-sm ${yaAgregada ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer hover:bg-accent/50'}`}>
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-input"
+                          disabled={yaAgregada}
+                          checked={checked}
+                          onChange={(e) => {
+                            if (yaAgregada) return;
+                            setCatSel((prev) => e.target.checked ? [...prev, c.id] : prev.filter((x) => x !== c.id));
+                          }}
+                        />
+                        <span className="flex-1">{c.nombre_categoria}</span>
+                        {yaAgregada && <span className="text-xs text-muted-foreground">Ya agregada</span>}
+                      </label>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-muted-foreground">Se cargarán automáticamente los equipos inscriptos en cada categoría para la temporada {torneo.temporadas?.anio}.</p>
+              </>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => { setOpenAdd(false); setCatSel([]); }}>Cancelar</Button>
+              <Button onClick={agregarCategoria} disabled={catSel.length === 0}>Agregar categorías</Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
+
 
       {torneoCats.length === 0 ? (
         <Card><CardContent className="py-10 text-center text-muted-foreground">
