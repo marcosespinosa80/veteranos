@@ -168,23 +168,61 @@ export default function TorneoDetalle() {
           <h2 className="text-2xl font-display font-bold">{torneo.nombre} {torneo.temporadas?.anio}</h2>
           <Badge variant="outline" className="mt-1">{torneo.estado}</Badge>
         </div>
-        <Dialog open={openAdd} onOpenChange={setOpenAdd}>
+        <Dialog open={openAdd} onOpenChange={(o) => { setOpenAdd(o); if (!o) setCatSel([]); }}>
           <DialogTrigger asChild>
-            <Button disabled={catsDisponibles.length === 0}><Plus className="w-4 h-4" /> Agregar categoría</Button>
+            <Button disabled={categorias.length === 0}><Plus className="w-4 h-4" /> Agregar categoría</Button>
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader><DialogTitle>Agregar categoría al torneo</DialogTitle></DialogHeader>
-            <Select value={catSel} onValueChange={setCatSel}>
-              <SelectTrigger><SelectValue placeholder="Elegir categoría..." /></SelectTrigger>
-              <SelectContent>
-                {catsDisponibles.map((c) => <SelectItem key={c.id} value={c.id}>{c.nombre_categoria}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">Se cargarán automáticamente los equipos inscriptos en esa categoría para la temporada {torneo.temporadas?.anio}.</p>
-            <DialogFooter><Button onClick={agregarCategoria}>Agregar</Button></DialogFooter>
+            <DialogHeader>
+              <DialogTitle>Seleccionar categorías</DialogTitle>
+              <p className="text-sm text-muted-foreground">Podés elegir una o varias categorías para agregarlas al torneo.</p>
+            </DialogHeader>
+            {catsDisponibles.length === 0 ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">Todas las categorías ya fueron agregadas a este torneo.</p>
+            ) : (
+              <>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">
+                    {catSel.length > 0 ? `${catSel.length} categoría${catSel.length === 1 ? '' : 's'} seleccionada${catSel.length === 1 ? '' : 's'}` : 'Ninguna seleccionada'}
+                  </span>
+                  <div className="flex gap-2">
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setCatSel(catsDisponibles.map((c) => c.id))}>Seleccionar todas</Button>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setCatSel([])}>Limpiar selección</Button>
+                  </div>
+                </div>
+                <div className="max-h-72 overflow-y-auto rounded-md border divide-y">
+                  {categorias.map((c) => {
+                    const yaAgregada = torneoCats.some((tc) => tc.categoria_id === c.id);
+                    const checked = catSel.includes(c.id);
+                    return (
+                      <label key={c.id} className={`flex items-center gap-3 px-3 py-2 text-sm ${yaAgregada ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer hover:bg-accent/50'}`}>
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-input"
+                          disabled={yaAgregada}
+                          checked={checked}
+                          onChange={(e) => {
+                            if (yaAgregada) return;
+                            setCatSel((prev) => e.target.checked ? [...prev, c.id] : prev.filter((x) => x !== c.id));
+                          }}
+                        />
+                        <span className="flex-1">{c.nombre_categoria}</span>
+                        {yaAgregada && <span className="text-xs text-muted-foreground">Ya agregada</span>}
+                      </label>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-muted-foreground">Se cargarán automáticamente los equipos inscriptos en cada categoría para la temporada {torneo.temporadas?.anio}.</p>
+              </>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => { setOpenAdd(false); setCatSel([]); }}>Cancelar</Button>
+              <Button onClick={agregarCategoria} disabled={catSel.length === 0}>Agregar categorías</Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
+
 
       {torneoCats.length === 0 ? (
         <Card><CardContent className="py-10 text-center text-muted-foreground">
