@@ -176,8 +176,21 @@ export function AppSidebar({ userRole, userName, onLogout }: AppSidebarProps) {
         ))}
       </nav>
 
-      {/* Footer / user */}
-      <div className="border-t border-sidebar-border p-3 space-y-2">
+      {/* Footer */}
+      <div className="border-t border-sidebar-border p-3 space-y-3">
+        {/* 1. Collapse toggle */}
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className="flex items-center gap-2 px-3 py-2 rounded-md text-xs text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/60 transition-colors w-full"
+          title={collapsed ? 'Expandir menú' : 'Colapsar menú'}
+        >
+          <ChevronLeft className={cn('w-4 h-4 shrink-0 transition-transform', collapsed && 'rotate-180')} />
+          {!collapsed && <span>Colapsar menú</span>}
+        </button>
+
+        <div className="h-px bg-sidebar-border/70" />
+
+        {/* 2. User card */}
         {!collapsed ? (
           <div className="flex items-center gap-3 px-2 py-2 rounded-md bg-sidebar-accent/40">
             <div className="w-9 h-9 rounded-full bg-sidebar-primary text-sidebar-primary-foreground flex items-center justify-center text-xs font-bold shrink-0">
@@ -196,23 +209,17 @@ export function AppSidebar({ userRole, userName, onLogout }: AppSidebarProps) {
           </div>
         )}
 
-        <div className="flex items-center gap-1">
-          <button
-            onClick={onLogout}
-            className="flex items-center gap-2 px-3 py-2 rounded-md text-xs text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/60 transition-colors w-full"
-            title="Cerrar sesión"
-          >
-            <LogOut className="w-4 h-4 shrink-0" />
-            {!collapsed && <span>Cerrar sesión</span>}
-          </button>
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="p-2 rounded-md text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent/60 transition-colors shrink-0"
-            title={collapsed ? 'Expandir menú' : 'Colapsar menú'}
-          >
-            <ChevronLeft className={cn('w-4 h-4 transition-transform', collapsed && 'rotate-180')} />
-          </button>
-        </div>
+        <div className="h-px bg-sidebar-border/70" />
+
+        {/* 3. Logout */}
+        <button
+          onClick={onLogout}
+          className="flex items-center gap-2 px-3 py-2 rounded-md text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors w-full"
+          title="Cerrar sesión"
+        >
+          <LogOut className="w-4 h-4 shrink-0" />
+          {!collapsed && <span>Cerrar sesión</span>}
+        </button>
       </div>
     </aside>
   );
