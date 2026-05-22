@@ -14,10 +14,11 @@ import {
   Trophy,
   ChevronLeft,
   LogOut,
+  Gavel,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { getNavigationForRole, getRoleLabel, type UserRole } from '@/lib/navigation';
-import { ROUTE_MODULE_MAP } from '@/lib/modules';
+import { getRoleLabel, type UserRole } from '@/lib/navigation';
+import { ROUTE_MODULE_MAP, type ModuleKey } from '@/lib/modules';
 import { usePermissions } from '@/hooks/usePermissions';
 import logoLvfc from '@/assets/logo-lvfc.png';
 
@@ -33,7 +34,59 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   MapPin,
   DollarSign,
   Trophy,
+  Gavel,
 };
+
+interface NavItem {
+  title: string;
+  href: string;
+  icon: string;
+}
+
+interface NavGroup {
+  title: string;
+  items: NavItem[];
+}
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    title: 'PRINCIPAL',
+    items: [{ title: 'Panel de Control', href: '/dashboard', icon: 'LayoutDashboard' }],
+  },
+  {
+    title: 'GESTIÓN DE PERSONAS',
+    items: [
+      { title: 'Jugadores', href: '/jugadores', icon: 'Users' },
+      { title: 'Usuarios', href: '/usuarios', icon: 'UserCog' },
+      { title: 'Carnets', href: '/carnets', icon: 'CreditCard' },
+    ],
+  },
+  {
+    title: 'CLUBES Y REGISTROS',
+    items: [
+      { title: 'Clubes', href: '/equipos', icon: 'Shield' },
+      { title: 'Canchas', href: '/canchas', icon: 'MapPin' },
+      { title: 'Listas de Buena Fe', href: '/listas-buena-fe', icon: 'ClipboardList' },
+      { title: 'Pases', href: '/pases', icon: 'ArrowRightLeft' },
+    ],
+  },
+  {
+    title: 'FINANZAS',
+    items: [{ title: 'Gestión Financiera', href: '/finanzas', icon: 'DollarSign' }],
+  },
+  {
+    title: 'TORNEOS',
+    items: [{ title: 'Torneos', href: '/admin/torneos', icon: 'Trophy' }],
+  },
+  {
+    title: 'COMUNICACIÓN',
+    items: [{ title: 'Boletines', href: '/admin/boletines', icon: 'FileText' }],
+  },
+  {
+    title: 'TRIBUNAL',
+    items: [{ title: 'Multas', href: '/tribunal/multas', icon: 'Gavel' }],
+  },
+];
 
 interface AppSidebarProps {
   userRole: UserRole;
@@ -41,18 +94,24 @@ interface AppSidebarProps {
   onLogout: () => void;
 }
 
+function getInitials(name: string) {
+  const parts = name.trim().split(/\s+/);
+  return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || 'U';
+}
+
 export function AppSidebar({ userRole, userName, onLogout }: AppSidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
-  const navItems = getNavigationForRole(userRole);
   const { hasModule } = usePermissions();
 
-  // Filter nav items by module permissions
-  const filteredItems = navItems.filter((item) => {
-    const moduleKey = ROUTE_MODULE_MAP[item.href];
-    if (!moduleKey) return true; // No module mapping = always show
-    return hasModule(moduleKey);
-  });
+  const visibleGroups = NAV_GROUPS.map((group) => ({
+    ...group,
+    items: group.items.filter((item) => {
+      const moduleKey = ROUTE_MODULE_MAP[item.href] as ModuleKey | undefined;
+      if (!moduleKey) return true;
+      return hasModule(moduleKey);
+    }),
+  })).filter((g) => g.items.length > 0);
 
   return (
     <aside
@@ -61,53 +120,86 @@ export function AppSidebar({ userRole, userName, onLogout }: AppSidebarProps) {
         collapsed ? 'w-16' : 'w-64'
       )}
     >
-      {/* Logo */}
-      <div className="flex items-center gap-3 px-4 py-5 border-b border-sidebar-border">
-        <img src={logoLvfc} alt="LVFC" className="w-10 h-10 rounded object-contain bg-sidebar-accent" />
+      {/* Logo / Brand */}
+      <div className="flex items-center gap-3 px-4 py-4 border-b border-sidebar-border">
+        <img
+          src={logoLvfc}
+          alt="LVFC"
+          className="w-10 h-10 rounded-md object-contain bg-sidebar-accent shrink-0"
+        />
         {!collapsed && (
-          <div className="flex flex-col min-w-0">
-            <span className="text-sm font-display font-bold text-sidebar-primary truncate">LVFC</span>
-            <span className="text-[10px] text-sidebar-foreground/60 truncate">Liga de Veteranos</span>
+          <div className="flex flex-col min-w-0 leading-tight">
+            <span className="text-base font-display font-extrabold text-sidebar-primary tracking-wide">
+              LVFC
+            </span>
+            <span className="text-[10px] text-sidebar-foreground/70 truncate">Liga de Veteranos</span>
+            <span className="text-[10px] text-sidebar-foreground/50 truncate">de Fútbol de Catamarca</span>
           </div>
         )}
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-1">
-        {filteredItems.map((item) => {
-          const Icon = iconMap[item.icon];
-          const isActive = location.pathname === item.href || location.pathname.startsWith(item.href + '/');
-          return (
-            <Link
-              key={item.href}
-              to={item.href}
-              className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors',
-                isActive
-                  ? 'bg-sidebar-accent text-sidebar-primary'
-                  : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground'
-              )}
-              title={collapsed ? item.title : undefined}
-            >
-              {Icon && <Icon className="w-5 h-5 shrink-0" />}
-              {!collapsed && <span className="truncate">{item.title}</span>}
-            </Link>
-          );
-        })}
+      <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-4">
+        {visibleGroups.map((group) => (
+          <div key={group.title} className="space-y-1">
+            {!collapsed && (
+              <p className="px-3 pt-1 pb-1 text-[10px] font-semibold tracking-wider text-sidebar-foreground/40">
+                {group.title}
+              </p>
+            )}
+            {collapsed && <div className="mx-3 my-2 h-px bg-sidebar-border/60" />}
+            {group.items.map((item) => {
+              const Icon = iconMap[item.icon];
+              const isActive =
+                location.pathname === item.href || location.pathname.startsWith(item.href + '/');
+              return (
+                <Link
+                  key={item.href}
+                  to={item.href}
+                  className={cn(
+                    'group relative flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-all',
+                    isActive
+                      ? 'bg-sidebar-accent text-sidebar-primary shadow-sm'
+                      : 'text-sidebar-foreground/75 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground'
+                  )}
+                  title={collapsed ? item.title : undefined}
+                >
+                  {isActive && (
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 rounded-r-full bg-sidebar-primary" />
+                  )}
+                  {Icon && <Icon className="w-[18px] h-[18px] shrink-0" />}
+                  {!collapsed && <span className="truncate">{item.title}</span>}
+                </Link>
+              );
+            })}
+          </div>
+        ))}
       </nav>
 
-      {/* Footer */}
+      {/* Footer / user */}
       <div className="border-t border-sidebar-border p-3 space-y-2">
-        {!collapsed && (
-          <div className="px-2 py-1">
-            <p className="text-xs font-medium text-sidebar-foreground truncate">{userName}</p>
-            <p className="text-[10px] text-sidebar-foreground/50">{getRoleLabel(userRole)}</p>
+        {!collapsed ? (
+          <div className="flex items-center gap-3 px-2 py-2 rounded-md bg-sidebar-accent/40">
+            <div className="w-9 h-9 rounded-full bg-sidebar-primary text-sidebar-primary-foreground flex items-center justify-center text-xs font-bold shrink-0">
+              {getInitials(userName)}
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-sidebar-foreground truncate">{userName}</p>
+              <p className="text-[10px] text-sidebar-foreground/60 truncate">{getRoleLabel(userRole)}</p>
+            </div>
+          </div>
+        ) : (
+          <div className="flex justify-center">
+            <div className="w-9 h-9 rounded-full bg-sidebar-primary text-sidebar-primary-foreground flex items-center justify-center text-xs font-bold">
+              {getInitials(userName)}
+            </div>
           </div>
         )}
+
         <div className="flex items-center gap-1">
           <button
             onClick={onLogout}
-            className="flex items-center gap-2 px-3 py-2 rounded-md text-xs text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors w-full"
+            className="flex items-center gap-2 px-3 py-2 rounded-md text-xs text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/60 transition-colors w-full"
             title="Cerrar sesión"
           >
             <LogOut className="w-4 h-4 shrink-0" />
@@ -115,7 +207,7 @@ export function AppSidebar({ userRole, userName, onLogout }: AppSidebarProps) {
           </button>
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="p-2 rounded-md text-sidebar-foreground/40 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors shrink-0"
+            className="p-2 rounded-md text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent/60 transition-colors shrink-0"
             title={collapsed ? 'Expandir menú' : 'Colapsar menú'}
           >
             <ChevronLeft className={cn('w-4 h-4 transition-transform', collapsed && 'rotate-180')} />
