@@ -141,7 +141,10 @@ export default function TorneoDetalle() {
   // Quitar categoría: revisa si hay partidos con resultado
   const quitarCategoria = async (tc: any) => {
     if (estructuralBloqueado) return toast.error(mensajeBloqueoEstructural(torneo?.estado));
+    const { count: conResultado } = await supabase
       .from('partidos').select('id', { count: 'exact', head: true })
+      .eq('torneo_categoria_id', tc.id)
+      .not('goles_local', 'is', null);
       .eq('torneo_categoria_id', tc.id)
       .not('goles_local', 'is', null);
     if ((conResultado ?? 0) > 0) {
