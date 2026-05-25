@@ -19,6 +19,7 @@ import {
   MoreVertical, Settings, X, Ban,
 } from 'lucide-react';
 import { calcularDistribucionZonas, repartirEquiposEnZonas, generarFixtureRoundRobin } from '@/lib/torneo';
+import { isEstructuralBloqueado, isSoloLectura, mensajeBloqueoEstructural, bannerTorneoEstado } from '@/lib/torneoEstado';
 import { EditarPartidoDialog } from '@/components/torneo/EditarPartidoDialog';
 import { CargarResultadoDialog } from '@/components/torneo/CargarResultadoDialog';
 import { TablaPosiciones } from '@/components/torneo/TablaPosiciones';
