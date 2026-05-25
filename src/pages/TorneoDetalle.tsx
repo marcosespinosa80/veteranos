@@ -838,7 +838,7 @@ function FixtureView({ partidos, zonas, onEditar, onResultado, onPlanilla, onEli
                         {p.estado === 'suspendido' && <Badge variant="destructive">Suspendido</Badge>}
                         {p.dia && <Badge variant="secondary" className="text-xs">{format(new Date(p.dia), 'dd/MM')} {p.hora ? String(p.hora).slice(0,5) : ''}</Badge>}
                         <div className="flex items-center gap-1 ml-2">
-                          {p.equipo_local_id && p.equipo_visitante_id && (
+                          {!soloLectura && p.equipo_local_id && p.equipo_visitante_id && (
                             <>
                               <Button size="icon" variant="ghost" onClick={() => onPlanilla(p)} title="Planilla arbitral">
                                 <ClipboardList className="w-4 h-4" />
@@ -848,27 +848,35 @@ function FixtureView({ partidos, zonas, onEditar, onResultado, onPlanilla, onEli
                               </Button>
                             </>
                           )}
-                          <Button size="icon" variant="ghost" onClick={() => onEditar(p)} title="Editar partido">
-                            <Pencil className="w-4 h-4" />
-                          </Button>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button size="icon" variant="ghost" title="Más acciones"><MoreVertical className="w-4 h-4" /></Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => onSuspender(p)}>
-                                <Ban className="w-4 h-4 mr-2" />
-                                {p.estado === 'suspendido' ? 'Reprogramar' : 'Suspender'}
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                onClick={() => onEliminar(p)}
-                                className="text-destructive focus:text-destructive"
-                              >
-                                <Trash2 className="w-4 h-4 mr-2" /> Eliminar partido
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                          {!soloLectura && (
+                            <Button size="icon" variant="ghost" onClick={() => onEditar(p)} title="Editar partido">
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                          )}
+                          {!soloLectura && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button size="icon" variant="ghost" title="Más acciones"><MoreVertical className="w-4 h-4" /></Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => onSuspender(p)}>
+                                  <Ban className="w-4 h-4 mr-2" />
+                                  {p.estado === 'suspendido' ? 'Reprogramar' : 'Suspender'}
+                                </DropdownMenuItem>
+                                {!estructuralBloqueado && (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      onClick={() => onEliminar(p)}
+                                      className="text-destructive focus:text-destructive"
+                                    >
+                                      <Trash2 className="w-4 h-4 mr-2" /> Eliminar partido
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
                         </div>
                       </li>
                     ))}
