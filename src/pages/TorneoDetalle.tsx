@@ -371,6 +371,7 @@ function CategoriaPanel({ torneoCategoriaId, torneoId, categoriaId, temporadaAni
   // ---- Equipos participantes ----
   const [agregarEqId, setAgregarEqId] = useState<string>('');
   const agregarEquipo = async () => {
+    if (estructuralBloqueado) return toast.error(mensajeBloqueoEstructural(torneoEstado));
     if (!agregarEqId) return;
     const { error } = await supabase.from('torneo_equipos').insert({
       torneo_categoria_id: torneoCategoriaId,
