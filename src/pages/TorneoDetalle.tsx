@@ -504,6 +504,7 @@ function CategoriaPanel({ torneoCategoriaId, torneoId, categoriaId, temporadaAni
   };
 
   const quitarEquipoDeZona = async (ze: any) => {
+    if (estructuralBloqueado) return toast.error(mensajeBloqueoEstructural(torneoEstado));
     const { error } = await supabase.from('zona_equipos').delete().eq('id', ze.id);
     if (error) return toast.error(error.message);
     refetchZonas();
