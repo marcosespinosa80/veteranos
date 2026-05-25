@@ -738,21 +738,25 @@ function CategoriaPanel({ torneoCategoriaId, torneoId, categoriaId, temporadaAni
 
         {/* FIXTURE */}
         <TabsContent value="fixture">
-          <div className="flex justify-end mb-2 gap-2">
-            <Button variant="outline" onClick={() => setCrearPartidoOpen(true)}><Plus className="w-4 h-4" /> Crear partido</Button>
-            <Button onClick={generarFixture}><Wand2 className="w-4 h-4" /> Generar fixture</Button>
-          </div>
+          {!estructuralBloqueado && (
+            <div className="flex justify-end mb-2 gap-2">
+              <Button variant="outline" onClick={() => setCrearPartidoOpen(true)}><Plus className="w-4 h-4" /> Crear partido</Button>
+              <Button onClick={generarFixture}><Wand2 className="w-4 h-4" /> Generar fixture</Button>
+            </div>
+          )}
           {partidos.length === 0 ? (
             <Card><CardContent className="py-10 text-center text-muted-foreground">Sin partidos. Generá el fixture o creá uno manual.</CardContent></Card>
           ) : (
             <FixtureView
               partidos={partidos}
               zonas={zonas}
-              onEditar={setEditPartido}
-              onResultado={setResPartido}
-              onPlanilla={setPlanillaPartido}
+              onEditar={(p) => { if (soloLectura) return toast.error(mensajeBloqueoEstructural(torneoEstado)); setEditPartido(p); }}
+              onResultado={(p) => { if (soloLectura) return toast.error(mensajeBloqueoEstructural(torneoEstado)); setResPartido(p); }}
+              onPlanilla={(p) => { if (soloLectura) return toast.error(mensajeBloqueoEstructural(torneoEstado)); setPlanillaPartido(p); }}
               onEliminar={eliminarPartido}
               onSuspender={suspenderPartido}
+              estructuralBloqueado={estructuralBloqueado}
+              soloLectura={soloLectura}
             />
           )}
         </TabsContent>
