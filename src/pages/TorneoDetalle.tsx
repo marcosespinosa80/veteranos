@@ -516,6 +516,7 @@ function CategoriaPanel({ torneoCategoriaId, torneoId, categoriaId, temporadaAni
   const equiposSinZona = equipos.filter((e: any) => !equiposEnZonas.has(e.equipo_id));
 
   const agregarEqAZona = async (zonaId: string, equipoId: string) => {
+    if (estructuralBloqueado) return toast.error(mensajeBloqueoEstructural(torneoEstado));
     const { error } = await supabase.from('zona_equipos').insert({ zona_id: zonaId, equipo_id: equipoId, orden: 0 });
     if (error) return toast.error(error.message);
     refetchZonas();
