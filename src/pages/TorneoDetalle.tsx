@@ -279,6 +279,7 @@ export default function TorneoDetalle() {
                 torneoId={torneoId!}
                 categoriaId={tc.categoria_id}
                 temporadaAnio={torneo?.temporadas?.anio}
+                torneoEstado={torneo?.estado}
                 tab={tabParam}
                 onTabChange={setTab}
               />
