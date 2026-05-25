@@ -412,6 +412,7 @@ function CategoriaPanel({ torneoCategoriaId, torneoId, categoriaId, temporadaAni
   // ---- Zonas ----
   const [generandoZonas, setGenerandoZonas] = useState(false);
   const generarZonas = async () => {
+    if (estructuralBloqueado) return toast.error(mensajeBloqueoEstructural(torneoEstado));
     if (generandoZonas) return;
     const total = equipos.length;
     if (total === 0) return toast.error('Primero agregá equipos a la categoría.');
