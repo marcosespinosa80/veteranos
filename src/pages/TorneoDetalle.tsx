@@ -255,23 +255,25 @@ export default function TorneoDetalle() {
           </TabsList>
           {torneoCats.map((tc) => (
             <TabsContent key={tc.id} value={tc.id}>
-              <div className="flex justify-end gap-2 mt-2">
-                <Button variant="outline" size="sm" onClick={() => setConfigTc(tc)}>
-                  <Settings className="w-4 h-4" /> Configurar categoría
-                </Button>
-                <ConfirmDialog
-                  trigger={
-                    <Button variant="outline" size="sm" className="text-destructive">
-                      <Trash2 className="w-4 h-4" /> Quitar categoría
-                    </Button>
-                  }
-                  title="¿Quitar categoría del torneo?"
-                  description="Si la categoría ya tiene fixture generado, se eliminarán zonas y partidos asociados. Si hay resultados cargados, no se podrá quitar."
-                  onConfirm={() => quitarCategoria(tc)}
-                  danger
-                  confirmLabel="Quitar"
-                />
-              </div>
+              {!estructuralBloqueado && (
+                <div className="flex justify-end gap-2 mt-2">
+                  <Button variant="outline" size="sm" onClick={() => setConfigTc(tc)}>
+                    <Settings className="w-4 h-4" /> Configurar categoría
+                  </Button>
+                  <ConfirmDialog
+                    trigger={
+                      <Button variant="outline" size="sm" className="text-destructive">
+                        <Trash2 className="w-4 h-4" /> Quitar categoría
+                      </Button>
+                    }
+                    title="¿Quitar categoría del torneo?"
+                    description="Si la categoría ya tiene fixture generado, se eliminarán zonas y partidos asociados. Si hay resultados cargados, no se podrá quitar."
+                    onConfirm={() => quitarCategoria(tc)}
+                    danger
+                    confirmLabel="Quitar"
+                  />
+                </div>
+              )}
               <CategoriaPanel
                 torneoCategoriaId={tc.id}
                 torneoId={torneoId!}
