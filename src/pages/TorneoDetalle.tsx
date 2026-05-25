@@ -524,6 +524,7 @@ function CategoriaPanel({ torneoCategoriaId, torneoId, categoriaId, temporadaAni
 
   // ---- Fixture ----
   const generarFixture = async () => {
+    if (estructuralBloqueado) return toast.error(mensajeBloqueoEstructural(torneoEstado));
     if (zonas.length === 0) return toast.error('Generá zonas primero');
     if (tieneResultados) return toast.error('Hay resultados cargados; no se puede regenerar el fixture.');
     if (!confirm('Esto regenerará el fixture de todas las zonas (y borrará partidos previos de fase grupos). ¿Continuar?')) return;
