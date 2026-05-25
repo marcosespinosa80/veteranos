@@ -591,6 +591,7 @@ function CategoriaPanel({ torneoCategoriaId, torneoId, categoriaId, temporadaAni
   };
 
   const suspenderPartido = async (p: any) => {
+    if (soloLectura) return toast.error(mensajeBloqueoEstructural(torneoEstado));
     const nuevo = p.estado === 'suspendido' ? 'programado' : 'suspendido';
     const { error } = await supabase.from('partidos').update({ estado: nuevo }).eq('id', p.id);
     if (error) return toast.error(error.message);
