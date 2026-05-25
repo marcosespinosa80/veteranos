@@ -121,6 +121,10 @@ export default function Torneos() {
 
   const guardarTorneo = async () => {
     if (!tempId) return toast.error('Elegí una temporada');
+    if (editTor && (editTor.estado === 'en_curso' || editTor.estado === 'finalizado' || editTor.estado === 'archivado')
+        && (editTor.nombre !== nombreTor || editTor.temporada_id !== tempId || (editTor.torneo_referencia_id || '') !== (nombreTor === 'Clausura' && refId ? refId : ''))) {
+      return toast.error('El torneo está en curso o finalizado: solo se permite cambiar el estado.');
+    }
     const payload: any = {
       temporada_id: tempId,
       nombre: nombreTor,
@@ -145,14 +149,18 @@ export default function Torneos() {
 
   // archivar
   const archivarTorneo = async (t: any) => {
+    if (t.estado === 'en_curso') return toast.error('No se puede archivar un torneo en curso. Finalizalo primero.');
     const { error } = await supabase.from('torneos').update({ estado: 'archivado' }).eq('id', t.id);
     if (error) return toast.error(error.message);
     toast.success('Torneo archivado');
     refetchTorneos();
   };
 
-  // eliminar torneo: solo si no tiene categorías/partidos
+  // eliminar torneo: solo si está en configuración y no tiene categorías/partidos
   const eliminarTorneo = async (t: any) => {
+    if (t.estado === 'en_curso' || t.estado === 'finalizado' || t.estado === 'archivado') {
+      return toast.error('No se puede eliminar: el torneo está en curso, finalizado o archivado.');
+    }
     if ((t.torneo_categorias?.length ?? 0) > 0) {
       return toast.error('No se puede eliminar: tiene categorías configuradas. Archivá el torneo.');
     }
