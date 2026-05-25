@@ -790,13 +790,15 @@ function CategoriaPanel({ torneoCategoriaId, torneoId, categoriaId, temporadaAni
   );
 }
 
-function FixtureView({ partidos, zonas, onEditar, onResultado, onPlanilla, onEliminar, onSuspender }: {
+function FixtureView({ partidos, zonas, onEditar, onResultado, onPlanilla, onEliminar, onSuspender, estructuralBloqueado, soloLectura }: {
   partidos: any[]; zonas: any[];
   onEditar: (p: any) => void;
   onResultado: (p: any) => void;
   onPlanilla: (p: any) => void;
   onEliminar: (p: any) => void;
   onSuspender: (p: any) => void;
+  estructuralBloqueado?: boolean;
+  soloLectura?: boolean;
 }) {
   const porZona: Record<string, Record<number, any[]>> = {};
   for (const p of partidos) {
