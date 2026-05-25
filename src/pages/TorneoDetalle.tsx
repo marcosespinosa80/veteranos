@@ -580,6 +580,7 @@ function CategoriaPanel({ torneoCategoriaId, torneoId, categoriaId, temporadaAni
   };
 
   const eliminarPartido = async (p: any) => {
+    if (estructuralBloqueado) return toast.error(mensajeBloqueoEstructural(torneoEstado));
     if (p.goles_local != null) return toast.error('Tiene resultado cargado; no se puede eliminar.');
     const { count } = await supabase.from('planilla_arbitral').select('id', { count: 'exact', head: true }).eq('partido_id', p.id);
     if ((count ?? 0) > 0) return toast.error('Tiene planilla arbitral; no se puede eliminar.');
