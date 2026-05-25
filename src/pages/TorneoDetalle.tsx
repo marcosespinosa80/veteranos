@@ -475,6 +475,7 @@ function CategoriaPanel({ torneoCategoriaId, torneoId, categoriaId, temporadaAni
   };
 
   const moverEquipo = async (zonaEquipoId: string, nuevaZonaId: string) => {
+    if (estructuralBloqueado) return toast.error(mensajeBloqueoEstructural(torneoEstado));
     const { error } = await supabase.from('zona_equipos').update({ zona_id: nuevaZonaId }).eq('id', zonaEquipoId);
     if (error) return toast.error(error.message);
     refetchZonas();
