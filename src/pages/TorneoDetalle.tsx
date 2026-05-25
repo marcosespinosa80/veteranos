@@ -176,10 +176,11 @@ export default function TorneoDetalle() {
           <h2 className="text-2xl font-display font-bold">{torneo.nombre} {torneo.temporadas?.anio}</h2>
           <Badge variant="outline" className="mt-1">{torneo.estado}</Badge>
         </div>
-        <Dialog open={openAdd} onOpenChange={(o) => { setOpenAdd(o); if (!o) setCatSel([]); }}>
-          <DialogTrigger asChild>
-            <Button disabled={categorias.length === 0}><Plus className="w-4 h-4" /> Agregar categoría</Button>
-          </DialogTrigger>
+        {!estructuralBloqueado && (
+          <Dialog open={openAdd} onOpenChange={(o) => { setOpenAdd(o); if (!o) setCatSel([]); }}>
+            <DialogTrigger asChild>
+              <Button disabled={categorias.length === 0}><Plus className="w-4 h-4" /> Agregar categoría</Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Seleccionar categorías</DialogTitle>
