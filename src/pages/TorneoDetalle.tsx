@@ -462,6 +462,7 @@ function CategoriaPanel({ torneoCategoriaId, torneoId, categoriaId, temporadaAni
   };
 
   const crearZonaManual = async () => {
+    if (estructuralBloqueado) return toast.error(mensajeBloqueoEstructural(torneoEstado));
     const proxLetra = String.fromCharCode(65 + zonas.length);
     const { error } = await supabase.from('zonas').insert({
       torneo_categoria_id: torneoCategoriaId,
