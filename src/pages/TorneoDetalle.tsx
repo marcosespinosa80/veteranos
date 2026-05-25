@@ -482,6 +482,7 @@ function CategoriaPanel({ torneoCategoriaId, torneoId, categoriaId, temporadaAni
   };
 
   const renombrarZona = async (zonaId: string, nombre: string) => {
+    if (estructuralBloqueado) return toast.error(mensajeBloqueoEstructural(torneoEstado));
     const { error } = await supabase.from('zonas').update({ nombre }).eq('id', zonaId);
     if (error) return toast.error(error.message);
     refetchZonas();
