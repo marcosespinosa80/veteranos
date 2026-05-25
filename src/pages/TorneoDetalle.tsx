@@ -298,7 +298,9 @@ export default function TorneoDetalle() {
   );
 }
 
-function CategoriaPanel({ torneoCategoriaId, torneoId, categoriaId, temporadaAnio, tab, onTabChange }: { torneoCategoriaId: string; torneoId: string; categoriaId: string; temporadaAnio?: number; tab?: string; onTabChange?: (t: string) => void }) {
+function CategoriaPanel({ torneoCategoriaId, torneoId, categoriaId, temporadaAnio, torneoEstado, tab, onTabChange }: { torneoCategoriaId: string; torneoId: string; categoriaId: string; temporadaAnio?: number; torneoEstado?: string; tab?: string; onTabChange?: (t: string) => void }) {
+  const estructuralBloqueado = isEstructuralBloqueado(torneoEstado);
+  const soloLectura = isSoloLectura(torneoEstado);
   const { user } = useAuth();
   const qc = useQueryClient();
 
