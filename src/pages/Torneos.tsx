@@ -327,6 +327,15 @@ export default function Torneos() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {torneos.map((t) => {
             const tieneCats = (t.torneo_categorias?.length ?? 0) > 0;
+            const bloqueado = t.estado === 'en_curso' || t.estado === 'finalizado' || t.estado === 'archivado';
+            const noEliminar = bloqueado || tieneCats;
+            const descEliminar = t.estado === 'finalizado' || t.estado === 'archivado'
+              ? 'El torneo está finalizado/archivado: no se puede eliminar.'
+              : t.estado === 'en_curso'
+                ? 'El torneo está en curso: no se puede eliminar.'
+                : tieneCats
+                  ? 'No se puede eliminar: tiene categorías configuradas. Usá "Archivar".'
+                  : 'Esta acción no se puede deshacer y solo procede si no hay datos asociados.';
             return (
               <Card key={t.id} className="hover:border-primary transition-colors h-full">
                 <CardHeader className="flex flex-row items-center gap-3">
@@ -344,23 +353,26 @@ export default function Torneos() {
                         <Trophy className="w-4 h-4 mr-2" /> Ver detalle
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => abrirEditarTorneo(t)}>
-                        <Pencil className="w-4 h-4 mr-2" /> Editar
+                        <Pencil className="w-4 h-4 mr-2" /> Editar{bloqueado ? ' (solo estado)' : ''}
                       </DropdownMenuItem>
-                      <ConfirmItem
-                        label="Archivar"
-                        icon={<Archive className="w-4 h-4 mr-2" />}
-                        title="¿Archivar torneo?"
-                        description="El torneo quedará archivado y no aparecerá como activo."
-                        onConfirm={() => archivarTorneo(t)}
-                      />
+                      {t.estado !== 'archivado' && (
+                        <ConfirmItem
+                          label="Archivar"
+                          icon={<Archive className="w-4 h-4 mr-2" />}
+                          title="¿Archivar torneo?"
+                          description={t.estado === 'en_curso'
+                            ? 'No se puede archivar un torneo en curso. Finalizalo primero.'
+                            : 'El torneo quedará archivado y no aparecerá como activo.'}
+                          disabled={t.estado === 'en_curso'}
+                          onConfirm={() => archivarTorneo(t)}
+                        />
+                      )}
                       <DropdownMenuSeparator />
                       <ConfirmItem
                         label="Eliminar"
                         title={`¿Eliminar ${t.nombre} ${t.temporadas?.anio}?`}
-                        description={tieneCats
-                          ? 'No se puede eliminar: tiene categorías configuradas. Usá "Archivar".'
-                          : 'Esta acción no se puede deshacer y solo procede si no hay datos asociados.'}
-                        disabled={tieneCats}
+                        description={descEliminar}
+                        disabled={noEliminar}
                         onConfirm={() => eliminarTorneo(t)}
                         danger
                       />
