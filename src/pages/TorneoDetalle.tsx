@@ -101,7 +101,12 @@ export default function TorneoDetalle() {
     setSearchParams(next, { replace: true });
   };
 
+  const estructuralBloqueado = isEstructuralBloqueado(torneo?.estado);
+  const soloLectura = isSoloLectura(torneo?.estado);
+  const banner = bannerTorneoEstado(torneo?.estado);
+
   const agregarCategoria = async () => {
+    if (estructuralBloqueado) return toast.error(mensajeBloqueoEstructural(torneo?.estado));
     if (catSel.length === 0 || !torneoId) return;
     const rowsTC = catSel.map((cid) => ({ torneo_id: torneoId, categoria_id: cid }));
     const { data: tcs, error } = await supabase
@@ -130,6 +135,7 @@ export default function TorneoDetalle() {
     refetchCats();
     qc.invalidateQueries({ queryKey: ['torneo-list'] });
   };
+
 
 
   // Quitar categoría: revisa si hay partidos con resultado
