@@ -384,6 +384,7 @@ function CategoriaPanel({ torneoCategoriaId, torneoId, categoriaId, temporadaAni
   };
 
   const quitarEquipo = async (te: any) => {
+    if (estructuralBloqueado) return toast.error(mensajeBloqueoEstructural(torneoEstado));
     // Bloquear si hay partidos con resultado donde participa
     const { count } = await supabase
       .from('partidos').select('id', { count: 'exact', head: true })
