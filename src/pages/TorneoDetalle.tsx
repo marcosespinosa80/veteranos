@@ -229,8 +229,17 @@ export default function TorneoDetalle() {
               <Button onClick={agregarCategoria} disabled={catSel.length === 0}>Agregar categorías</Button>
             </DialogFooter>
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        )}
       </div>
+
+      {banner.tipo && (
+        <div className={`rounded-md border px-4 py-3 text-sm font-medium ${banner.tipo === 'warn' ? 'border-yellow-500/40 bg-yellow-500/10 text-yellow-900 dark:text-yellow-200' : 'border-muted bg-muted/40 text-foreground'}`}>
+          {banner.texto}
+        </div>
+      )}
+
+
 
 
       {torneoCats.length === 0 ? (
