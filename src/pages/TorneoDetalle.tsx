@@ -19,6 +19,7 @@ import {
   MoreVertical, Settings, X, Ban,
 } from 'lucide-react';
 import { calcularDistribucionZonas, repartirEquiposEnZonas, generarFixtureRoundRobin } from '@/lib/torneo';
+import { isEstructuralBloqueado, isSoloLectura, mensajeBloqueoEstructural, bannerTorneoEstado } from '@/lib/torneoEstado';
 import { EditarPartidoDialog } from '@/components/torneo/EditarPartidoDialog';
 import { CargarResultadoDialog } from '@/components/torneo/CargarResultadoDialog';
 import { TablaPosiciones } from '@/components/torneo/TablaPosiciones';
@@ -100,7 +101,12 @@ export default function TorneoDetalle() {
     setSearchParams(next, { replace: true });
   };
 
+  const estructuralBloqueado = isEstructuralBloqueado(torneo?.estado);
+  const soloLectura = isSoloLectura(torneo?.estado);
+  const banner = bannerTorneoEstado(torneo?.estado);
+
   const agregarCategoria = async () => {
+    if (estructuralBloqueado) return toast.error(mensajeBloqueoEstructural(torneo?.estado));
     if (catSel.length === 0 || !torneoId) return;
     const rowsTC = catSel.map((cid) => ({ torneo_id: torneoId, categoria_id: cid }));
     const { data: tcs, error } = await supabase
@@ -131,8 +137,10 @@ export default function TorneoDetalle() {
   };
 
 
+
   // Quitar categoría: revisa si hay partidos con resultado
   const quitarCategoria = async (tc: any) => {
+    if (estructuralBloqueado) return toast.error(mensajeBloqueoEstructural(torneo?.estado));
     const { count: conResultado } = await supabase
       .from('partidos').select('id', { count: 'exact', head: true })
       .eq('torneo_categoria_id', tc.id)
@@ -168,10 +176,11 @@ export default function TorneoDetalle() {
           <h2 className="text-2xl font-display font-bold">{torneo.nombre} {torneo.temporadas?.anio}</h2>
           <Badge variant="outline" className="mt-1">{torneo.estado}</Badge>
         </div>
-        <Dialog open={openAdd} onOpenChange={(o) => { setOpenAdd(o); if (!o) setCatSel([]); }}>
-          <DialogTrigger asChild>
-            <Button disabled={categorias.length === 0}><Plus className="w-4 h-4" /> Agregar categoría</Button>
-          </DialogTrigger>
+        {!estructuralBloqueado && (
+          <Dialog open={openAdd} onOpenChange={(o) => { setOpenAdd(o); if (!o) setCatSel([]); }}>
+            <DialogTrigger asChild>
+              <Button disabled={categorias.length === 0}><Plus className="w-4 h-4" /> Agregar categoría</Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Seleccionar categorías</DialogTitle>
@@ -220,8 +229,17 @@ export default function TorneoDetalle() {
               <Button onClick={agregarCategoria} disabled={catSel.length === 0}>Agregar categorías</Button>
             </DialogFooter>
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        )}
       </div>
+
+      {banner.tipo && (
+        <div className={`rounded-md border px-4 py-3 text-sm font-medium ${banner.tipo === 'warn' ? 'border-yellow-500/40 bg-yellow-500/10 text-yellow-900 dark:text-yellow-200' : 'border-muted bg-muted/40 text-foreground'}`}>
+          {banner.texto}
+        </div>
+      )}
+
+
 
 
       {torneoCats.length === 0 ? (
@@ -237,28 +255,31 @@ export default function TorneoDetalle() {
           </TabsList>
           {torneoCats.map((tc) => (
             <TabsContent key={tc.id} value={tc.id}>
-              <div className="flex justify-end gap-2 mt-2">
-                <Button variant="outline" size="sm" onClick={() => setConfigTc(tc)}>
-                  <Settings className="w-4 h-4" /> Configurar categoría
-                </Button>
-                <ConfirmDialog
-                  trigger={
-                    <Button variant="outline" size="sm" className="text-destructive">
-                      <Trash2 className="w-4 h-4" /> Quitar categoría
-                    </Button>
-                  }
-                  title="¿Quitar categoría del torneo?"
-                  description="Si la categoría ya tiene fixture generado, se eliminarán zonas y partidos asociados. Si hay resultados cargados, no se podrá quitar."
-                  onConfirm={() => quitarCategoria(tc)}
-                  danger
-                  confirmLabel="Quitar"
-                />
-              </div>
+              {!estructuralBloqueado && (
+                <div className="flex justify-end gap-2 mt-2">
+                  <Button variant="outline" size="sm" onClick={() => setConfigTc(tc)}>
+                    <Settings className="w-4 h-4" /> Configurar categoría
+                  </Button>
+                  <ConfirmDialog
+                    trigger={
+                      <Button variant="outline" size="sm" className="text-destructive">
+                        <Trash2 className="w-4 h-4" /> Quitar categoría
+                      </Button>
+                    }
+                    title="¿Quitar categoría del torneo?"
+                    description="Si la categoría ya tiene fixture generado, se eliminarán zonas y partidos asociados. Si hay resultados cargados, no se podrá quitar."
+                    onConfirm={() => quitarCategoria(tc)}
+                    danger
+                    confirmLabel="Quitar"
+                  />
+                </div>
+              )}
               <CategoriaPanel
                 torneoCategoriaId={tc.id}
                 torneoId={torneoId!}
                 categoriaId={tc.categoria_id}
                 temporadaAnio={torneo?.temporadas?.anio}
+                torneoEstado={torneo?.estado}
                 tab={tabParam}
                 onTabChange={setTab}
               />
@@ -277,7 +298,9 @@ export default function TorneoDetalle() {
   );
 }
 
-function CategoriaPanel({ torneoCategoriaId, torneoId, categoriaId, temporadaAnio, tab, onTabChange }: { torneoCategoriaId: string; torneoId: string; categoriaId: string; temporadaAnio?: number; tab?: string; onTabChange?: (t: string) => void }) {
+function CategoriaPanel({ torneoCategoriaId, torneoId, categoriaId, temporadaAnio, torneoEstado, tab, onTabChange }: { torneoCategoriaId: string; torneoId: string; categoriaId: string; temporadaAnio?: number; torneoEstado?: string; tab?: string; onTabChange?: (t: string) => void }) {
+  const estructuralBloqueado = isEstructuralBloqueado(torneoEstado);
+  const soloLectura = isSoloLectura(torneoEstado);
   const { user } = useAuth();
   const qc = useQueryClient();
 
@@ -348,6 +371,7 @@ function CategoriaPanel({ torneoCategoriaId, torneoId, categoriaId, temporadaAni
   // ---- Equipos participantes ----
   const [agregarEqId, setAgregarEqId] = useState<string>('');
   const agregarEquipo = async () => {
+    if (estructuralBloqueado) return toast.error(mensajeBloqueoEstructural(torneoEstado));
     if (!agregarEqId) return;
     const { error } = await supabase.from('torneo_equipos').insert({
       torneo_categoria_id: torneoCategoriaId,
@@ -360,6 +384,7 @@ function CategoriaPanel({ torneoCategoriaId, torneoId, categoriaId, temporadaAni
   };
 
   const quitarEquipo = async (te: any) => {
+    if (estructuralBloqueado) return toast.error(mensajeBloqueoEstructural(torneoEstado));
     // Bloquear si hay partidos con resultado donde participa
     const { count } = await supabase
       .from('partidos').select('id', { count: 'exact', head: true })
@@ -387,6 +412,7 @@ function CategoriaPanel({ torneoCategoriaId, torneoId, categoriaId, temporadaAni
   // ---- Zonas ----
   const [generandoZonas, setGenerandoZonas] = useState(false);
   const generarZonas = async () => {
+    if (estructuralBloqueado) return toast.error(mensajeBloqueoEstructural(torneoEstado));
     if (generandoZonas) return;
     const total = equipos.length;
     if (total === 0) return toast.error('Primero agregá equipos a la categoría.');
@@ -436,6 +462,7 @@ function CategoriaPanel({ torneoCategoriaId, torneoId, categoriaId, temporadaAni
   };
 
   const crearZonaManual = async () => {
+    if (estructuralBloqueado) return toast.error(mensajeBloqueoEstructural(torneoEstado));
     const proxLetra = String.fromCharCode(65 + zonas.length);
     const { error } = await supabase.from('zonas').insert({
       torneo_categoria_id: torneoCategoriaId,
@@ -448,18 +475,21 @@ function CategoriaPanel({ torneoCategoriaId, torneoId, categoriaId, temporadaAni
   };
 
   const moverEquipo = async (zonaEquipoId: string, nuevaZonaId: string) => {
+    if (estructuralBloqueado) return toast.error(mensajeBloqueoEstructural(torneoEstado));
     const { error } = await supabase.from('zona_equipos').update({ zona_id: nuevaZonaId }).eq('id', zonaEquipoId);
     if (error) return toast.error(error.message);
     refetchZonas();
   };
 
   const renombrarZona = async (zonaId: string, nombre: string) => {
+    if (estructuralBloqueado) return toast.error(mensajeBloqueoEstructural(torneoEstado));
     const { error } = await supabase.from('zonas').update({ nombre }).eq('id', zonaId);
     if (error) return toast.error(error.message);
     refetchZonas();
   };
 
   const eliminarZona = async (zonaId: string) => {
+    if (estructuralBloqueado) return toast.error(mensajeBloqueoEstructural(torneoEstado));
     // Bloquear si hay partidos con resultado en esa zona
     const { count } = await supabase
       .from('partidos').select('id', { count: 'exact', head: true })
@@ -474,6 +504,7 @@ function CategoriaPanel({ torneoCategoriaId, torneoId, categoriaId, temporadaAni
   };
 
   const quitarEquipoDeZona = async (ze: any) => {
+    if (estructuralBloqueado) return toast.error(mensajeBloqueoEstructural(torneoEstado));
     const { error } = await supabase.from('zona_equipos').delete().eq('id', ze.id);
     if (error) return toast.error(error.message);
     refetchZonas();
@@ -485,6 +516,7 @@ function CategoriaPanel({ torneoCategoriaId, torneoId, categoriaId, temporadaAni
   const equiposSinZona = equipos.filter((e: any) => !equiposEnZonas.has(e.equipo_id));
 
   const agregarEqAZona = async (zonaId: string, equipoId: string) => {
+    if (estructuralBloqueado) return toast.error(mensajeBloqueoEstructural(torneoEstado));
     const { error } = await supabase.from('zona_equipos').insert({ zona_id: zonaId, equipo_id: equipoId, orden: 0 });
     if (error) return toast.error(error.message);
     refetchZonas();
@@ -492,6 +524,7 @@ function CategoriaPanel({ torneoCategoriaId, torneoId, categoriaId, temporadaAni
 
   // ---- Fixture ----
   const generarFixture = async () => {
+    if (estructuralBloqueado) return toast.error(mensajeBloqueoEstructural(torneoEstado));
     if (zonas.length === 0) return toast.error('Generá zonas primero');
     if (tieneResultados) return toast.error('Hay resultados cargados; no se puede regenerar el fixture.');
     if (!confirm('Esto regenerará el fixture de todas las zonas (y borrará partidos previos de fase grupos). ¿Continuar?')) return;
@@ -547,6 +580,7 @@ function CategoriaPanel({ torneoCategoriaId, torneoId, categoriaId, temporadaAni
   };
 
   const eliminarPartido = async (p: any) => {
+    if (estructuralBloqueado) return toast.error(mensajeBloqueoEstructural(torneoEstado));
     if (p.goles_local != null) return toast.error('Tiene resultado cargado; no se puede eliminar.');
     const { count } = await supabase.from('planilla_arbitral').select('id', { count: 'exact', head: true }).eq('partido_id', p.id);
     if ((count ?? 0) > 0) return toast.error('Tiene planilla arbitral; no se puede eliminar.');
@@ -557,6 +591,7 @@ function CategoriaPanel({ torneoCategoriaId, torneoId, categoriaId, temporadaAni
   };
 
   const suspenderPartido = async (p: any) => {
+    if (soloLectura) return toast.error(mensajeBloqueoEstructural(torneoEstado));
     const nuevo = p.estado === 'suspendido' ? 'programado' : 'suspendido';
     const { error } = await supabase.from('partidos').update({ estado: nuevo }).eq('id', p.id);
     if (error) return toast.error(error.message);
@@ -585,21 +620,23 @@ function CategoriaPanel({ torneoCategoriaId, torneoId, categoriaId, temporadaAni
         <TabsContent value="equipos">
           <Card>
             <CardContent className="py-4 space-y-3">
-              <div className="flex flex-col sm:flex-row gap-2">
-                <Select value={agregarEqId} onValueChange={setAgregarEqId}>
-                  <SelectTrigger className="flex-1">
-                    <SelectValue placeholder={equiposDisponibles.length > 0 ? 'Elegir equipo a agregar...' : 'Sin equipos disponibles'} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {equiposDisponibles.map((e: any) => (
-                      <SelectItem key={e.id} value={e.id}>{e.nombre_equipo}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button onClick={agregarEquipo} disabled={!agregarEqId}>
-                  <Plus className="w-4 h-4" /> Agregar equipo
-                </Button>
-              </div>
+              {!estructuralBloqueado && (
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Select value={agregarEqId} onValueChange={setAgregarEqId}>
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder={equiposDisponibles.length > 0 ? 'Elegir equipo a agregar...' : 'Sin equipos disponibles'} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {equiposDisponibles.map((e: any) => (
+                        <SelectItem key={e.id} value={e.id}>{e.nombre_equipo}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button onClick={agregarEquipo} disabled={!agregarEqId}>
+                    <Plus className="w-4 h-4" /> Agregar equipo
+                  </Button>
+                </div>
+              )}
               {equipos.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Sin equipos inscriptos.</p>
               ) : (
@@ -607,14 +644,16 @@ function CategoriaPanel({ torneoCategoriaId, torneoId, categoriaId, temporadaAni
                   {equipos.map((e: any) => (
                     <li key={e.id} className="px-3 py-2 border rounded-md text-sm flex items-center gap-2">
                       <span className="flex-1">{e.equipos?.nombre_equipo}</span>
-                      <ConfirmDialog
-                        trigger={<Button size="icon" variant="ghost" className="h-7 w-7"><X className="w-4 h-4 text-destructive" /></Button>}
-                        title="¿Quitar equipo?"
-                        description={tieneFixture ? 'El fixture ya fue generado. Se quitará al equipo de su zona y de partidos sin resultado.' : 'El equipo se quitará del torneo en esta categoría.'}
-                        onConfirm={() => quitarEquipo(e)}
-                        danger
-                        confirmLabel="Quitar"
-                      />
+                      {!estructuralBloqueado && (
+                        <ConfirmDialog
+                          trigger={<Button size="icon" variant="ghost" className="h-7 w-7"><X className="w-4 h-4 text-destructive" /></Button>}
+                          title="¿Quitar equipo?"
+                          description={tieneFixture ? 'El fixture ya fue generado. Se quitará al equipo de su zona y de partidos sin resultado.' : 'El equipo se quitará del torneo en esta categoría.'}
+                          onConfirm={() => quitarEquipo(e)}
+                          danger
+                          confirmLabel="Quitar"
+                        />
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -625,12 +664,14 @@ function CategoriaPanel({ torneoCategoriaId, torneoId, categoriaId, temporadaAni
 
         {/* ZONAS */}
         <TabsContent value="zonas">
-          <div className="flex justify-end mb-2 gap-2">
-            <Button variant="outline" onClick={crearZonaManual}><Plus className="w-4 h-4" /> Nueva zona</Button>
-            <Button onClick={generarZonas} disabled={generandoZonas}>
-              <Wand2 className="w-4 h-4" /> {generandoZonas ? 'Generando zonas...' : 'Generar automáticamente'}
-            </Button>
-          </div>
+          {!estructuralBloqueado && (
+            <div className="flex justify-end mb-2 gap-2">
+              <Button variant="outline" onClick={crearZonaManual}><Plus className="w-4 h-4" /> Nueva zona</Button>
+              <Button onClick={generarZonas} disabled={generandoZonas}>
+                <Wand2 className="w-4 h-4" /> {generandoZonas ? 'Generando zonas...' : 'Generar automáticamente'}
+              </Button>
+            </div>
+          )}
           {zonas.length === 0 ? (
             <Card><CardContent className="py-10 text-center text-muted-foreground">Sin zonas. Generalas o creá una manual.</CardContent></Card>
           ) : (
@@ -641,34 +682,41 @@ function CategoriaPanel({ torneoCategoriaId, torneoId, categoriaId, temporadaAni
                     <input
                       defaultValue={z.nombre}
                       onBlur={(e) => e.target.value !== z.nombre && renombrarZona(z.id, e.target.value)}
+                      readOnly={estructuralBloqueado}
                       className="font-bold bg-transparent border-b border-transparent hover:border-input focus:border-primary outline-none flex-1"
                     />
-                    <ConfirmDialog
-                      trigger={<Button size="icon" variant="ghost"><Trash2 className="w-4 h-4 text-destructive" /></Button>}
-                      title={`¿Eliminar ${z.nombre}?`}
-                      description="Se eliminarán los partidos sin resultado y la asignación de equipos. Si hay resultados cargados, no se puede eliminar."
-                      onConfirm={() => eliminarZona(z.id)}
-                      danger
-                    />
+                    {!estructuralBloqueado && (
+                      <ConfirmDialog
+                        trigger={<Button size="icon" variant="ghost"><Trash2 className="w-4 h-4 text-destructive" /></Button>}
+                        title={`¿Eliminar ${z.nombre}?`}
+                        description="Se eliminarán los partidos sin resultado y la asignación de equipos. Si hay resultados cargados, no se puede eliminar."
+                        onConfirm={() => eliminarZona(z.id)}
+                        danger
+                      />
+                    )}
                   </CardHeader>
                   <CardContent>
                     <ul className="space-y-1 text-sm">
                       {(z.zona_equipos || []).map((ze: any) => (
                         <li key={ze.id} className="flex items-center gap-2">
                           <span className="flex-1">{ze.equipos?.nombre_equipo}</span>
-                          <Select value={z.id} onValueChange={(v) => moverEquipo(ze.id, v)}>
-                            <SelectTrigger className="w-[110px] h-7 text-xs"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              {zonas.map((zz: any) => <SelectItem key={zz.id} value={zz.id}>{zz.nombre}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => quitarEquipoDeZona(ze)}>
-                            <X className="w-3 h-3 text-destructive" />
-                          </Button>
+                          {!estructuralBloqueado && (
+                            <>
+                              <Select value={z.id} onValueChange={(v) => moverEquipo(ze.id, v)}>
+                                <SelectTrigger className="w-[110px] h-7 text-xs"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  {zonas.map((zz: any) => <SelectItem key={zz.id} value={zz.id}>{zz.nombre}</SelectItem>)}
+                                </SelectContent>
+                              </Select>
+                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => quitarEquipoDeZona(ze)}>
+                                <X className="w-3 h-3 text-destructive" />
+                              </Button>
+                            </>
+                          )}
                         </li>
                       ))}
                     </ul>
-                    {equiposSinZona.length > 0 && (
+                    {!estructuralBloqueado && equiposSinZona.length > 0 && (
                       <div className="mt-2 pt-2 border-t">
                         <Select value="" onValueChange={(v) => agregarEqAZona(z.id, v)}>
                           <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="+ Agregar equipo sin zona" /></SelectTrigger>
@@ -690,21 +738,25 @@ function CategoriaPanel({ torneoCategoriaId, torneoId, categoriaId, temporadaAni
 
         {/* FIXTURE */}
         <TabsContent value="fixture">
-          <div className="flex justify-end mb-2 gap-2">
-            <Button variant="outline" onClick={() => setCrearPartidoOpen(true)}><Plus className="w-4 h-4" /> Crear partido</Button>
-            <Button onClick={generarFixture}><Wand2 className="w-4 h-4" /> Generar fixture</Button>
-          </div>
+          {!estructuralBloqueado && (
+            <div className="flex justify-end mb-2 gap-2">
+              <Button variant="outline" onClick={() => setCrearPartidoOpen(true)}><Plus className="w-4 h-4" /> Crear partido</Button>
+              <Button onClick={generarFixture}><Wand2 className="w-4 h-4" /> Generar fixture</Button>
+            </div>
+          )}
           {partidos.length === 0 ? (
             <Card><CardContent className="py-10 text-center text-muted-foreground">Sin partidos. Generá el fixture o creá uno manual.</CardContent></Card>
           ) : (
             <FixtureView
               partidos={partidos}
               zonas={zonas}
-              onEditar={setEditPartido}
-              onResultado={setResPartido}
-              onPlanilla={setPlanillaPartido}
+              onEditar={(p) => { if (soloLectura) return toast.error(mensajeBloqueoEstructural(torneoEstado)); setEditPartido(p); }}
+              onResultado={(p) => { if (soloLectura) return toast.error(mensajeBloqueoEstructural(torneoEstado)); setResPartido(p); }}
+              onPlanilla={(p) => { if (soloLectura) return toast.error(mensajeBloqueoEstructural(torneoEstado)); setPlanillaPartido(p); }}
               onEliminar={eliminarPartido}
               onSuspender={suspenderPartido}
+              estructuralBloqueado={estructuralBloqueado}
+              soloLectura={soloLectura}
             />
           )}
         </TabsContent>
@@ -738,13 +790,15 @@ function CategoriaPanel({ torneoCategoriaId, torneoId, categoriaId, temporadaAni
   );
 }
 
-function FixtureView({ partidos, zonas, onEditar, onResultado, onPlanilla, onEliminar, onSuspender }: {
+function FixtureView({ partidos, zonas, onEditar, onResultado, onPlanilla, onEliminar, onSuspender, estructuralBloqueado, soloLectura }: {
   partidos: any[]; zonas: any[];
   onEditar: (p: any) => void;
   onResultado: (p: any) => void;
   onPlanilla: (p: any) => void;
   onEliminar: (p: any) => void;
   onSuspender: (p: any) => void;
+  estructuralBloqueado?: boolean;
+  soloLectura?: boolean;
 }) {
   const porZona: Record<string, Record<number, any[]>> = {};
   for (const p of partidos) {
@@ -784,7 +838,7 @@ function FixtureView({ partidos, zonas, onEditar, onResultado, onPlanilla, onEli
                         {p.estado === 'suspendido' && <Badge variant="destructive">Suspendido</Badge>}
                         {p.dia && <Badge variant="secondary" className="text-xs">{format(new Date(p.dia), 'dd/MM')} {p.hora ? String(p.hora).slice(0,5) : ''}</Badge>}
                         <div className="flex items-center gap-1 ml-2">
-                          {p.equipo_local_id && p.equipo_visitante_id && (
+                          {!soloLectura && p.equipo_local_id && p.equipo_visitante_id && (
                             <>
                               <Button size="icon" variant="ghost" onClick={() => onPlanilla(p)} title="Planilla arbitral">
                                 <ClipboardList className="w-4 h-4" />
@@ -794,27 +848,35 @@ function FixtureView({ partidos, zonas, onEditar, onResultado, onPlanilla, onEli
                               </Button>
                             </>
                           )}
-                          <Button size="icon" variant="ghost" onClick={() => onEditar(p)} title="Editar partido">
-                            <Pencil className="w-4 h-4" />
-                          </Button>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button size="icon" variant="ghost" title="Más acciones"><MoreVertical className="w-4 h-4" /></Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => onSuspender(p)}>
-                                <Ban className="w-4 h-4 mr-2" />
-                                {p.estado === 'suspendido' ? 'Reprogramar' : 'Suspender'}
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                onClick={() => onEliminar(p)}
-                                className="text-destructive focus:text-destructive"
-                              >
-                                <Trash2 className="w-4 h-4 mr-2" /> Eliminar partido
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                          {!soloLectura && (
+                            <Button size="icon" variant="ghost" onClick={() => onEditar(p)} title="Editar partido">
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                          )}
+                          {!soloLectura && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button size="icon" variant="ghost" title="Más acciones"><MoreVertical className="w-4 h-4" /></Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => onSuspender(p)}>
+                                  <Ban className="w-4 h-4 mr-2" />
+                                  {p.estado === 'suspendido' ? 'Reprogramar' : 'Suspender'}
+                                </DropdownMenuItem>
+                                {!estructuralBloqueado && (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      onClick={() => onEliminar(p)}
+                                      className="text-destructive focus:text-destructive"
+                                    >
+                                      <Trash2 className="w-4 h-4 mr-2" /> Eliminar partido
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
                         </div>
                       </li>
                     ))}
