@@ -145,8 +145,6 @@ export default function TorneoDetalle() {
       .from('partidos').select('id', { count: 'exact', head: true })
       .eq('torneo_categoria_id', tc.id)
       .not('goles_local', 'is', null);
-      .eq('torneo_categoria_id', tc.id)
-      .not('goles_local', 'is', null);
     if ((conResultado ?? 0) > 0) {
       return toast.error(`No se puede quitar: hay ${conResultado} partido(s) con resultado. Archivá la categoría.`);
     }
