@@ -644,14 +644,16 @@ function CategoriaPanel({ torneoCategoriaId, torneoId, categoriaId, temporadaAni
                   {equipos.map((e: any) => (
                     <li key={e.id} className="px-3 py-2 border rounded-md text-sm flex items-center gap-2">
                       <span className="flex-1">{e.equipos?.nombre_equipo}</span>
-                      <ConfirmDialog
-                        trigger={<Button size="icon" variant="ghost" className="h-7 w-7"><X className="w-4 h-4 text-destructive" /></Button>}
-                        title="¿Quitar equipo?"
-                        description={tieneFixture ? 'El fixture ya fue generado. Se quitará al equipo de su zona y de partidos sin resultado.' : 'El equipo se quitará del torneo en esta categoría.'}
-                        onConfirm={() => quitarEquipo(e)}
-                        danger
-                        confirmLabel="Quitar"
-                      />
+                      {!estructuralBloqueado && (
+                        <ConfirmDialog
+                          trigger={<Button size="icon" variant="ghost" className="h-7 w-7"><X className="w-4 h-4 text-destructive" /></Button>}
+                          title="¿Quitar equipo?"
+                          description={tieneFixture ? 'El fixture ya fue generado. Se quitará al equipo de su zona y de partidos sin resultado.' : 'El equipo se quitará del torneo en esta categoría.'}
+                          onConfirm={() => quitarEquipo(e)}
+                          danger
+                          confirmLabel="Quitar"
+                        />
+                      )}
                     </li>
                   ))}
                 </ul>
