@@ -682,34 +682,41 @@ function CategoriaPanel({ torneoCategoriaId, torneoId, categoriaId, temporadaAni
                     <input
                       defaultValue={z.nombre}
                       onBlur={(e) => e.target.value !== z.nombre && renombrarZona(z.id, e.target.value)}
+                      readOnly={estructuralBloqueado}
                       className="font-bold bg-transparent border-b border-transparent hover:border-input focus:border-primary outline-none flex-1"
                     />
-                    <ConfirmDialog
-                      trigger={<Button size="icon" variant="ghost"><Trash2 className="w-4 h-4 text-destructive" /></Button>}
-                      title={`¿Eliminar ${z.nombre}?`}
-                      description="Se eliminarán los partidos sin resultado y la asignación de equipos. Si hay resultados cargados, no se puede eliminar."
-                      onConfirm={() => eliminarZona(z.id)}
-                      danger
-                    />
+                    {!estructuralBloqueado && (
+                      <ConfirmDialog
+                        trigger={<Button size="icon" variant="ghost"><Trash2 className="w-4 h-4 text-destructive" /></Button>}
+                        title={`¿Eliminar ${z.nombre}?`}
+                        description="Se eliminarán los partidos sin resultado y la asignación de equipos. Si hay resultados cargados, no se puede eliminar."
+                        onConfirm={() => eliminarZona(z.id)}
+                        danger
+                      />
+                    )}
                   </CardHeader>
                   <CardContent>
                     <ul className="space-y-1 text-sm">
                       {(z.zona_equipos || []).map((ze: any) => (
                         <li key={ze.id} className="flex items-center gap-2">
                           <span className="flex-1">{ze.equipos?.nombre_equipo}</span>
-                          <Select value={z.id} onValueChange={(v) => moverEquipo(ze.id, v)}>
-                            <SelectTrigger className="w-[110px] h-7 text-xs"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              {zonas.map((zz: any) => <SelectItem key={zz.id} value={zz.id}>{zz.nombre}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => quitarEquipoDeZona(ze)}>
-                            <X className="w-3 h-3 text-destructive" />
-                          </Button>
+                          {!estructuralBloqueado && (
+                            <>
+                              <Select value={z.id} onValueChange={(v) => moverEquipo(ze.id, v)}>
+                                <SelectTrigger className="w-[110px] h-7 text-xs"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  {zonas.map((zz: any) => <SelectItem key={zz.id} value={zz.id}>{zz.nombre}</SelectItem>)}
+                                </SelectContent>
+                              </Select>
+                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => quitarEquipoDeZona(ze)}>
+                                <X className="w-3 h-3 text-destructive" />
+                              </Button>
+                            </>
+                          )}
                         </li>
                       ))}
                     </ul>
-                    {equiposSinZona.length > 0 && (
+                    {!estructuralBloqueado && equiposSinZona.length > 0 && (
                       <div className="mt-2 pt-2 border-t">
                         <Select value="" onValueChange={(v) => agregarEqAZona(z.id, v)}>
                           <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="+ Agregar equipo sin zona" /></SelectTrigger>
