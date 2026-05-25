@@ -620,21 +620,23 @@ function CategoriaPanel({ torneoCategoriaId, torneoId, categoriaId, temporadaAni
         <TabsContent value="equipos">
           <Card>
             <CardContent className="py-4 space-y-3">
-              <div className="flex flex-col sm:flex-row gap-2">
-                <Select value={agregarEqId} onValueChange={setAgregarEqId}>
-                  <SelectTrigger className="flex-1">
-                    <SelectValue placeholder={equiposDisponibles.length > 0 ? 'Elegir equipo a agregar...' : 'Sin equipos disponibles'} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {equiposDisponibles.map((e: any) => (
-                      <SelectItem key={e.id} value={e.id}>{e.nombre_equipo}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button onClick={agregarEquipo} disabled={!agregarEqId}>
-                  <Plus className="w-4 h-4" /> Agregar equipo
-                </Button>
-              </div>
+              {!estructuralBloqueado && (
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Select value={agregarEqId} onValueChange={setAgregarEqId}>
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder={equiposDisponibles.length > 0 ? 'Elegir equipo a agregar...' : 'Sin equipos disponibles'} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {equiposDisponibles.map((e: any) => (
+                        <SelectItem key={e.id} value={e.id}>{e.nombre_equipo}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button onClick={agregarEquipo} disabled={!agregarEqId}>
+                    <Plus className="w-4 h-4" /> Agregar equipo
+                  </Button>
+                </div>
+              )}
               {equipos.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Sin equipos inscriptos.</p>
               ) : (
