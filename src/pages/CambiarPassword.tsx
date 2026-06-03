@@ -1,7 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,22 +8,27 @@ import { toast } from '@/hooks/use-toast';
 import logoLvfc from '@/assets/logo-lvfc.png';
 
 export default function CambiarPassword() {
-  const navigate = useNavigate();
-  const { user } = useAuth();
   const [pwd, setPwd] = useState('');
   const [pwd2, setPwd2] = useState('');
   const [loading, setLoading] = useState(false);
-  const [ready, setReady] = useState(false);
+  const [hasSession, setHasSession] = useState<boolean | null>(null);
 
   useEffect(() => {
-    // Listen for PASSWORD_RECOVERY event to enable form
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') setReady(true);
+    let mounted = true;
+
+    const check = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (mounted) setHasSession(!!session);
+    };
+    void check();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!mounted) return;
+      if (event === 'PASSWORD_RECOVERY' || session) setHasSession(true);
     });
-    // Also allow existing logged-in users (must_change_password flow) to use this page
-    if (user) setReady(true);
-    return () => subscription.unsubscribe();
-  }, [user]);
+
+    return () => { mounted = false; subscription.unsubscribe(); };
+  }, []);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,9 +42,13 @@ export default function CambiarPassword() {
     }
     setLoading(true);
 
-    // Get current user BEFORE updating password / signing out
-    const { data: { user: currentUser } } = await supabase.auth.getUser();
-    console.log('[CambiarPassword] user.id antes de update:', currentUser?.id);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setLoading(false);
+      toast({ title: 'Sesión expirada', description: 'Volvé a iniciar sesión', variant: 'destructive' });
+      window.location.replace('/login');
+      return;
+    }
 
     const { error } = await supabase.auth.updateUser({ password: pwd });
     if (error) {
@@ -50,20 +57,15 @@ export default function CambiarPassword() {
       return;
     }
 
-    if (currentUser) {
-      const upd = await supabase
-        .from('profiles')
-        .update({ must_change_password: false })
-        .eq('id', currentUser.id);
-      console.log('[CambiarPassword] update must_change_password:', upd);
-    }
+    const upd = await supabase
+      .from('profiles')
+      .update({ must_change_password: false })
+      .eq('id', user.id);
+    if (upd.error) console.error('[CambiarPassword] update profile:', upd.error);
 
-    toast({ title: 'Contraseña actualizada correctamente' });
     await supabase.auth.signOut();
-    console.log('[CambiarPassword] signOut realizado');
-    setLoading(false);
-    console.log('[CambiarPassword] navigate /login');
-    navigate('/login', { replace: true });
+    toast({ title: 'Contraseña actualizada correctamente' });
+    window.location.replace('/login');
   };
 
   return (
@@ -74,42 +76,56 @@ export default function CambiarPassword() {
           <h1 className="text-xl font-display font-bold">Cambiar contraseña</h1>
         </div>
         <Card>
-          <CardHeader className="pb-4">
-            <p className="text-sm text-muted-foreground text-center">
-              {ready
-                ? 'Definí tu nueva contraseña para acceder al sistema.'
-                : 'Esperando enlace de recuperación...'}
-            </p>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={onSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label>Nueva contraseña</Label>
-                <Input
-                  type="password"
-                  value={pwd}
-                  onChange={(e) => setPwd(e.target.value)}
-                  minLength={8}
-                  required
-                  disabled={!ready}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Repetir contraseña</Label>
-                <Input
-                  type="password"
-                  value={pwd2}
-                  onChange={(e) => setPwd2(e.target.value)}
-                  minLength={8}
-                  required
-                  disabled={!ready}
-                />
-              </div>
-              <Button type="submit" className="w-full" disabled={loading || !ready}>
-                {loading ? 'Guardando...' : 'Actualizar contraseña'}
+          {hasSession === false ? (
+            <CardContent className="pt-6 space-y-4 text-center">
+              <p className="text-sm text-muted-foreground">
+                La sesión para cambiar contraseña expiró.
+              </p>
+              <Button
+                className="w-full"
+                onClick={() => window.location.replace('/login')}
+              >
+                Volver al login
               </Button>
-            </form>
-          </CardContent>
+            </CardContent>
+          ) : (
+            <>
+              <CardHeader className="pb-4">
+                <p className="text-sm text-muted-foreground text-center">
+                  Definí tu nueva contraseña para acceder al sistema.
+                </p>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={onSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Nueva contraseña</Label>
+                    <Input
+                      type="password"
+                      value={pwd}
+                      onChange={(e) => setPwd(e.target.value)}
+                      minLength={8}
+                      required
+                      disabled={!hasSession}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Repetir contraseña</Label>
+                    <Input
+                      type="password"
+                      value={pwd2}
+                      onChange={(e) => setPwd2(e.target.value)}
+                      minLength={8}
+                      required
+                      disabled={!hasSession}
+                    />
+                  </div>
+                  <Button type="submit" className="w-full" disabled={loading || !hasSession}>
+                    {loading ? 'Guardando...' : 'Actualizar contraseña'}
+                  </Button>
+                </form>
+              </CardContent>
+            </>
+          )}
         </Card>
       </div>
     </div>
