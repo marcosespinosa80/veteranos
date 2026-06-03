@@ -450,37 +450,76 @@ export default function ListasBuenaFe() {
             <DialogTitle>Nueva Lista de Buena Fe</DialogTitle>
             <DialogDescription>Seleccioná el equipo y la categoría para la lista.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Equipo *</Label>
-              <Select value={createForm.equipo_id} onValueChange={(v) => setCreateForm({ ...createForm, equipo_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Seleccionar equipo" /></SelectTrigger>
-                <SelectContent>
-                  {equipos.map((e) => <SelectItem key={e.id} value={e.id}>{e.nombre_equipo}</SelectItem>)}
-                </SelectContent>
-              </Select>
+          {isDelegado && !delegadoEquipoId ? (
+            <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+              No tenés un club asignado. Comunicate con la administración.
             </div>
-            <div className="space-y-2">
-              <Label>Categoría *</Label>
-              <Select value={createForm.categoria_id} onValueChange={(v) => setCreateForm({ ...createForm, categoria_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Seleccionar categoría" /></SelectTrigger>
-                <SelectContent>
-                  {categorias.map((c) => <SelectItem key={c.id} value={c.id}>{c.nombre_categoria}</SelectItem>)}
-                </SelectContent>
-              </Select>
+          ) : (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Equipo *</Label>
+                {isDelegado ? (
+                  <Input
+                    readOnly
+                    value={equipos.find((e: any) => e.id === delegadoEquipoId)?.nombre_equipo || 'Mi club'}
+                    className="bg-muted"
+                  />
+                ) : (
+                  <Select value={createForm.equipo_id} onValueChange={(v) => setCreateForm({ ...createForm, equipo_id: v, categoria_id: '' })}>
+                    <SelectTrigger><SelectValue placeholder="Seleccionar equipo" /></SelectTrigger>
+                    <SelectContent>
+                      {equipos.map((e) => <SelectItem key={e.id} value={e.id}>{e.nombre_equipo}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label>Categoría *</Label>
+                {equipoCreate && categoriasDisponibles.length === 0 ? (
+                  <p className="text-sm text-muted-foreground rounded-md border border-dashed p-3">
+                    Este equipo ya tiene listas creadas para todas las categorías.
+                  </p>
+                ) : (
+                  <Select
+                    value={createForm.categoria_id}
+                    onValueChange={(v) => setCreateForm({ ...createForm, categoria_id: v })}
+                    disabled={!equipoCreate}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={equipoCreate ? 'Seleccionar categoría' : 'Seleccioná un equipo primero'} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categoriasDisponibles.map((c: any) => (
+                        <SelectItem key={c.id} value={c.id}>{c.nombre_categoria}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label>Temporada</Label>
+                <Input readOnly value={TEMPORADA_ACTUAL} className="bg-muted" />
+              </div>
             </div>
-          </div>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
             <Button
               onClick={() => createMutation.mutate()}
-              disabled={!createForm.equipo_id || !createForm.categoria_id || createMutation.isPending}
+              disabled={
+                !equipoCreate ||
+                !createForm.categoria_id ||
+                categoriasDisponibles.length === 0 ||
+                createMutation.isPending ||
+                (isDelegado && !delegadoEquipoId)
+              }
             >
               {createMutation.isPending ? 'Creando...' : 'Crear Lista'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
 
       {/* Detail Dialog */}
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
