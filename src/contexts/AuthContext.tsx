@@ -6,7 +6,7 @@ import type { UserRole } from '@/lib/navigation';
 interface AuthContextType {
   user: User | null;
   session: Session | null;
-  profile: { nombre: string; apellido: string; equipo_id: string | null; must_change_password?: boolean } | null;
+  profile: { nombre: string; apellido: string; equipo_id: string | null; must_change_password?: boolean; activo?: boolean; jugador_id?: string | null; username?: string | null } | null;
   role: UserRole | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
@@ -38,7 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const profileRes = await supabase
         .from('profiles')
-        .select('nombre, apellido, equipo_id, must_change_password')
+        .select('nombre, apellido, equipo_id, must_change_password, activo, jugador_id, username')
         .eq('id', userId)
         .maybeSingle();
 

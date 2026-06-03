@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -11,12 +11,15 @@ import logoLvfc from '@/assets/logo-lvfc.png';
 
 export default function Login() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { signIn, user, loading: authLoading } = useAuth();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(() =>
+    searchParams.get('inactivo') === '1' ? 'Usuario inactivo. Comuníquese con la administración.' : ''
+  );
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -47,11 +50,27 @@ export default function Login() {
       }
 
       const { error: signErr } = await signIn(emailToUse, password);
-      setLoading(false);
 
       if (signErr) {
+        setLoading(false);
         setError('Usuario o contraseña incorrectos.');
+        return;
       }
+
+      // Verify the account is active before letting the user in
+      const { data: { user: authedUser } } = await supabase.auth.getUser();
+      if (authedUser) {
+        const { data: prof } = await supabase
+          .from('profiles').select('activo').eq('id', authedUser.id).maybeSingle();
+        if (prof && prof.activo === false) {
+          await supabase.auth.signOut();
+          setLoading(false);
+          setError('Usuario inactivo. Comuníquese con la administración.');
+          return;
+        }
+      }
+
+      setLoading(false);
     } catch (_e) {
       setLoading(false);
       setError('Usuario o contraseña incorrectos.');

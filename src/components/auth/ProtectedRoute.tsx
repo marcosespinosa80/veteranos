@@ -16,6 +16,12 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" replace />;
   }
 
+  if (profile && profile.activo === false) {
+    // Inactive user: force sign-out and bounce to login with message
+    void import('@/integrations/supabase/client').then(({ supabase }) => supabase.auth.signOut());
+    return <Navigate to="/login?inactivo=1" replace />;
+  }
+
   if (profile?.must_change_password && location.pathname !== '/cambiar-password') {
     return <Navigate to="/cambiar-password" replace />;
   }
