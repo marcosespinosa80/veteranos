@@ -10,10 +10,12 @@ import { DniInput } from '@/components/ui/dni-input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Search, AlertCircle, Link2 } from 'lucide-react';
+import { Search, AlertCircle, Link2, KeyRound, Send } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { getRoleLabel, type UserRole } from '@/lib/navigation';
+import { type UserRole } from '@/lib/navigation';
 import { MODULE_KEYS, MODULE_LABELS, getDefaultModules, type ModuleKey } from '@/lib/modules';
+import { formatDni, dniDigits } from '@/lib/dni';
+import { useAuth } from '@/contexts/AuthContext';
 
 const roleOptions: { value: UserRole; label: string }[] = [
   { value: 'admin_general', label: 'Administrador General' },
@@ -26,16 +28,20 @@ const roleOptions: { value: UserRole; label: string }[] = [
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  user: any; // The user being edited
+  user: any;
 }
 
 export default function EditarUsuarioDialog({ open, onOpenChange, user }: Props) {
   const queryClient = useQueryClient();
+  const { role: callerRole } = useAuth();
+  const isAdminGeneral = callerRole === 'admin_general';
 
   const [role, setRole] = useState<UserRole>(user?.role || 'admin_comun');
   const [activo, setActivo] = useState(user?.activo ?? true);
+  const [dniValue, setDniValue] = useState(formatDni(user?.username || ''));
+  const [recoveryEmail, setRecoveryEmail] = useState(user?.recovery_email || user?.email || '');
+  const [tempPwd, setTempPwd] = useState('');
   const [modules, setModules] = useState<Record<ModuleKey, boolean>>(() => {
-    // Initialize from user's existing permissions or role defaults
     if (user?.permissions && user.permissions.length > 0) {
       const m = { ...getDefaultModules(user.role) };
       user.permissions.forEach((p: any) => {
@@ -48,7 +54,7 @@ export default function EditarUsuarioDialog({ open, onOpenChange, user }: Props)
     return getDefaultModules(user?.role || 'admin_comun');
   });
 
-  // Delegado state
+  // Delegado linking
   const [dniSearch, setDniSearch] = useState('');
   const [jugadorFound, setJugadorFound] = useState<any>(null);
   const [jugadorError, setJugadorError] = useState('');
@@ -72,28 +78,39 @@ export default function EditarUsuarioDialog({ open, onOpenChange, user }: Props)
     setJugadorFound(null);
     setVinculado(false);
 
-    const { data, error } = await supabase
+    const digits = dniDigits(dniSearch);
+    const { data } = await supabase
       .from('jugadores')
-      .select('id, nombre, apellido, dni, estado, equipo_id, equipo:equipos(nombre_equipo)')
-      .eq('dni', dniSearch.trim())
-      .maybeSingle();
-
+      .select('id, nombre, apellido, dni, estado, equipo_id, equipo:equipos!jugadores_equipo_id_fkey(nombre_equipo)');
     setSearching(false);
-    if (error) { setJugadorError('Error al buscar'); return; }
-    if (!data) { setJugadorError('Jugador no encontrado'); return; }
-    if (data.estado !== 'habilitado') { setJugadorError('Jugador no habilitado'); return; }
-    if (!data.equipo_id) { setJugadorError('Jugador sin equipo'); return; }
-    setJugadorFound(data);
+    const match = (data || []).find((j: any) => (j.dni || '').replace(/\D/g, '') === digits);
+    if (!match) { setJugadorError('Jugador no encontrado'); return; }
+    if (match.estado !== 'habilitado') { setJugadorError('Jugador no habilitado'); return; }
+    if (!match.equipo_id) { setJugadorError('Jugador sin equipo'); return; }
+    setJugadorFound(match);
   };
 
   const editMutation = useMutation({
     mutationFn: async () => {
       const userId = user.id;
 
-      // Update role
+      // Update DNI / recovery email via admin function if changed
+      const dniClean = dniDigits(dniValue);
+      const emailClean = recoveryEmail.trim().toLowerCase();
+      const dniChanged = dniClean && dniClean !== (user.username || '');
+      const emailChanged = emailClean && emailClean !== (user.recovery_email || user.email || '').toLowerCase();
+
+      if (isAdminGeneral && (dniChanged || emailChanged)) {
+        const body: any = { user_id: userId };
+        if (dniChanged) body.username = dniClean;
+        if (emailChanged) body.recovery_email = emailClean;
+        const { data, error } = await supabase.functions.invoke('admin-update-user-email', { body });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+      }
+
       await supabase.from('user_roles').update({ role: role as any }).eq('user_id', userId);
 
-      // Update activo & equipo_id
       const profileUpdate: any = { activo };
       if (role === 'delegado' && jugadorFound) {
         profileUpdate.equipo_id = jugadorFound.equipo_id;
@@ -102,12 +119,10 @@ export default function EditarUsuarioDialog({ open, onOpenChange, user }: Props)
       }
       await supabase.from('profiles').update(profileUpdate).eq('id', userId);
 
-      // Upsert module permissions - delete old then insert new
       await supabase.from('user_module_permissions').delete().eq('user_id', userId);
       const rows = MODULE_KEYS.map((k) => ({ user_id: userId, module_key: k, enabled: modules[k] }));
       await supabase.from('user_module_permissions').insert(rows);
 
-      // Delegado position assignment
       if (role === 'delegado' && jugadorFound && vinculado && delegadoPosicion) {
         const updateField = delegadoPosicion === 'delegado_1'
           ? { delegado_1: jugadorFound.id }
@@ -123,15 +138,69 @@ export default function EditarUsuarioDialog({ open, onOpenChange, user }: Props)
     onError: (err: Error) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
   });
 
+  const sendRecoveryMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('admin-send-recovery', { body: { user_id: user.id } });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const email = data.email;
+      const { error: rErr } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/cambiar-password`,
+      });
+      if (rErr) throw rErr;
+    },
+    onSuccess: () => toast({ title: 'Link enviado al email de recuperación' }),
+    onError: (err: Error) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
+  });
+
+  const tempPwdMutation = useMutation({
+    mutationFn: async () => {
+      if (tempPwd.length < 8) throw new Error('Mínimo 8 caracteres');
+      const { data, error } = await supabase.functions.invoke('reset-user-password', {
+        body: { user_id: user.id, new_password: tempPwd },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+    },
+    onSuccess: () => {
+      setTempPwd('');
+      queryClient.invalidateQueries({ queryKey: ['usuarios'] });
+      toast({ title: 'Contraseña temporal asignada', description: 'El usuario deberá cambiarla al iniciar sesión.' });
+    },
+    onError: (err: Error) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
+  });
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Editar Usuario: {user?.apellido}, {user?.nombre}</DialogTitle>
-          <DialogDescription>Modificá el rol, permisos o estado del usuario.</DialogDescription>
+          <DialogDescription>Modificá rol, datos de acceso, permisos o estado.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
+          {/* Identidad de acceso */}
+          {isAdminGeneral && (
+            <section className="space-y-4">
+              <h3 className="text-sm font-semibold border-b pb-1">Identidad de Acceso</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>DNI / Usuario</Label>
+                  <DniInput value={dniValue} onChange={setDniValue} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Email de recuperación</Label>
+                  <Input
+                    type="email"
+                    value={recoveryEmail}
+                    onChange={(e) => setRecoveryEmail(e.target.value)}
+                    placeholder="usuario@gmail.com"
+                  />
+                </div>
+              </div>
+            </section>
+          )}
+
           {/* Role & Active */}
           <section className="space-y-4">
             <h3 className="text-sm font-semibold border-b pb-1">Configuración</h3>
@@ -215,6 +284,43 @@ export default function EditarUsuarioDialog({ open, onOpenChange, user }: Props)
                   )}
                 </div>
               )}
+            </section>
+          )}
+
+          {/* Admin actions */}
+          {isAdminGeneral && (
+            <section className="space-y-4">
+              <h3 className="text-sm font-semibold border-b pb-1">Acciones de Acceso</h3>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => sendRecoveryMutation.mutate()}
+                  disabled={sendRecoveryMutation.isPending}
+                  className="flex-1"
+                >
+                  <Send className="w-4 h-4 mr-1" />
+                  {sendRecoveryMutation.isPending ? 'Enviando...' : 'Enviar link de recuperación'}
+                </Button>
+              </div>
+
+              <div className="space-y-2 border rounded-md p-3 bg-muted/30">
+                <Label className="flex items-center gap-1"><KeyRound className="w-4 h-4" /> Asignar contraseña temporal</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="text"
+                    placeholder="Mínimo 8 caracteres"
+                    value={tempPwd}
+                    onChange={(e) => setTempPwd(e.target.value)}
+                  />
+                  <Button
+                    onClick={() => tempPwdMutation.mutate()}
+                    disabled={tempPwdMutation.isPending || tempPwd.length < 8}
+                  >
+                    {tempPwdMutation.isPending ? 'Aplicando...' : 'Aplicar'}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">El usuario será forzado a cambiar la contraseña al iniciar sesión.</p>
+              </div>
             </section>
           )}
         </div>
