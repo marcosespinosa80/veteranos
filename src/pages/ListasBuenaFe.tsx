@@ -32,8 +32,10 @@ const estadoLabels: Record<string, string> = {
   rechazada: 'Rechazada',
 };
 
+const TEMPORADA_ACTUAL = 2026;
+
 export default function ListasBuenaFe() {
-  const { user, role } = useAuth();
+  const { user, role, profile } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
@@ -48,6 +50,9 @@ export default function ListasBuenaFe() {
   const [motivoDialog, setMotivoDialog] = useState<{ open: boolean; estado: 'observada' | 'rechazada' | null }>({ open: false, estado: null });
   const [motivo, setMotivo] = useState('');
   const isAdmin = role === 'admin_general' || role === 'admin_comun';
+  const isDelegado = role === 'delegado';
+  const delegadoEquipoId = profile?.equipo_id ?? null;
+
 
   const openMotivoDialog = (estado: 'observada' | 'rechazada') => {
     setMotivo('');
