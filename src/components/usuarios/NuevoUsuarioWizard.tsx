@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -10,10 +10,11 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Search, UserPlus, Link2, AlertCircle } from 'lucide-react';
+import { Search, UserPlus, AlertCircle, RotateCcw } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { getRoleLabel, type UserRole } from '@/lib/navigation';
+import { type UserRole } from '@/lib/navigation';
 import { MODULE_KEYS, MODULE_LABELS, getDefaultModules, type ModuleKey } from '@/lib/modules';
+import { dniDigits, formatDni } from '@/lib/dni';
 
 const roleOptions: { value: UserRole; label: string }[] = [
   { value: 'admin_general', label: 'Administrador General' },
@@ -31,50 +32,37 @@ interface Props {
 export default function NuevoUsuarioWizard({ open, onOpenChange }: Props) {
   const queryClient = useQueryClient();
 
-  // Form state
-  const [role, setRole] = useState<UserRole>('admin_comun');
-  const [dni, setDni] = useState('');
-  const [recoveryEmail, setRecoveryEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [activo, setActivo] = useState(true);
-  const [nombre, setNombre] = useState('');
-  const [apellido, setApellido] = useState('');
-  const [modules, setModules] = useState<Record<ModuleKey, boolean>>(getDefaultModules('admin_comun'));
-
-  // Delegado state
+  // Step 1 — player search
   const [dniSearch, setDniSearch] = useState('');
-  const [jugadorFound, setJugadorFound] = useState<any>(null);
-  const [jugadorError, setJugadorError] = useState('');
-  const [delegadoPosicion, setDelegadoPosicion] = useState<'delegado_1' | 'delegado_2' | ''>('');
-  const [vinculado, setVinculado] = useState(false);
   const [searching, setSearching] = useState(false);
+  const [jugadorError, setJugadorError] = useState('');
+  const [jugador, setJugador] = useState<any>(null);
+
+  // Step 2 — user data
+  const [role, setRole] = useState<UserRole>('admin_comun');
+  const [activo, setActivo] = useState(true);
+  const [password, setPassword] = useState('');
+  const [recoveryEmail, setRecoveryEmail] = useState('');
+  const [modules, setModules] = useState<Record<ModuleKey, boolean>>(getDefaultModules('admin_comun'));
+  const [delegadoPosicion, setDelegadoPosicion] = useState<'delegado_1' | 'delegado_2' | ''>('');
 
   const resetForm = () => {
-    setRole('admin_comun');
-    setDni('');
-    setRecoveryEmail('');
-    setPassword('');
-    setActivo(true);
-    setNombre('');
-    setApellido('');
-    setModules(getDefaultModules('admin_comun'));
     setDniSearch('');
-    setJugadorFound(null);
+    setSearching(false);
     setJugadorError('');
+    setJugador(null);
+    setRole('admin_comun');
+    setActivo(true);
+    setPassword('');
+    setRecoveryEmail('');
+    setModules(getDefaultModules('admin_comun'));
     setDelegadoPosicion('');
-    setVinculado(false);
   };
 
   const handleRoleChange = (newRole: UserRole) => {
     setRole(newRole);
     setModules(getDefaultModules(newRole));
-    if (newRole !== 'delegado') {
-      setDniSearch('');
-      setJugadorFound(null);
-      setJugadorError('');
-      setDelegadoPosicion('');
-      setVinculado(false);
-    }
+    if (newRole !== 'delegado') setDelegadoPosicion('');
   };
 
   const toggleModule = (key: ModuleKey) => {
@@ -82,17 +70,18 @@ export default function NuevoUsuarioWizard({ open, onOpenChange }: Props) {
   };
 
   const searchJugador = async () => {
-    const dniDigits = dniSearch.replace(/\D/g, '');
-    if (!dniDigits) return;
+    const digits = dniDigits(dniSearch);
+    if (digits.length < 7) {
+      setJugadorError('Ingresá un DNI válido (7 u 8 dígitos)');
+      return;
+    }
     setSearching(true);
     setJugadorError('');
-    setJugadorFound(null);
-    setVinculado(false);
+    setJugador(null);
 
-    // Fetch all and match by digits (handles DNIs stored with/without dots)
     const { data, error } = await supabase
       .from('jugadores')
-      .select('id, nombre, apellido, dni, estado, equipo_id, suspendido_fechas, categoria:categorias(nombre_categoria), equipo:equipos!jugadores_equipo_id_fkey(nombre_equipo)');
+      .select('id, nombre, apellido, dni, estado, equipo_id, categoria:categorias(nombre_categoria), equipo:equipos!jugadores_equipo_id_fkey(nombre_equipo)');
 
     setSearching(false);
 
@@ -101,52 +90,39 @@ export default function NuevoUsuarioWizard({ open, onOpenChange }: Props) {
       return;
     }
 
-    const match = (data || []).find((j: any) => (j.dni || '').replace(/\D/g, '') === dniDigits);
-
+    const match = (data || []).find((j: any) => (j.dni || '').replace(/\D/g, '') === digits);
     if (!match) {
-      setJugadorError('Jugador no encontrado');
-      return;
-    }
-    if (match.estado !== 'habilitado') {
-      setJugadorError('El jugador no está habilitado, no puede ser delegado');
-      return;
-    }
-    if ((match.suspendido_fechas || 0) > 0) {
-      setJugadorError(`Jugador suspendido (${match.suspendido_fechas} fecha${match.suspendido_fechas !== 1 ? 's' : ''}), no puede ser delegado`);
-      return;
-    }
-    if (!match.equipo_id) {
-      setJugadorError('Jugador sin club asignado, no se puede vincular');
+      setJugadorError('Jugador no encontrado. Primero debe cargarse el jugador en el padrón.');
       return;
     }
 
-    setJugadorFound(match);
+    // Check if profile already exists for this player
+    const { data: existing } = await supabase
+      .from('profiles')
+      .select('id, username')
+      .eq('jugador_id', match.id)
+      .maybeSingle();
+
+    if (existing) {
+      setJugadorError('Este jugador ya tiene un usuario asociado. Editá ese usuario desde la lista.');
+      return;
+    }
+
+    setJugador(match);
   };
 
   const createMutation = useMutation({
     mutationFn: async () => {
       const modulesList = MODULE_KEYS.map((k) => ({ module_key: k, enabled: modules[k] }));
-
-      const payload: any = {
-        username: dni.trim(),
-        recovery_email: recoveryEmail.trim(),
+      const payload = {
+        jugador_id: jugador.id,
+        recovery_email: recoveryEmail.trim() || null,
         password,
-        nombre: nombre.trim(),
-        apellido: apellido.trim(),
         role,
         activo,
-        equipo_id: null,
-        jugador_id_delegado: null,
-        delegado_posicion: null,
+        delegado_posicion: role === 'delegado' ? delegadoPosicion : null,
         modules: modulesList,
       };
-
-      if (role === 'delegado' && jugadorFound) {
-        payload.equipo_id = jugadorFound.equipo_id;
-        payload.jugador_id_delegado = jugadorFound.id;
-        payload.delegado_posicion = delegadoPosicion;
-      }
-
       const { data, error } = await supabase.functions.invoke('create-user', { body: payload });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
@@ -162,17 +138,21 @@ export default function NuevoUsuarioWizard({ open, onOpenChange }: Props) {
   });
 
   const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const recoveryValid = !recoveryEmail.trim() || emailRe.test(recoveryEmail.trim());
 
   const canSubmit = () => {
-    const dniClean = dni.replace(/\D/g, '');
-    if (dniClean.length < 7 || dniClean.length > 8) return false;
-    if (!emailRe.test(recoveryEmail.trim())) return false;
-    if (password.length < 8 || !nombre.trim() || !apellido.trim()) return false;
+    if (!jugador) return false;
+    if (password.length < 8) return false;
+    if (!recoveryValid) return false;
     if (role === 'delegado') {
-      if (!jugadorFound || !vinculado || !delegadoPosicion) return false;
+      if (!delegadoPosicion) return false;
+      if (jugador.estado !== 'habilitado') return false;
+      if (!jugador.equipo_id) return false;
     }
     return true;
   };
+
+  const dniFormatted = jugador ? formatDni(jugador.dni || '') : '';
 
   return (
     <Dialog
@@ -187,148 +167,133 @@ export default function NuevoUsuarioWizard({ open, onOpenChange }: Props) {
           <DialogTitle className="flex items-center gap-2">
             <UserPlus className="w-5 h-5" /> Nuevo Usuario
           </DialogTitle>
-          <DialogDescription>Completá todos los datos para dar de alta un nuevo usuario del sistema.</DialogDescription>
+          <DialogDescription>
+            El usuario se crea siempre a partir de un jugador del padrón. Buscá primero el jugador por DNI.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* A) CONFIGURACIÓN DE ACCESO */}
+          {/* STEP 1 — PLAYER SEARCH */}
           <section className="space-y-4">
-            <h3 className="text-sm font-semibold text-foreground border-b pb-1">Configuración de Acceso</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Rol del sistema *</Label>
-                <Select value={role} onValueChange={(v) => handleRoleChange(v as UserRole)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {roleOptions.map((r) => (
-                      <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2 flex items-end gap-4">
-                <div className="flex items-center gap-2">
-                  <Switch checked={activo} onCheckedChange={setActivo} id="activo-switch" />
-                  <Label htmlFor="activo-switch">{activo ? 'Activo' : 'Inactivo'}</Label>
-                </div>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>DNI / Usuario *</Label>
-                <DniInput
-                  placeholder="28.404.402"
-                  value={dni}
-                  onChange={setDni}
-                />
-                <p className="text-xs text-muted-foreground">Se usará como nombre de usuario para iniciar sesión.</p>
-              </div>
-              <div className="space-y-2">
-                <Label>Email de recuperación *</Label>
-                <Input
-                  type="email"
-                  placeholder="usuario@gmail.com"
-                  value={recoveryEmail}
-                  onChange={(e) => setRecoveryEmail(e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">Email real donde se enviará el link para recuperar contraseña.</p>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Contraseña inicial * (mínimo 8 caracteres)</Label>
-              <Input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                minLength={8}
-              />
-            </div>
-          </section>
-
-          {/* B) IDENTIDAD */}
-          <section className="space-y-4">
-            <h3 className="text-sm font-semibold text-foreground border-b pb-1">Identidad</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Nombre *</Label>
-                <Input value={nombre} onChange={(e) => setNombre(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label>Apellido *</Label>
-                <Input value={apellido} onChange={(e) => setApellido(e.target.value)} />
-              </div>
-            </div>
-          </section>
-
-          {/* C) MÓDULOS PERMITIDOS */}
-          <section className="space-y-4">
-            <h3 className="text-sm font-semibold text-foreground border-b pb-1">Módulos Permitidos</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {MODULE_KEYS.map((key) => (
-                <label key={key} className="flex items-center gap-2 text-sm cursor-pointer">
-                  <Checkbox
-                    checked={modules[key]}
-                    onCheckedChange={() => toggleModule(key)}
-                  />
-                  <span>{MODULE_LABELS[key]}</span>
-                </label>
-              ))}
-            </div>
-            <p className="text-xs text-muted-foreground">Los permisos por defecto se cargan según el rol. Podés modificarlos manualmente.</p>
-          </section>
-
-          {/* D) VINCULACIÓN DELEGADO */}
-          {role === 'delegado' && (
-            <section className="space-y-4">
-              <h3 className="text-sm font-semibold text-foreground border-b pb-1">Vinculación de Delegado</h3>
-              <div className="flex gap-2">
-                <div className="flex-1 space-y-2">
+            <h3 className="text-sm font-semibold text-foreground border-b pb-1">1. Jugador del padrón</h3>
+            {!jugador ? (
+              <>
+                <div className="space-y-2">
                   <Label>DNI del jugador *</Label>
                   <div className="flex gap-2">
                     <DniInput
-                      placeholder="Ingresá el DNI"
+                      placeholder="28.404.402"
                       value={dniSearch}
-                      onChange={(v) => {
-                        setDniSearch(v);
-                        setJugadorFound(null);
-                        setJugadorError('');
-                        setVinculado(false);
-                      }}
+                      onChange={(v) => { setDniSearch(v); setJugadorError(''); }}
                       onKeyDown={(e) => e.key === 'Enter' && searchJugador()}
                     />
                     <Button variant="outline" onClick={searchJugador} disabled={searching || !dniSearch.trim()}>
                       <Search className="w-4 h-4 mr-1" /> Buscar
                     </Button>
                   </div>
+                  <p className="text-xs text-muted-foreground">Se acepta con o sin puntos. El DNI del jugador será el nombre de usuario.</p>
                 </div>
+
+                {jugadorError && (
+                  <div className="flex items-center gap-2 text-destructive text-sm bg-destructive/10 p-3 rounded-md">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    {jugadorError}
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="border rounded-md p-4 space-y-2 bg-muted/30">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-medium">{jugador.apellido}, {jugador.nombre}</p>
+                    <p className="text-sm text-muted-foreground">DNI: {dniFormatted}</p>
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className={jugador.estado === 'habilitado' ? 'bg-primary/15 text-primary' : 'bg-muted text-muted-foreground'}
+                  >
+                    {jugador.estado}
+                  </Badge>
+                </div>
+                <div className="text-sm grid grid-cols-1 sm:grid-cols-2 gap-1">
+                  <div><span className="text-muted-foreground">Equipo: </span><span className="font-medium">{jugador.equipo?.nombre_equipo || '—'}</span></div>
+                  <div><span className="text-muted-foreground">Categoría: </span><span className="font-medium">{jugador.categoria?.nombre_categoria || '—'}</span></div>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => { setJugador(null); setDelegadoPosicion(''); }}>
+                  <RotateCcw className="w-3 h-3 mr-1" /> Buscar otro jugador
+                </Button>
               </div>
+            )}
+          </section>
 
-              {jugadorError && (
-                <div className="flex items-center gap-2 text-destructive text-sm bg-destructive/10 p-3 rounded-md">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  {jugadorError}
+          {/* STEP 2 — USER DATA (locked until player found) */}
+          {jugador && (
+            <>
+              <section className="space-y-4">
+                <h3 className="text-sm font-semibold text-foreground border-b pb-1">2. Datos del usuario</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Usuario (DNI)</Label>
+                    <Input value={dniFormatted} disabled className="bg-muted" />
+                    <p className="text-xs text-muted-foreground">Se asigna automáticamente desde el jugador.</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Nombre completo</Label>
+                    <Input value={`${jugador.apellido}, ${jugador.nombre}`} disabled className="bg-muted" />
+                  </div>
                 </div>
-              )}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Contraseña inicial * (mín. 8 caracteres)</Label>
+                    <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={8} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Email de recuperación (opcional)</Label>
+                    <Input
+                      type="email"
+                      placeholder="usuario@gmail.com"
+                      value={recoveryEmail}
+                      onChange={(e) => setRecoveryEmail(e.target.value)}
+                    />
+                    {!recoveryValid && <p className="text-xs text-destructive">Email inválido</p>}
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Rol del sistema *</Label>
+                    <Select value={role} onValueChange={(v) => handleRoleChange(v as UserRole)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {roleOptions.map((r) => (
+                          <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-end gap-2 pb-1">
+                    <Switch checked={activo} onCheckedChange={setActivo} id="activo-switch" />
+                    <Label htmlFor="activo-switch">{activo ? 'Activo' : 'Inactivo'}</Label>
+                  </div>
+                </div>
+              </section>
 
-              {jugadorFound && (
-                <div className="border rounded-md p-4 space-y-3 bg-muted/30">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">{jugadorFound.apellido}, {jugadorFound.nombre}</p>
-                      <p className="text-sm text-muted-foreground">DNI: {jugadorFound.dni}</p>
+              {/* DELEGADO POSITION */}
+              {role === 'delegado' && (
+                <section className="space-y-3">
+                  <h3 className="text-sm font-semibold text-foreground border-b pb-1">3. Posición de delegado</h3>
+                  {jugador.estado !== 'habilitado' && (
+                    <div className="flex items-center gap-2 text-destructive text-sm bg-destructive/10 p-3 rounded-md">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      El jugador debe estar habilitado para ser delegado.
                     </div>
-                    <Badge variant="outline" className="bg-primary/15 text-primary">Habilitado</Badge>
-                  </div>
-                  <div className="text-sm">
-                    <span className="text-muted-foreground">Equipo: </span>
-                    <span className="font-medium">{jugadorFound.equipo?.nombre_equipo || '—'}</span>
-                  </div>
-                  <div className="text-sm">
-                    <span className="text-muted-foreground">Categoría: </span>
-                    <span className="font-medium">{jugadorFound.categoria?.nombre_categoria || '—'}</span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
+                  )}
+                  {!jugador.equipo_id && (
+                    <div className="flex items-center gap-2 text-destructive text-sm bg-destructive/10 p-3 rounded-md">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      El jugador no tiene equipo asignado.
+                    </div>
+                  )}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Posición *</Label>
                       <Select value={delegadoPosicion} onValueChange={(v) => setDelegadoPosicion(v as any)}>
@@ -340,28 +305,28 @@ export default function NuevoUsuarioWizard({ open, onOpenChange }: Props) {
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label>Club asignado</Label>
-                      <Input value={jugadorFound.equipo?.nombre_equipo || ''} disabled className="bg-muted" />
+                      <Label>Club</Label>
+                      <Input value={jugador.equipo?.nombre_equipo || ''} disabled className="bg-muted" />
                     </div>
                   </div>
-
-                  {!vinculado ? (
-                    <Button
-                      variant="outline"
-                      onClick={() => setVinculado(true)}
-                      disabled={!delegadoPosicion}
-                      className="w-full"
-                    >
-                      <Link2 className="w-4 h-4 mr-1" /> Vincular
-                    </Button>
-                  ) : (
-                    <div className="text-center text-sm text-primary font-medium py-1">
-                      ✓ Jugador vinculado como {delegadoPosicion === 'delegado_1' ? 'Delegado 1' : 'Delegado 2'}
-                    </div>
-                  )}
-                </div>
+                </section>
               )}
-            </section>
+
+              {/* MODULES */}
+              <section className="space-y-3">
+                <h3 className="text-sm font-semibold text-foreground border-b pb-1">
+                  {role === 'delegado' ? '4.' : '3.'} Módulos permitidos
+                </h3>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {MODULE_KEYS.map((key) => (
+                    <label key={key} className="flex items-center gap-2 text-sm cursor-pointer">
+                      <Checkbox checked={modules[key]} onCheckedChange={() => toggleModule(key)} />
+                      <span>{MODULE_LABELS[key]}</span>
+                    </label>
+                  ))}
+                </div>
+              </section>
+            </>
           )}
         </div>
 

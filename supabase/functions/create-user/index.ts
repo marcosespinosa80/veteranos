@@ -10,16 +10,12 @@ function dniDigits(v: string) {
 }
 
 interface CreateUserPayload {
-  username: string;          // DNI (with or without dots) OR fallback identifier
-  recovery_email: string;    // real email used for auth + recovery
+  jugador_id: string;            // REQUIRED: every user is born from a player
+  recovery_email?: string | null; // optional real email
   password: string;
-  nombre: string;
-  apellido: string;
   role: string;
   activo: boolean;
-  equipo_id: string | null;
-  jugador_id_delegado: string | null;
-  delegado_posicion: "delegado_1" | "delegado_2" | null;
+  delegado_posicion?: "delegado_1" | "delegado_2" | null;
   modules: Array<{ module_key: string; enabled: boolean }>;
 }
 
@@ -28,31 +24,11 @@ Deno.serve(async (req) => {
 
   try {
     const payload: CreateUserPayload = await req.json();
-    const {
-      username,
-      recovery_email,
-      password,
-      nombre,
-      apellido,
-      role,
-      activo,
-      equipo_id,
-      jugador_id_delegado,
-      delegado_posicion,
-      modules,
-    } = payload;
+    const { jugador_id, recovery_email, password, role, activo, delegado_posicion, modules } = payload;
 
-    if (!username || !recovery_email || !password || !nombre?.trim() || !apellido?.trim() || !role) {
-      throw new Error("Faltan campos obligatorios");
-    }
-    if (password.length < 8) throw new Error("La contraseña debe tener al menos 8 caracteres");
-
-    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const cleanEmail = recovery_email.trim().toLowerCase();
-    if (!emailRe.test(cleanEmail)) throw new Error("Email de recuperación inválido");
-
-    const dni = dniDigits(username);
-    if (!dni || dni.length < 7) throw new Error("DNI inválido (7 u 8 dígitos)");
+    if (!jugador_id) throw new Error("Falta el jugador vinculado");
+    if (!password || password.length < 8) throw new Error("La contraseña debe tener al menos 8 caracteres");
+    if (!role) throw new Error("Falta el rol");
 
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -60,46 +36,68 @@ Deno.serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
+    // Load player
+    const { data: jugador, error: jErr } = await supabaseAdmin
+      .from("jugadores")
+      .select("id, nombre, apellido, dni, estado, equipo_id")
+      .eq("id", jugador_id)
+      .single();
+    if (jErr || !jugador) throw new Error("Jugador no encontrado");
+
+    const dni = dniDigits(jugador.dni || "");
+    if (!dni || dni.length < 7) throw new Error("El jugador no tiene un DNI válido");
+
+    // Uniqueness on jugador_id and username
+    const { data: existingByJugador } = await supabaseAdmin
+      .from("profiles").select("id").eq("jugador_id", jugador_id).maybeSingle();
+    if (existingByJugador) throw new Error("Este jugador ya tiene un usuario asociado");
+
+    const { data: existingByUsername } = await supabaseAdmin
+      .from("profiles").select("id").eq("username", dni).maybeSingle();
+    if (existingByUsername) throw new Error("Ya existe un usuario con ese DNI");
+
     // Delegado validation
-    let resolvedEquipoId = equipo_id;
+    let resolvedEquipoId = jugador.equipo_id;
     if (role === "delegado") {
-      if (!jugador_id_delegado) throw new Error("Delegado requiere un jugador vinculado");
-      if (!delegado_posicion) throw new Error("Delegado requiere posición (delegado_1 o delegado_2)");
-
-      const { data: jugador, error: jErr } = await supabaseAdmin
-        .from("jugadores")
-        .select("id, equipo_id, estado, nombre, apellido")
-        .eq("id", jugador_id_delegado)
-        .single();
-
-      if (jErr || !jugador) throw new Error("Jugador no encontrado");
-      if (jugador.estado !== "habilitado") throw new Error("El jugador debe estar habilitado");
+      if (!delegado_posicion) throw new Error("Delegado requiere posición (Delegado 1 o Delegado 2)");
+      if (jugador.estado !== "habilitado") throw new Error("El jugador debe estar habilitado para ser delegado");
       if (!jugador.equipo_id) throw new Error("El jugador no tiene equipo asignado");
-
-      resolvedEquipoId = jugador.equipo_id;
     }
 
-    // Create auth user with real recovery email
+    // Validate recovery email if present, else build synthetic
+    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const cleanRecovery = (recovery_email || "").trim().toLowerCase();
+    if (cleanRecovery && !emailRe.test(cleanRecovery)) throw new Error("Email de recuperación inválido");
+
+    const authEmail = cleanRecovery || `${dni}@lvfc.local`;
+
+    // Create auth user
     const { data: userData, error: userError } = await supabaseAdmin.auth.admin.createUser({
-      email: cleanEmail,
+      email: authEmail,
       password,
       email_confirm: true,
     });
     if (userError) throw userError;
     const userId = userData.user.id;
 
-    // Update profile (created by trigger)
+    // Update profile (created by trigger handle_new_user)
     const profileUpdate: Record<string, unknown> = {
-      nombre: nombre.trim(),
-      apellido: apellido.trim(),
+      nombre: jugador.nombre,
+      apellido: jugador.apellido,
       activo: activo ?? true,
-      equipo_id: role === "delegado" ? resolvedEquipoId : null,
+      equipo_id: jugador.equipo_id,
       username: dni,
-      email: cleanEmail,
-      recovery_email: cleanEmail,
+      email: authEmail,
+      recovery_email: cleanRecovery || null,
       must_change_password: false,
+      jugador_id,
     };
-    await supabaseAdmin.from("profiles").update(profileUpdate).eq("id", userId);
+    const { error: pErr } = await supabaseAdmin.from("profiles").update(profileUpdate).eq("id", userId);
+    if (pErr) {
+      // Rollback auth user on failure
+      await supabaseAdmin.auth.admin.deleteUser(userId);
+      throw pErr;
+    }
 
     // Role
     await supabaseAdmin.from("user_roles").insert({ user_id: userId, role });
@@ -113,7 +111,7 @@ Deno.serve(async (req) => {
     // Assign delegado position on equipo
     if (role === "delegado" && resolvedEquipoId && delegado_posicion) {
       const updateField: Record<string, string> = {};
-      updateField[delegado_posicion] = jugador_id_delegado!;
+      updateField[delegado_posicion] = jugador.id;
       const { error: eqErr } = await supabaseAdmin
         .from("equipos").update(updateField).eq("id", resolvedEquipoId);
       if (eqErr) console.error("Error assigning delegado to equipo:", eqErr);
