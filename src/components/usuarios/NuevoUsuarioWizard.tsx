@@ -33,7 +33,8 @@ export default function NuevoUsuarioWizard({ open, onOpenChange }: Props) {
 
   // Form state
   const [role, setRole] = useState<UserRole>('admin_comun');
-  const [username, setUsername] = useState('');
+  const [dni, setDni] = useState('');
+  const [recoveryEmail, setRecoveryEmail] = useState('');
   const [password, setPassword] = useState('');
   const [activo, setActivo] = useState(true);
   const [nombre, setNombre] = useState('');
@@ -50,7 +51,8 @@ export default function NuevoUsuarioWizard({ open, onOpenChange }: Props) {
 
   const resetForm = () => {
     setRole('admin_comun');
-    setUsername('');
+    setDni('');
+    setRecoveryEmail('');
     setPassword('');
     setActivo(true);
     setNombre('');
@@ -126,7 +128,8 @@ export default function NuevoUsuarioWizard({ open, onOpenChange }: Props) {
       const modulesList = MODULE_KEYS.map((k) => ({ module_key: k, enabled: modules[k] }));
 
       const payload: any = {
-        email_or_username: username.trim(),
+        username: dni.trim(),
+        recovery_email: recoveryEmail.trim(),
         password,
         nombre: nombre.trim(),
         apellido: apellido.trim(),
@@ -158,8 +161,13 @@ export default function NuevoUsuarioWizard({ open, onOpenChange }: Props) {
     onError: (err: Error) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
   });
 
+  const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
   const canSubmit = () => {
-    if (!username.trim() || password.length < 8 || !nombre.trim() || !apellido.trim()) return false;
+    const dniClean = dni.replace(/\D/g, '');
+    if (dniClean.length < 7 || dniClean.length > 8) return false;
+    if (!emailRe.test(recoveryEmail.trim())) return false;
+    if (password.length < 8 || !nombre.trim() || !apellido.trim()) return false;
     if (role === 'delegado') {
       if (!jugadorFound || !vinculado || !delegadoPosicion) return false;
     }
