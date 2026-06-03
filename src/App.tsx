@@ -6,6 +6,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import Login from "./pages/Login";
+import RecuperarPassword from "./pages/RecuperarPassword";
+import CambiarPassword from "./pages/CambiarPassword";
 import DashboardPage from "./pages/DashboardPage";
 import EquiposPage from "./pages/EquiposPage";
 import JugadoresPage from "./pages/JugadoresPage";
@@ -43,6 +45,8 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/recuperar" element={<RecuperarPassword />} />
+            <Route path="/cambiar-password" element={<CambiarPassword />} />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             
             {/* Public */}

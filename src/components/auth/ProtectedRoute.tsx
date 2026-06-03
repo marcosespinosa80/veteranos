@@ -4,7 +4,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { ROUTE_MODULE_MAP } from '@/lib/modules';
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, role, loading } = useAuth();
+  const { user, role, loading, profile } = useAuth();
   const { hasModule, isLoading: permLoading } = usePermissions();
   const location = useLocation();
 
@@ -14,6 +14,10 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (profile?.must_change_password && location.pathname !== '/cambiar-password') {
+    return <Navigate to="/cambiar-password" replace />;
   }
 
   const moduleKey = ROUTE_MODULE_MAP[location.pathname];

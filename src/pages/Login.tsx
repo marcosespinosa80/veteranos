@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,7 +12,7 @@ import logoLvfc from '@/assets/logo-lvfc.png';
 export default function Login() {
   const navigate = useNavigate();
   const { signIn, user, loading: authLoading } = useAuth();
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -28,11 +29,32 @@ export default function Login() {
     setError('');
     setLoading(true);
 
-    const { error } = await signIn(email, password);
-    setLoading(false);
+    const raw = identifier.trim();
+    let emailToUse = raw;
 
-    if (error) {
-      setError('Email o contraseña incorrectos');
+    try {
+      if (!raw.includes('@')) {
+        // DNI flow → resolve via edge function
+        const { data, error: fnErr } = await supabase.functions.invoke('resolve-login-identifier', {
+          body: { identifier: raw },
+        });
+        if (fnErr || !data?.email) {
+          setLoading(false);
+          setError('Usuario o contraseña incorrectos.');
+          return;
+        }
+        emailToUse = data.email;
+      }
+
+      const { error: signErr } = await signIn(emailToUse, password);
+      setLoading(false);
+
+      if (signErr) {
+        setError('Usuario o contraseña incorrectos.');
+      }
+    } catch (_e) {
+      setLoading(false);
+      setError('Usuario o contraseña incorrectos.');
     }
   };
 
@@ -64,15 +86,15 @@ export default function Login() {
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="identifier">DNI / Email</Label>
                 <Input
-                  id="email"
-                  type="email"
-                  placeholder="tu@email.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  id="identifier"
+                  type="text"
+                  placeholder="Ingresá tu DNI o email"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
                   required
-                  autoComplete="email"
+                  autoComplete="username"
                 />
               </div>
 
@@ -123,9 +145,9 @@ export default function Login() {
 
         <p className="text-xs text-center text-muted-foreground">
           ¿Olvidaste tu contraseña?{' '}
-          <button className="text-primary hover:underline font-medium">
+          <Link to="/recuperar" className="text-primary hover:underline font-medium">
             Recuperar acceso
-          </button>
+          </Link>
         </p>
       </div>
     </div>

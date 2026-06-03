@@ -33,7 +33,8 @@ export default function NuevoUsuarioWizard({ open, onOpenChange }: Props) {
 
   // Form state
   const [role, setRole] = useState<UserRole>('admin_comun');
-  const [username, setUsername] = useState('');
+  const [dni, setDni] = useState('');
+  const [recoveryEmail, setRecoveryEmail] = useState('');
   const [password, setPassword] = useState('');
   const [activo, setActivo] = useState(true);
   const [nombre, setNombre] = useState('');
@@ -50,7 +51,8 @@ export default function NuevoUsuarioWizard({ open, onOpenChange }: Props) {
 
   const resetForm = () => {
     setRole('admin_comun');
-    setUsername('');
+    setDni('');
+    setRecoveryEmail('');
     setPassword('');
     setActivo(true);
     setNombre('');
@@ -126,7 +128,8 @@ export default function NuevoUsuarioWizard({ open, onOpenChange }: Props) {
       const modulesList = MODULE_KEYS.map((k) => ({ module_key: k, enabled: modules[k] }));
 
       const payload: any = {
-        email_or_username: username.trim(),
+        username: dni.trim(),
+        recovery_email: recoveryEmail.trim(),
         password,
         nombre: nombre.trim(),
         apellido: apellido.trim(),
@@ -158,8 +161,13 @@ export default function NuevoUsuarioWizard({ open, onOpenChange }: Props) {
     onError: (err: Error) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
   });
 
+  const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
   const canSubmit = () => {
-    if (!username.trim() || password.length < 8 || !nombre.trim() || !apellido.trim()) return false;
+    const dniClean = dni.replace(/\D/g, '');
+    if (dniClean.length < 7 || dniClean.length > 8) return false;
+    if (!emailRe.test(recoveryEmail.trim())) return false;
+    if (password.length < 8 || !nombre.trim() || !apellido.trim()) return false;
     if (role === 'delegado') {
       if (!jugadorFound || !vinculado || !delegadoPosicion) return false;
     }
@@ -205,14 +213,26 @@ export default function NuevoUsuarioWizard({ open, onOpenChange }: Props) {
                 </div>
               </div>
             </div>
-            <div className="space-y-2">
-              <Label>Usuario (email o DNI) *</Label>
-              <Input
-                placeholder="ejemplo@mail.com o 12345678"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">Si ingresás un DNI, se generará un email interno automáticamente.</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>DNI / Usuario *</Label>
+                <DniInput
+                  placeholder="28.404.402"
+                  value={dni}
+                  onChange={setDni}
+                />
+                <p className="text-xs text-muted-foreground">Se usará como nombre de usuario para iniciar sesión.</p>
+              </div>
+              <div className="space-y-2">
+                <Label>Email de recuperación *</Label>
+                <Input
+                  type="email"
+                  placeholder="usuario@gmail.com"
+                  value={recoveryEmail}
+                  onChange={(e) => setRecoveryEmail(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">Email real donde se enviará el link para recuperar contraseña.</p>
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Contraseña inicial * (mínimo 8 caracteres)</Label>
