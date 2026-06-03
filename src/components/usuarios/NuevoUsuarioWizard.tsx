@@ -213,14 +213,26 @@ export default function NuevoUsuarioWizard({ open, onOpenChange }: Props) {
                 </div>
               </div>
             </div>
-            <div className="space-y-2">
-              <Label>Usuario (email o DNI) *</Label>
-              <Input
-                placeholder="ejemplo@mail.com o 12345678"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">Si ingresás un DNI, se generará un email interno automáticamente.</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>DNI / Usuario *</Label>
+                <DniInput
+                  placeholder="28.404.402"
+                  value={dni}
+                  onChange={setDni}
+                />
+                <p className="text-xs text-muted-foreground">Se usará como nombre de usuario para iniciar sesión.</p>
+              </div>
+              <div className="space-y-2">
+                <Label>Email de recuperación *</Label>
+                <Input
+                  type="email"
+                  placeholder="usuario@gmail.com"
+                  value={recoveryEmail}
+                  onChange={(e) => setRecoveryEmail(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">Email real donde se enviará el link para recuperar contraseña.</p>
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Contraseña inicial * (mínimo 8 caracteres)</Label>
