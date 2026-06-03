@@ -38,7 +38,7 @@ const estadoLabels: Record<string, string> = {
 };
 
 export default function Pases() {
-  const { user, role } = useAuth();
+  const { user, role, profile, loading } = useAuth();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [filterEstado, setFilterEstado] = useState<string>('all');
@@ -53,17 +53,24 @@ export default function Pases() {
   const [montoRegistro, setMontoRegistro] = useState('');
   const [motivoDialog, setMotivoDialog] = useState<{ open: boolean; estado: 'observado' | 'rechazado' | null; paseId: string | null; texto: string }>({ open: false, estado: null, paseId: null, texto: '' });
   const isAdmin = role === 'admin_general' || role === 'admin_comun';
+  const isDelegado = role === 'delegado';
+  const delegadoEquipoId = profile?.equipo_id ?? null;
 
   const { data: pases = [], isLoading } = useQuery({
-    queryKey: ['pases'],
+    queryKey: ['pases', role, delegadoEquipoId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('pases')
         .select('*, jugador:jugadores(nombre, apellido, dni), club_origen:equipos!pases_club_origen_id_fkey(nombre_equipo), club_destino:equipos!pases_club_destino_id_fkey(nombre_equipo), iniciador:profiles!pases_iniciado_por_fkey(nombre, apellido)')
         .order('created_at', { ascending: false });
+      if (isDelegado && delegadoEquipoId) {
+        query = query.or(`club_origen_id.eq.${delegadoEquipoId},club_destino_id.eq.${delegadoEquipoId}`);
+      }
+      const { data, error } = await query;
       if (error) throw error;
       return data;
     },
+    enabled: !loading && !!user && !!role,
   });
 
   const { data: equipos = [] } = useQuery({
@@ -74,6 +81,8 @@ export default function Pases() {
       return data;
     },
   });
+
+  const clubOrigenDelegado = equipos.find((e) => e.id === delegadoEquipoId);
 
   // Tarifa de pase activa vigente
   const { data: tarifaPase } = useQuery({
