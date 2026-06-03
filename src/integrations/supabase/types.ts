@@ -1235,6 +1235,7 @@ export type Database = {
           email: string | null
           equipo_id: string | null
           id: string
+          jugador_id: string | null
           must_change_password: boolean
           nombre: string
           recovery_email: string | null
@@ -1248,6 +1249,7 @@ export type Database = {
           email?: string | null
           equipo_id?: string | null
           id: string
+          jugador_id?: string | null
           must_change_password?: boolean
           nombre?: string
           recovery_email?: string | null
@@ -1261,6 +1263,7 @@ export type Database = {
           email?: string | null
           equipo_id?: string | null
           id?: string
+          jugador_id?: string | null
           must_change_password?: boolean
           nombre?: string
           recovery_email?: string | null
@@ -1273,6 +1276,13 @@ export type Database = {
             columns: ["equipo_id"]
             isOneToOne: false
             referencedRelation: "equipos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_jugador_id_fkey"
+            columns: ["jugador_id"]
+            isOneToOne: false
+            referencedRelation: "jugadores"
             referencedColumns: ["id"]
           },
         ]
