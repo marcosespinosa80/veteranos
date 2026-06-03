@@ -52,7 +52,16 @@ Deno.serve(async (req) => {
     }
 
     const { error: updErr } = await admin.auth.admin.updateUserById(user_id, { password: new_password });
-    if (updErr) throw updErr;
+    if (updErr) {
+      const msg = String(updErr.message || "");
+      if (/weak|pwned|known|easy to guess/i.test(msg)) {
+        return new Response(
+          JSON.stringify({ error: "La contraseña es demasiado débil o figura en filtraciones conocidas. Elegí una más segura (combiná mayúsculas, minúsculas, números y símbolos)." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      throw updErr;
+    }
 
     await admin.from("profiles").update({ must_change_password: true }).eq("id", user_id);
 
