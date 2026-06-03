@@ -38,7 +38,7 @@ const estadoLabels: Record<string, string> = {
 };
 
 export default function Pases() {
-  const { user, role } = useAuth();
+  const { user, role, profile, loading } = useAuth();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [filterEstado, setFilterEstado] = useState<string>('all');
@@ -53,17 +53,24 @@ export default function Pases() {
   const [montoRegistro, setMontoRegistro] = useState('');
   const [motivoDialog, setMotivoDialog] = useState<{ open: boolean; estado: 'observado' | 'rechazado' | null; paseId: string | null; texto: string }>({ open: false, estado: null, paseId: null, texto: '' });
   const isAdmin = role === 'admin_general' || role === 'admin_comun';
+  const isDelegado = role === 'delegado';
+  const delegadoEquipoId = profile?.equipo_id ?? null;
 
   const { data: pases = [], isLoading } = useQuery({
-    queryKey: ['pases'],
+    queryKey: ['pases', role, delegadoEquipoId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from('pases')
         .select('*, jugador:jugadores(nombre, apellido, dni), club_origen:equipos!pases_club_origen_id_fkey(nombre_equipo), club_destino:equipos!pases_club_destino_id_fkey(nombre_equipo), iniciador:profiles!pases_iniciado_por_fkey(nombre, apellido)')
         .order('created_at', { ascending: false });
+      if (isDelegado && delegadoEquipoId) {
+        query = query.or(`club_origen_id.eq.${delegadoEquipoId},club_destino_id.eq.${delegadoEquipoId}`);
+      }
+      const { data, error } = await query;
       if (error) throw error;
       return data;
     },
+    enabled: !loading && !!user && !!role,
   });
 
   const { data: equipos = [] } = useQuery({
@@ -74,6 +81,8 @@ export default function Pases() {
       return data;
     },
   });
+
+  const clubOrigenDelegado = equipos.find((e) => e.id === delegadoEquipoId);
 
   // Tarifa de pase activa vigente
   const { data: tarifaPase } = useQuery({
@@ -106,22 +115,32 @@ export default function Pases() {
       setSearchError('Ingresá un DNI');
       return;
     }
-    const { data, error } = await supabase
+    if (isDelegado && !delegadoEquipoId) {
+      setSearchError('Tu usuario no tiene club asignado. Contactá al administrador.');
+      return;
+    }
+    let q = supabase
       .from('jugadores')
       .select('id, nombre, apellido, dni, equipo_id, categoria_id, estado, suspendido_fechas, categorias(nombre_categoria), equipos!jugadores_equipo_id_fkey(nombre_equipo)')
-      .or(`dni.eq.${dniNorm},dni.eq.${createForm.dni}`)
-      .limit(1)
-      .maybeSingle();
+      .or(`dni.eq.${dniNorm},dni.eq.${createForm.dni}`);
+    if (isDelegado && delegadoEquipoId) {
+      q = q.eq('equipo_id', delegadoEquipoId);
+    }
+    const { data, error } = await q.limit(1).maybeSingle();
     if (error) {
       setSearchError(error.message);
       return;
     }
     if (!data) {
-      setSearchError('Jugador no encontrado');
+      setSearchError(isDelegado ? 'No se encontró un jugador con ese DNI en tu club.' : 'Jugador no encontrado');
       return;
     }
     if (!data.equipo_id) {
       setSearchError('El jugador no tiene club asignado');
+      return;
+    }
+    if (isDelegado && data.equipo_id !== delegadoEquipoId) {
+      setSearchError('Solo podés iniciar pases de jugadores de tu club.');
       return;
     }
     const { data: deudas } = await supabase
@@ -144,6 +163,10 @@ export default function Pases() {
 
   const validarPase = (): string | null => {
     if (!jugadorEncontrado) return 'Buscá un jugador válido primero';
+    if (isDelegado) {
+      if (!delegadoEquipoId) return 'Tu usuario no tiene club asignado.';
+      if (jugadorEncontrado.equipo_id !== delegadoEquipoId) return 'Solo podés iniciar pases de jugadores de tu club.';
+    }
     const bloqueo = getBloqueo();
     if (bloqueo) return bloqueo;
     if (!createForm.club_destino_id) return 'Seleccioná el club de destino';
@@ -372,6 +395,13 @@ export default function Pases() {
             <DialogDescription>Iniciá un pase de jugador entre clubes.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            {isDelegado && (
+              <div className="rounded-md border bg-muted/30 p-3 text-xs">
+                <p className="text-muted-foreground">Club de Origen (fijo)</p>
+                <p className="font-medium text-sm">{clubOrigenDelegado?.nombre_equipo || '— Sin club asignado —'}</p>
+                <p className="text-muted-foreground mt-1">Solo podés iniciar pases de jugadores de tu club.</p>
+              </div>
+            )}
             {/* 1. Buscar jugador por DNI */}
             <div className="space-y-2">
               <Label>1. Buscar Jugador por DNI *</Label>
