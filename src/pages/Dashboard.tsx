@@ -155,10 +155,43 @@ function StatusRow({ label, status, hint }: { label: string; status: 'ok' | 'war
 }
 
 export default function Dashboard() {
-  const { profile } = useAuth();
+  const { profile, role, user, loading: authLoading } = useAuth();
   const { hasModule } = usePermissions();
+  const navigate = useNavigate();
+  const isDelegado = role === 'delegado';
+  const delegadoEquipoId = profile?.equipo_id ?? null;
 
   const firstName = profile?.nombre?.split(' ')[0] || 'Bienvenido';
+
+  // Delegado's club card data
+  const { data: miClub } = useQuery({
+    queryKey: ['mi-club', delegadoEquipoId],
+    enabled: !authLoading && !!user && isDelegado && !!delegadoEquipoId,
+    queryFn: async () => {
+      const [eqRes, catRes, jugRes] = await Promise.all([
+        supabase
+          .from('equipos')
+          .select('*, delegado1:jugadores!equipos_delegado_1_jugador_fkey(id, nombre, apellido), delegado2:jugadores!equipos_delegado_2_jugador_fkey(id, nombre, apellido)')
+          .eq('id', delegadoEquipoId!)
+          .maybeSingle(),
+        supabase
+          .from('equipo_categoria')
+          .select('categoria_id, categorias(id, nombre_categoria)')
+          .eq('equipo_id', delegadoEquipoId!)
+          .eq('temporada', 2026),
+        supabase
+          .from('jugadores')
+          .select('id', { count: 'exact', head: true })
+          .eq('equipo_id', delegadoEquipoId!),
+      ]);
+      if (eqRes.error) throw eqRes.error;
+      return {
+        equipo: eqRes.data,
+        categorias: ((catRes.data ?? []).map((d: any) => d.categorias).filter(Boolean)) as { id: string; nombre_categoria: string }[],
+        jugadorCount: jugRes.count ?? 0,
+      };
+    },
+  });
 
   // KPIs
   const { data: jugadorCount = 0 } = useQuery({
