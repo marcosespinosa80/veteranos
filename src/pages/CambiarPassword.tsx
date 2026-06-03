@@ -48,9 +48,10 @@ export default function CambiarPassword() {
     if (uid) {
       await supabase.from('profiles').update({ must_change_password: false }).eq('id', uid);
     }
-    setLoading(false);
     toast({ title: 'Contraseña actualizada correctamente' });
-    navigate('/dashboard', { replace: true });
+    await supabase.auth.signOut();
+    setLoading(false);
+    navigate('/login', { replace: true });
   };
 
   return (
