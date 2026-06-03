@@ -205,16 +205,39 @@ export default function ListasBuenaFe() {
 
   const createMutation = useMutation({
     mutationFn: async () => {
+      const equipo_id = isDelegado ? delegadoEquipoId : createForm.equipo_id;
+      if (!equipo_id) throw new Error('No tenés un club asignado. Comunicate con la administración.');
+      if (!createForm.categoria_id) throw new Error('Seleccioná una categoría');
+
+      // Frontend pre-check
+      const { data: existing } = await supabase
+        .from('listas_buena_fe')
+        .select('id')
+        .eq('equipo_id', equipo_id)
+        .eq('categoria_id', createForm.categoria_id)
+        .eq('temporada', TEMPORADA_ACTUAL)
+        .maybeSingle();
+      if (existing) {
+        throw new Error('Ya existe una Lista de Buena Fe para este equipo, categoría y temporada.');
+      }
+
       const { data, error } = await supabase.from('listas_buena_fe').insert({
-        equipo_id: createForm.equipo_id,
+        equipo_id,
         categoria_id: createForm.categoria_id,
+        temporada: TEMPORADA_ACTUAL,
         creada_por: user!.id,
       }).select().single();
-      if (error) throw error;
+      if (error) {
+        if ((error as any).code === '23505') {
+          throw new Error('Ya existe una Lista de Buena Fe para este equipo, categoría y temporada.');
+        }
+        throw error;
+      }
       return data;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['listas-buena-fe'] });
+      queryClient.invalidateQueries({ queryKey: ['listas-categorias-usadas'] });
       setCreateOpen(false);
       setCreateForm({ equipo_id: '', categoria_id: '' });
       setSelectedLista(data);
@@ -223,6 +246,7 @@ export default function ListasBuenaFe() {
     },
     onError: (err: Error) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
   });
+
 
   const addItemsMutation = useMutation({
     mutationFn: async (jugadorIds: string[]) => {
