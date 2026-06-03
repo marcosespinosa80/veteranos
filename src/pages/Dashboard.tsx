@@ -4,6 +4,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { ClubCard } from '@/components/clubes/ClubCard';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import {
@@ -153,10 +155,43 @@ function StatusRow({ label, status, hint }: { label: string; status: 'ok' | 'war
 }
 
 export default function Dashboard() {
-  const { profile } = useAuth();
+  const { profile, role, user, loading: authLoading } = useAuth();
   const { hasModule } = usePermissions();
+  const navigate = useNavigate();
+  const isDelegado = role === 'delegado';
+  const delegadoEquipoId = profile?.equipo_id ?? null;
 
   const firstName = profile?.nombre?.split(' ')[0] || 'Bienvenido';
+
+  // Delegado's club card data
+  const { data: miClub } = useQuery({
+    queryKey: ['mi-club', delegadoEquipoId],
+    enabled: !authLoading && !!user && isDelegado && !!delegadoEquipoId,
+    queryFn: async () => {
+      const [eqRes, catRes, jugRes] = await Promise.all([
+        supabase
+          .from('equipos')
+          .select('*, delegado1:jugadores!equipos_delegado_1_jugador_fkey(id, nombre, apellido), delegado2:jugadores!equipos_delegado_2_jugador_fkey(id, nombre, apellido)')
+          .eq('id', delegadoEquipoId!)
+          .maybeSingle(),
+        supabase
+          .from('equipo_categoria')
+          .select('categoria_id, categorias(id, nombre_categoria)')
+          .eq('equipo_id', delegadoEquipoId!)
+          .eq('temporada', 2026),
+        supabase
+          .from('jugadores')
+          .select('id', { count: 'exact', head: true })
+          .eq('equipo_id', delegadoEquipoId!),
+      ]);
+      if (eqRes.error) throw eqRes.error;
+      return {
+        equipo: eqRes.data,
+        categorias: ((catRes.data ?? []).map((d: any) => d.categorias).filter(Boolean)) as { id: string; nombre_categoria: string }[],
+        jugadorCount: jugRes.count ?? 0,
+      };
+    },
+  });
 
   // KPIs
   const { data: jugadorCount = 0 } = useQuery({
@@ -256,6 +291,40 @@ export default function Dashboard() {
           </Button>
         )}
       </div>
+
+      {/* Mi Club (delegado) */}
+      {isDelegado && (
+        delegadoEquipoId && miClub?.equipo ? (
+          <div>
+            <h3 className="text-base font-semibold mb-3 flex items-center gap-2">
+              <span className="w-1 h-5 bg-primary rounded-full" />
+              Mi Club
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              <ClubCard
+                equipo={miClub.equipo}
+                categorias={miClub.categorias}
+                jugadorCount={miClub.jugadorCount}
+                isAdmin={false}
+                onEdit={() => {}}
+                onViewPlantel={() => navigate(`/jugadores?equipo=${delegadoEquipoId}`)}
+              />
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button asChild variant="outline" size="sm">
+                <Link to="/listas-buena-fe">Ver Listas de Buena Fe</Link>
+              </Button>
+              <Button asChild variant="outline" size="sm">
+                <Link to="/pases">Ver Pases</Link>
+              </Button>
+            </div>
+          </div>
+        ) : !delegadoEquipoId ? (
+          <div className="p-6 text-center text-muted-foreground border rounded-lg">
+            No tenés un club asignado. Comunicate con la administración.
+          </div>
+        ) : null
+      )}
 
       {/* KPI grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">

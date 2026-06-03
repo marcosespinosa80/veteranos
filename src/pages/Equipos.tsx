@@ -15,7 +15,7 @@ import {
 import { toast } from '@/hooks/use-toast';
 
 export default function Equipos() {
-  const { role } = useAuth();
+  const { role, profile, loading: authLoading, user } = useAuth();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -24,14 +24,19 @@ export default function Equipos() {
   const [plantelEquipo, setPlantelEquipo] = useState<any>(null);
   const [toggleTarget, setToggleTarget] = useState<any>(null);
   const isAdmin = role === 'admin_general' || role === 'admin_comun';
+  const isDelegado = role === 'delegado';
+  const delegadoEquipoId = profile?.equipo_id ?? null;
 
   const { data: equipos = [], isLoading } = useQuery({
-    queryKey: ['equipos'],
+    queryKey: ['equipos', role, delegadoEquipoId],
+    enabled: !authLoading && !!user && (!isDelegado || !!delegadoEquipoId),
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from('equipos')
         .select('*, delegado1:jugadores!equipos_delegado_1_jugador_fkey(id, nombre, apellido), delegado2:jugadores!equipos_delegado_2_jugador_fkey(id, nombre, apellido)')
         .order('nombre_equipo');
+      if (isDelegado && delegadoEquipoId) q = q.eq('id', delegadoEquipoId);
+      const { data, error } = await q;
       if (error) throw error;
       return data;
     },
@@ -103,25 +108,37 @@ export default function Equipos() {
       return a.nombre_equipo.localeCompare(b.nombre_equipo);
     });
 
+  if (isDelegado && !delegadoEquipoId) {
+    return (
+      <div className="p-8 text-center text-muted-foreground border rounded-lg">
+        No tenés un club asignado. Comunicate con la administración.
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       {/* Header */}
       <div>
-        <h2 className="text-lg font-semibold">CLUBES</h2>
-        <p className="text-sm text-muted-foreground">Clubes registrados en la liga</p>
+        <h2 className="text-lg font-semibold">{isDelegado ? 'MI CLUB' : 'CLUBES'}</h2>
+        <p className="text-sm text-muted-foreground">
+          {isDelegado ? 'Información de tu club (solo lectura)' : 'Clubes registrados en la liga'}
+        </p>
       </div>
 
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <div className="relative w-full sm:w-72">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder="Buscar club..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+      {!isDelegado && (
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="relative w-full sm:w-72">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input placeholder="Buscar club..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+          </div>
+          {isAdmin && (
+            <Button onClick={openCreate} className="shrink-0">
+              <Plus className="w-4 h-4 mr-1" /> Nuevo Club
+            </Button>
+          )}
         </div>
-        {isAdmin && (
-          <Button onClick={openCreate} className="shrink-0">
-            <Plus className="w-4 h-4 mr-1" /> Nuevo Club
-          </Button>
-        )}
-      </div>
+      )}
 
       {/* Cards Grid */}
       {isLoading ? (
@@ -139,7 +156,7 @@ export default function Equipos() {
               isAdmin={isAdmin}
               onEdit={() => openEdit(eq)}
               onViewPlantel={() => setPlantelEquipo(eq)}
-              onToggleEstado={() => setToggleTarget(eq)}
+              onToggleEstado={isAdmin ? () => setToggleTarget(eq) : undefined}
             />
           ))}
         </div>
