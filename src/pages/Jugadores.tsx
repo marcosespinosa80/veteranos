@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { DniInput } from '@/components/ui/dni-input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
+
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -136,7 +136,7 @@ export default function Jugadores() {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const isAdmin = role === 'admin_general' || role === 'admin_comun';
   const isDelegado = role === 'delegado';
-  const canEditEstado = isAdmin || role === 'tribunal';
+  
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [hasMovimientos, setHasMovimientos] = useState(false);
