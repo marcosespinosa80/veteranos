@@ -179,11 +179,25 @@ export default function Pases() {
       const err = validarPase();
       if (err) throw new Error(err);
       const monto = Number(tarifaPase!.monto);
+      // For delegates, force club_origen_id from profile.equipo_id (RLS requires this).
+      const club_origen_id = isDelegado ? delegadoEquipoId! : jugadorEncontrado.equipo_id;
+      const club_destino_id = createForm.club_destino_id;
+      // Temp debug logs
+      // eslint-disable-next-line no-console
+      console.log('[Pases] insert payload', {
+        role,
+        userId: user?.id,
+        profileEquipoId: profile?.equipo_id,
+        jugadorEquipoId: jugadorEncontrado?.equipo_id,
+        club_origen_id,
+        club_destino_id,
+      });
       const { data: paseInsertado, error } = await supabase.from('pases').insert({
         jugador_id: jugadorEncontrado.id,
-        club_origen_id: jugadorEncontrado.equipo_id,
-        club_destino_id: createForm.club_destino_id,
+        club_origen_id,
+        club_destino_id,
         categoria_id: jugadorEncontrado.categoria_id,
+        estado: 'iniciado',
         iniciado_por: user!.id,
         monto,
       }).select('id').single();
