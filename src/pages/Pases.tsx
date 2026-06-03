@@ -163,6 +163,10 @@ export default function Pases() {
 
   const validarPase = (): string | null => {
     if (!jugadorEncontrado) return 'Buscá un jugador válido primero';
+    if (isDelegado) {
+      if (!delegadoEquipoId) return 'Tu usuario no tiene club asignado.';
+      if (jugadorEncontrado.equipo_id !== delegadoEquipoId) return 'Solo podés iniciar pases de jugadores de tu club.';
+    }
     const bloqueo = getBloqueo();
     if (bloqueo) return bloqueo;
     if (!createForm.club_destino_id) return 'Seleccioná el club de destino';
