@@ -101,6 +101,24 @@ export default function ListasBuenaFe() {
     },
   });
 
+  // Categorias already used by the selected equipo for current temporada
+  const equipoCreate = isDelegado ? (delegadoEquipoId ?? '') : createForm.equipo_id;
+  const { data: categoriasUsadas = [] } = useQuery({
+    queryKey: ['listas-categorias-usadas', equipoCreate, TEMPORADA_ACTUAL],
+    enabled: createOpen && !!equipoCreate,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('listas_buena_fe')
+        .select('categoria_id')
+        .eq('equipo_id', equipoCreate)
+        .eq('temporada', TEMPORADA_ACTUAL);
+      if (error) throw error;
+      return (data || []).map((r: any) => r.categoria_id).filter(Boolean);
+    },
+  });
+  const categoriasDisponibles = categorias.filter((c: any) => !categoriasUsadas.includes(c.id));
+
+
   // Jugadores for the selected lista's team + category (with deuda flag)
   const { data: jugadoresDisponibles = [] } = useQuery({
     queryKey: ['jugadores-lista', selectedLista?.equipo_id, selectedLista?.categoria_id],
