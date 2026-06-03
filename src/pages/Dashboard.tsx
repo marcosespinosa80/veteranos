@@ -292,6 +292,40 @@ export default function Dashboard() {
         )}
       </div>
 
+      {/* Mi Club (delegado) */}
+      {isDelegado && (
+        delegadoEquipoId && miClub?.equipo ? (
+          <div>
+            <h3 className="text-base font-semibold mb-3 flex items-center gap-2">
+              <span className="w-1 h-5 bg-primary rounded-full" />
+              Mi Club
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              <ClubCard
+                equipo={miClub.equipo}
+                categorias={miClub.categorias}
+                jugadorCount={miClub.jugadorCount}
+                isAdmin={false}
+                onEdit={() => {}}
+                onViewPlantel={() => navigate(`/jugadores?equipo=${delegadoEquipoId}`)}
+              />
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button asChild variant="outline" size="sm">
+                <Link to="/listas-buena-fe">Ver Listas de Buena Fe</Link>
+              </Button>
+              <Button asChild variant="outline" size="sm">
+                <Link to="/pases">Ver Pases</Link>
+              </Button>
+            </div>
+          </div>
+        ) : !delegadoEquipoId ? (
+          <div className="p-6 text-center text-muted-foreground border rounded-lg">
+            No tenés un club asignado. Comunicate con la administración.
+          </div>
+        ) : null
+      )}
+
       {/* KPI grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <KpiCard label="Jugadores" hint="Registrados" value={jugadorCount} icon={Users} to="/jugadores" tone="primary" />
