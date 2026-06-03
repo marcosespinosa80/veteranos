@@ -1235,7 +1235,9 @@ export type Database = {
           email: string | null
           equipo_id: string | null
           id: string
+          must_change_password: boolean
           nombre: string
+          recovery_email: string | null
           updated_at: string
           username: string | null
         }
@@ -1246,7 +1248,9 @@ export type Database = {
           email?: string | null
           equipo_id?: string | null
           id: string
+          must_change_password?: boolean
           nombre?: string
+          recovery_email?: string | null
           updated_at?: string
           username?: string | null
         }
@@ -1257,7 +1261,9 @@ export type Database = {
           email?: string | null
           equipo_id?: string | null
           id?: string
+          must_change_password?: boolean
           nombre?: string
+          recovery_email?: string | null
           updated_at?: string
           username?: string | null
         }
