@@ -32,8 +32,10 @@ const estadoLabels: Record<string, string> = {
   rechazada: 'Rechazada',
 };
 
+const TEMPORADA_ACTUAL = 2026;
+
 export default function ListasBuenaFe() {
-  const { user, role } = useAuth();
+  const { user, role, profile } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
@@ -48,6 +50,9 @@ export default function ListasBuenaFe() {
   const [motivoDialog, setMotivoDialog] = useState<{ open: boolean; estado: 'observada' | 'rechazada' | null }>({ open: false, estado: null });
   const [motivo, setMotivo] = useState('');
   const isAdmin = role === 'admin_general' || role === 'admin_comun';
+  const isDelegado = role === 'delegado';
+  const delegadoEquipoId = profile?.equipo_id ?? null;
+
 
   const openMotivoDialog = (estado: 'observada' | 'rechazada') => {
     setMotivo('');
@@ -95,6 +100,24 @@ export default function ListasBuenaFe() {
       return data;
     },
   });
+
+  // Categorias already used by the selected equipo for current temporada
+  const equipoCreate = isDelegado ? (delegadoEquipoId ?? '') : createForm.equipo_id;
+  const { data: categoriasUsadas = [] } = useQuery({
+    queryKey: ['listas-categorias-usadas', equipoCreate, TEMPORADA_ACTUAL],
+    enabled: createOpen && !!equipoCreate,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('listas_buena_fe')
+        .select('categoria_id')
+        .eq('equipo_id', equipoCreate)
+        .eq('temporada', TEMPORADA_ACTUAL);
+      if (error) throw error;
+      return (data || []).map((r: any) => r.categoria_id).filter(Boolean);
+    },
+  });
+  const categoriasDisponibles = categorias.filter((c: any) => !categoriasUsadas.includes(c.id));
+
 
   // Jugadores for the selected lista's team + category (with deuda flag)
   const { data: jugadoresDisponibles = [] } = useQuery({
@@ -182,16 +205,39 @@ export default function ListasBuenaFe() {
 
   const createMutation = useMutation({
     mutationFn: async () => {
+      const equipo_id = isDelegado ? delegadoEquipoId : createForm.equipo_id;
+      if (!equipo_id) throw new Error('No tenés un club asignado. Comunicate con la administración.');
+      if (!createForm.categoria_id) throw new Error('Seleccioná una categoría');
+
+      // Frontend pre-check
+      const { data: existing } = await supabase
+        .from('listas_buena_fe')
+        .select('id')
+        .eq('equipo_id', equipo_id)
+        .eq('categoria_id', createForm.categoria_id)
+        .eq('temporada', TEMPORADA_ACTUAL)
+        .maybeSingle();
+      if (existing) {
+        throw new Error('Ya existe una Lista de Buena Fe para este equipo, categoría y temporada.');
+      }
+
       const { data, error } = await supabase.from('listas_buena_fe').insert({
-        equipo_id: createForm.equipo_id,
+        equipo_id,
         categoria_id: createForm.categoria_id,
+        temporada: TEMPORADA_ACTUAL,
         creada_por: user!.id,
       }).select().single();
-      if (error) throw error;
+      if (error) {
+        if ((error as any).code === '23505') {
+          throw new Error('Ya existe una Lista de Buena Fe para este equipo, categoría y temporada.');
+        }
+        throw error;
+      }
       return data;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['listas-buena-fe'] });
+      queryClient.invalidateQueries({ queryKey: ['listas-categorias-usadas'] });
       setCreateOpen(false);
       setCreateForm({ equipo_id: '', categoria_id: '' });
       setSelectedLista(data);
@@ -200,6 +246,7 @@ export default function ListasBuenaFe() {
     },
     onError: (err: Error) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
   });
+
 
   const addItemsMutation = useMutation({
     mutationFn: async (jugadorIds: string[]) => {
@@ -403,37 +450,76 @@ export default function ListasBuenaFe() {
             <DialogTitle>Nueva Lista de Buena Fe</DialogTitle>
             <DialogDescription>Seleccioná el equipo y la categoría para la lista.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Equipo *</Label>
-              <Select value={createForm.equipo_id} onValueChange={(v) => setCreateForm({ ...createForm, equipo_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Seleccionar equipo" /></SelectTrigger>
-                <SelectContent>
-                  {equipos.map((e) => <SelectItem key={e.id} value={e.id}>{e.nombre_equipo}</SelectItem>)}
-                </SelectContent>
-              </Select>
+          {isDelegado && !delegadoEquipoId ? (
+            <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+              No tenés un club asignado. Comunicate con la administración.
             </div>
-            <div className="space-y-2">
-              <Label>Categoría *</Label>
-              <Select value={createForm.categoria_id} onValueChange={(v) => setCreateForm({ ...createForm, categoria_id: v })}>
-                <SelectTrigger><SelectValue placeholder="Seleccionar categoría" /></SelectTrigger>
-                <SelectContent>
-                  {categorias.map((c) => <SelectItem key={c.id} value={c.id}>{c.nombre_categoria}</SelectItem>)}
-                </SelectContent>
-              </Select>
+          ) : (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Equipo *</Label>
+                {isDelegado ? (
+                  <Input
+                    readOnly
+                    value={equipos.find((e: any) => e.id === delegadoEquipoId)?.nombre_equipo || 'Mi club'}
+                    className="bg-muted"
+                  />
+                ) : (
+                  <Select value={createForm.equipo_id} onValueChange={(v) => setCreateForm({ ...createForm, equipo_id: v, categoria_id: '' })}>
+                    <SelectTrigger><SelectValue placeholder="Seleccionar equipo" /></SelectTrigger>
+                    <SelectContent>
+                      {equipos.map((e) => <SelectItem key={e.id} value={e.id}>{e.nombre_equipo}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label>Categoría *</Label>
+                {equipoCreate && categoriasDisponibles.length === 0 ? (
+                  <p className="text-sm text-muted-foreground rounded-md border border-dashed p-3">
+                    Este equipo ya tiene listas creadas para todas las categorías.
+                  </p>
+                ) : (
+                  <Select
+                    value={createForm.categoria_id}
+                    onValueChange={(v) => setCreateForm({ ...createForm, categoria_id: v })}
+                    disabled={!equipoCreate}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={equipoCreate ? 'Seleccionar categoría' : 'Seleccioná un equipo primero'} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categoriasDisponibles.map((c: any) => (
+                        <SelectItem key={c.id} value={c.id}>{c.nombre_categoria}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label>Temporada</Label>
+                <Input readOnly value={TEMPORADA_ACTUAL} className="bg-muted" />
+              </div>
             </div>
-          </div>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
             <Button
               onClick={() => createMutation.mutate()}
-              disabled={!createForm.equipo_id || !createForm.categoria_id || createMutation.isPending}
+              disabled={
+                !equipoCreate ||
+                !createForm.categoria_id ||
+                categoriasDisponibles.length === 0 ||
+                createMutation.isPending ||
+                (isDelegado && !delegadoEquipoId)
+              }
             >
               {createMutation.isPending ? 'Creando...' : 'Crear Lista'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
 
       {/* Detail Dialog */}
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
