@@ -71,6 +71,20 @@ Deno.serve(async (req) => {
 
     const authEmail = cleanRecovery || `${dni}@lvfc.local`;
 
+    // Check if an auth user with this email already exists
+    {
+      const { data: list, error: listErr } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 200 });
+      if (listErr) throw listErr;
+      const exists = list?.users?.some((u) => (u.email || "").toLowerCase() === authEmail.toLowerCase());
+      if (exists) {
+        throw new Error(
+          cleanRecovery
+            ? `Ya existe un usuario con el email ${authEmail}`
+            : `Ya existe un usuario con el DNI ${dni}. Si necesitás reasignarlo, eliminá el usuario anterior primero.`
+        );
+      }
+    }
+
     // Create auth user
     const { data: userData, error: userError } = await supabaseAdmin.auth.admin.createUser({
       email: authEmail,
