@@ -395,6 +395,13 @@ export default function Pases() {
             <DialogDescription>Iniciá un pase de jugador entre clubes.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            {isDelegado && (
+              <div className="rounded-md border bg-muted/30 p-3 text-xs">
+                <p className="text-muted-foreground">Club de Origen (fijo)</p>
+                <p className="font-medium text-sm">{clubOrigenDelegado?.nombre_equipo || '— Sin club asignado —'}</p>
+                <p className="text-muted-foreground mt-1">Solo podés iniciar pases de jugadores de tu club.</p>
+              </div>
+            )}
             {/* 1. Buscar jugador por DNI */}
             <div className="space-y-2">
               <Label>1. Buscar Jugador por DNI *</Label>
