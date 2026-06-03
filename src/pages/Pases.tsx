@@ -74,15 +74,36 @@ export default function Pases() {
   });
 
   const { data: equipos = [] } = useQuery({
-    queryKey: ['equipos-select'],
+    queryKey: ['equipos-select', role, delegadoEquipoId],
     queryFn: async () => {
-      const { data, error } = await supabase.from('equipos').select('id, nombre_equipo').eq('estado', 'activo').order('nombre_equipo');
+      let query = supabase
+        .from('equipos')
+        .select('id, nombre_equipo')
+        .eq('estado', 'activo')
+        .order('nombre_equipo');
+      if (isDelegado && delegadoEquipoId) {
+        query = query.neq('id', delegadoEquipoId);
+      }
+      const { data, error } = await query;
       if (error) throw error;
       return data;
     },
+    enabled: !loading && !!user && !!role && (!isDelegado || !!delegadoEquipoId),
   });
 
-  const clubOrigenDelegado = equipos.find((e) => e.id === delegadoEquipoId);
+  const { data: clubOrigenDelegado } = useQuery({
+    queryKey: ['club-origen-delegado', role, delegadoEquipoId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('equipos')
+        .select('id, nombre_equipo')
+        .eq('id', delegadoEquipoId!)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !loading && !!user && isDelegado && !!delegadoEquipoId,
+  });
 
   // Tarifa de pase activa vigente
   const { data: tarifaPase } = useQuery({
@@ -163,13 +184,11 @@ export default function Pases() {
 
   const validarPase = (): string | null => {
     if (!jugadorEncontrado) return 'Buscá un jugador válido primero';
-    if (isDelegado) {
-      if (!delegadoEquipoId) return 'Tu usuario no tiene club asignado.';
-      if (jugadorEncontrado.equipo_id !== delegadoEquipoId) return 'Solo podés iniciar pases de jugadores de tu club.';
-    }
+    if (isDelegado && (!delegadoEquipoId || jugadorEncontrado.equipo_id !== delegadoEquipoId)) return 'Solo podés iniciar pases de jugadores de tu club.';
     const bloqueo = getBloqueo();
     if (bloqueo) return bloqueo;
     if (!createForm.club_destino_id) return 'Seleccioná el club de destino';
+    if (isDelegado && createForm.club_destino_id === delegadoEquipoId) return 'Solo podés iniciar pases de jugadores de tu club.';
     if (createForm.club_destino_id === jugadorEncontrado.equipo_id) return 'El club de destino debe ser distinto al de origen';
     return null;
   };
@@ -178,29 +197,30 @@ export default function Pases() {
     mutationFn: async () => {
       const err = validarPase();
       if (err) throw new Error(err);
-      const monto = Number(tarifaPase!.monto);
-      // For delegates, force club_origen_id from profile.equipo_id (RLS requires this).
-      const club_origen_id = isDelegado ? delegadoEquipoId! : jugadorEncontrado.equipo_id;
-      const club_destino_id = createForm.club_destino_id;
-      // Temp debug logs
-      // eslint-disable-next-line no-console
-      console.log('[Pases] insert payload', {
+      const clubDestinoSeleccionado = createForm.club_destino_id;
+      if (isDelegado && (!profile?.equipo_id || jugadorEncontrado.equipo_id !== profile.equipo_id || clubDestinoSeleccionado === profile.equipo_id)) {
+        throw new Error('Solo podés iniciar pases de jugadores de tu club.');
+      }
+      const monto = Number(tarifaPase!.monto) || null;
+      const payload = {
+        jugador_id: jugadorEncontrado.id,
+        club_origen_id: (isDelegado ? profile!.equipo_id : jugadorEncontrado.equipo_id) as string,
+        club_destino_id: clubDestinoSeleccionado,
+        categoria_id: jugadorEncontrado.categoria_id,
+        estado: 'iniciado' as const,
+        monto,
+        iniciado_por: user!.id,
+      };
+      console.log('DEBUG PASE DELEGADO', {
         role,
         userId: user?.id,
         profileEquipoId: profile?.equipo_id,
+        jugadorId: jugadorEncontrado?.id,
         jugadorEquipoId: jugadorEncontrado?.equipo_id,
-        club_origen_id,
-        club_destino_id,
+        club_origen_id: payload.club_origen_id,
+        club_destino_id: payload.club_destino_id,
       });
-      const { data: paseInsertado, error } = await supabase.from('pases').insert({
-        jugador_id: jugadorEncontrado.id,
-        club_origen_id,
-        club_destino_id,
-        categoria_id: jugadorEncontrado.categoria_id,
-        estado: 'iniciado',
-        iniciado_por: user!.id,
-        monto,
-      }).select('id').single();
+      const { data: paseInsertado, error } = await supabase.from('pases').insert(payload).select('id').single();
       if (error) throw error;
       // Crear cargo pendiente asociado
       const { error: cargoError } = await supabase.from('cargos').insert({
