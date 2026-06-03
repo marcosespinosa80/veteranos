@@ -115,22 +115,32 @@ export default function Pases() {
       setSearchError('Ingresá un DNI');
       return;
     }
-    const { data, error } = await supabase
+    if (isDelegado && !delegadoEquipoId) {
+      setSearchError('Tu usuario no tiene club asignado. Contactá al administrador.');
+      return;
+    }
+    let q = supabase
       .from('jugadores')
       .select('id, nombre, apellido, dni, equipo_id, categoria_id, estado, suspendido_fechas, categorias(nombre_categoria), equipos!jugadores_equipo_id_fkey(nombre_equipo)')
-      .or(`dni.eq.${dniNorm},dni.eq.${createForm.dni}`)
-      .limit(1)
-      .maybeSingle();
+      .or(`dni.eq.${dniNorm},dni.eq.${createForm.dni}`);
+    if (isDelegado && delegadoEquipoId) {
+      q = q.eq('equipo_id', delegadoEquipoId);
+    }
+    const { data, error } = await q.limit(1).maybeSingle();
     if (error) {
       setSearchError(error.message);
       return;
     }
     if (!data) {
-      setSearchError('Jugador no encontrado');
+      setSearchError(isDelegado ? 'No se encontró un jugador con ese DNI en tu club.' : 'Jugador no encontrado');
       return;
     }
     if (!data.equipo_id) {
       setSearchError('El jugador no tiene club asignado');
+      return;
+    }
+    if (isDelegado && data.equipo_id !== delegadoEquipoId) {
+      setSearchError('Solo podés iniciar pases de jugadores de tu club.');
       return;
     }
     const { data: deudas } = await supabase
