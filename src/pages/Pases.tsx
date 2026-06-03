@@ -179,11 +179,25 @@ export default function Pases() {
       const err = validarPase();
       if (err) throw new Error(err);
       const monto = Number(tarifaPase!.monto);
+      // For delegates, force club_origen_id from profile.equipo_id (RLS requires this).
+      const club_origen_id = isDelegado ? delegadoEquipoId! : jugadorEncontrado.equipo_id;
+      const club_destino_id = createForm.club_destino_id;
+      // Temp debug logs
+      // eslint-disable-next-line no-console
+      console.log('[Pases] insert payload', {
+        role,
+        userId: user?.id,
+        profileEquipoId: profile?.equipo_id,
+        jugadorEquipoId: jugadorEncontrado?.equipo_id,
+        club_origen_id,
+        club_destino_id,
+      });
       const { data: paseInsertado, error } = await supabase.from('pases').insert({
         jugador_id: jugadorEncontrado.id,
-        club_origen_id: jugadorEncontrado.equipo_id,
-        club_destino_id: createForm.club_destino_id,
+        club_origen_id,
+        club_destino_id,
         categoria_id: jugadorEncontrado.categoria_id,
+        estado: 'iniciado',
         iniciado_por: user!.id,
         monto,
       }).select('id').single();
@@ -395,10 +409,15 @@ export default function Pases() {
             <DialogDescription>Iniciá un pase de jugador entre clubes.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            {isDelegado && (
+            {isDelegado && !delegadoEquipoId && (
+              <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+                No tenés club asignado. Comunicate con administración.
+              </div>
+            )}
+            {isDelegado && delegadoEquipoId && (
               <div className="rounded-md border bg-muted/30 p-3 text-xs">
                 <p className="text-muted-foreground">Club de Origen (fijo)</p>
-                <p className="font-medium text-sm">{clubOrigenDelegado?.nombre_equipo || '— Sin club asignado —'}</p>
+                <p className="font-medium text-sm">{clubOrigenDelegado?.nombre_equipo || '—'}</p>
                 <p className="text-muted-foreground mt-1">Solo podés iniciar pases de jugadores de tu club.</p>
               </div>
             )}
