@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { DniInput } from '@/components/ui/dni-input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
+
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -136,7 +136,7 @@ export default function Jugadores() {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const isAdmin = role === 'admin_general' || role === 'admin_comun';
   const isDelegado = role === 'delegado';
-  const canEditEstado = isAdmin || role === 'tribunal';
+  
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [hasMovimientos, setHasMovimientos] = useState(false);
@@ -734,56 +734,6 @@ export default function Jugadores() {
               )}
             </div>
 
-            {/* Estado deportivo */}
-            <div className="space-y-1">
-              <Label>Estado (deportivo)</Label>
-              {canEditEstado ? (
-                <Select value={form.estado} onValueChange={(v) => setForm({ ...form, estado: v as any })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="no_habilitado">No habilitado</SelectItem>
-                    <SelectItem value="habilitado">Habilitado</SelectItem>
-                    <SelectItem value="expulsado">Expulsado</SelectItem>
-                  </SelectContent>
-                </Select>
-              ) : (
-                <Input value={form.estado === 'habilitado' ? 'Habilitado' : form.estado === 'expulsado' ? 'Expulsado' : 'No habilitado'} disabled className="bg-muted" />
-              )}
-            </div>
-
-            {/* Activo Club (admin/tribunal only) */}
-            {canEditEstado && (
-              <div className="space-y-1">
-                <Label>Activo (Club)</Label>
-                <div className="flex items-center gap-3 h-10">
-                  <Switch
-                    checked={editingClubInactivo ? false : form.activo_club}
-                    disabled={editingClubInactivo}
-                    onCheckedChange={(v) => setForm({ ...form, activo_club: v })}
-                  />
-                  <span className="text-sm">
-                    {editingClubInactivo ? 'Inactivo (club dado de baja)' : (form.activo_club ? 'Activo' : 'Inactivo')}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* Suspendido fechas (admin/tribunal only) */}
-            {canEditEstado && (
-              <div className="space-y-1">
-                <Label htmlFor="suspendido_fechas">Fechas de suspensión</Label>
-                <Input
-                  id="suspendido_fechas"
-                  type="number"
-                  min="0"
-                  max="99"
-                  value={form.suspendido_fechas ?? 0}
-                  onChange={(e) => setForm({ ...form, suspendido_fechas: Math.max(0, Math.min(99, parseInt(e.target.value) || 0)) })}
-                  placeholder="0"
-                />
-                <p className="text-[10px] text-muted-foreground">0 = sin suspensión</p>
-              </div>
-            )}
 
             {/* Teléfono: 2 campos */}
             <div className="space-y-1 sm:col-span-2">
