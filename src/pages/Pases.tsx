@@ -197,20 +197,20 @@ export default function Pases() {
     mutationFn: async () => {
       const err = validarPase();
       if (err) throw new Error(err);
-      const monto = Number(tarifaPase!.monto) || null;
       const clubDestinoSeleccionado = createForm.club_destino_id;
-      const payload = {
-        jugador_id: jugadorEncontrado.id,
-        club_origen_id: isDelegado ? profile?.equipo_id : jugadorEncontrado.equipo_id,
-        club_destino_id: clubDestinoSeleccionado,
-        categoria_id: jugadorEncontrado.categoria_id,
-        estado: 'iniciado',
-        monto,
-        iniciado_por: user!.id,
-      };
       if (isDelegado && (!profile?.equipo_id || jugadorEncontrado.equipo_id !== profile.equipo_id || clubDestinoSeleccionado === profile.equipo_id)) {
         throw new Error('Solo podés iniciar pases de jugadores de tu club.');
       }
+      const monto = Number(tarifaPase!.monto) || null;
+      const payload = {
+        jugador_id: jugadorEncontrado.id,
+        club_origen_id: (isDelegado ? profile!.equipo_id : jugadorEncontrado.equipo_id) as string,
+        club_destino_id: clubDestinoSeleccionado,
+        categoria_id: jugadorEncontrado.categoria_id,
+        estado: 'iniciado' as const,
+        monto,
+        iniciado_por: user!.id,
+      };
       console.log('DEBUG PASE DELEGADO', {
         role,
         userId: user?.id,
