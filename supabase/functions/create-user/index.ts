@@ -5,8 +5,13 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+function dniDigits(v: string) {
+  return (v || "").replace(/\D/g, "").slice(0, 8);
+}
+
 interface CreateUserPayload {
-  email_or_username: string;
+  username: string;          // DNI (with or without dots) OR fallback identifier
+  recovery_email: string;    // real email used for auth + recovery
   password: string;
   nombre: string;
   apellido: string;
@@ -19,14 +24,13 @@ interface CreateUserPayload {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const payload: CreateUserPayload = await req.json();
     const {
-      email_or_username,
+      username,
+      recovery_email,
       password,
       nombre,
       apellido,
@@ -38,22 +42,23 @@ Deno.serve(async (req) => {
       modules,
     } = payload;
 
-    if (!email_or_username || !password || !nombre?.trim() || !apellido?.trim() || !role) {
+    if (!username || !recovery_email || !password || !nombre?.trim() || !apellido?.trim() || !role) {
       throw new Error("Faltan campos obligatorios");
     }
-    if (password.length < 8) {
-      throw new Error("La contraseña debe tener al menos 8 caracteres");
-    }
+    if (password.length < 8) throw new Error("La contraseña debe tener al menos 8 caracteres");
+
+    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const cleanEmail = recovery_email.trim().toLowerCase();
+    if (!emailRe.test(cleanEmail)) throw new Error("Email de recuperación inválido");
+
+    const dni = dniDigits(username);
+    if (!dni || dni.length < 7) throw new Error("DNI inválido (7 u 8 dígitos)");
 
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
-
-    // Determine email for auth: if it looks like email use it, otherwise create synthetic
-    const isEmail = email_or_username.includes("@");
-    const authEmail = isEmail ? email_or_username : `${email_or_username}@lvfc.local`;
 
     // Delegado validation
     let resolvedEquipoId = equipo_id;
@@ -74,13 +79,12 @@ Deno.serve(async (req) => {
       resolvedEquipoId = jugador.equipo_id;
     }
 
-    // Create auth user
+    // Create auth user with real recovery email
     const { data: userData, error: userError } = await supabaseAdmin.auth.admin.createUser({
-      email: authEmail,
+      email: cleanEmail,
       password,
       email_confirm: true,
     });
-
     if (userError) throw userError;
     const userId = userData.user.id;
 
@@ -90,26 +94,19 @@ Deno.serve(async (req) => {
       apellido: apellido.trim(),
       activo: activo ?? true,
       equipo_id: role === "delegado" ? resolvedEquipoId : null,
-      username: isEmail ? null : email_or_username,
+      username: dni,
+      email: cleanEmail,
+      recovery_email: cleanEmail,
+      must_change_password: false,
     };
-    if (isEmail) {
-      profileUpdate.email = email_or_username;
-    }
     await supabaseAdmin.from("profiles").update(profileUpdate).eq("id", userId);
 
-    // Assign role
-    await supabaseAdmin.from("user_roles").insert({
-      user_id: userId,
-      role,
-    });
+    // Role
+    await supabaseAdmin.from("user_roles").insert({ user_id: userId, role });
 
-    // Insert module permissions
+    // Module permissions
     if (modules && modules.length > 0) {
-      const rows = modules.map((m) => ({
-        user_id: userId,
-        module_key: m.module_key,
-        enabled: m.enabled,
-      }));
+      const rows = modules.map((m) => ({ user_id: userId, module_key: m.module_key, enabled: m.enabled }));
       await supabaseAdmin.from("user_module_permissions").insert(rows);
     }
 
@@ -118,24 +115,17 @@ Deno.serve(async (req) => {
       const updateField: Record<string, string> = {};
       updateField[delegado_posicion] = jugador_id_delegado!;
       const { error: eqErr } = await supabaseAdmin
-        .from("equipos")
-        .update(updateField)
-        .eq("id", resolvedEquipoId);
-      if (eqErr) {
-        console.error("Error assigning delegado to equipo:", eqErr);
-        // Don't throw - user was created successfully
-      }
+        .from("equipos").update(updateField).eq("id", resolvedEquipoId);
+      if (eqErr) console.error("Error assigning delegado to equipo:", eqErr);
     }
 
-    return new Response(
-      JSON.stringify({ success: true, user_id: userId }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ success: true, user_id: userId }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    return new Response(
-      JSON.stringify({ error: message }),
-      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: message }), {
+      status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
