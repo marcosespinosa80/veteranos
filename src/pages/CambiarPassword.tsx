@@ -38,19 +38,31 @@ export default function CambiarPassword() {
       return;
     }
     setLoading(true);
-    const { error, data } = await supabase.auth.updateUser({ password: pwd });
+
+    // Get current user BEFORE updating password / signing out
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    console.log('[CambiarPassword] user.id antes de update:', currentUser?.id);
+
+    const { error } = await supabase.auth.updateUser({ password: pwd });
     if (error) {
       setLoading(false);
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
       return;
     }
-    const uid = data.user?.id;
-    if (uid) {
-      await supabase.from('profiles').update({ must_change_password: false }).eq('id', uid);
+
+    if (currentUser) {
+      const upd = await supabase
+        .from('profiles')
+        .update({ must_change_password: false })
+        .eq('id', currentUser.id);
+      console.log('[CambiarPassword] update must_change_password:', upd);
     }
+
     toast({ title: 'Contraseña actualizada correctamente' });
     await supabase.auth.signOut();
+    console.log('[CambiarPassword] signOut realizado');
     setLoading(false);
+    console.log('[CambiarPassword] navigate /login');
     navigate('/login', { replace: true });
   };
 
