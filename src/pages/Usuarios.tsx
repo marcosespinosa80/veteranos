@@ -20,7 +20,7 @@ export default function Usuarios() {
     queryFn: async () => {
       const { data: profiles, error: pErr } = await supabase
         .from('profiles')
-        .select('id, nombre, apellido, email, username, recovery_email, must_change_password, activo, equipo_id, equipo:equipos(nombre_equipo)')
+        .select('id, nombre, apellido, email, username, recovery_email, must_change_password, activo, equipo_id, jugador_id, equipo:equipos(nombre_equipo)')
         .order('apellido');
       if (pErr) throw pErr;
 

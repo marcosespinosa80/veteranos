@@ -1,20 +1,19 @@
 import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
-import { DniInput } from '@/components/ui/dni-input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Search, AlertCircle, Link2, KeyRound, Send } from 'lucide-react';
+import { KeyRound, Send } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { type UserRole } from '@/lib/navigation';
 import { MODULE_KEYS, MODULE_LABELS, getDefaultModules, type ModuleKey } from '@/lib/modules';
-import { formatDni, dniDigits } from '@/lib/dni';
+import { formatDni } from '@/lib/dni';
 import { useAuth } from '@/contexts/AuthContext';
 
 const roleOptions: { value: UserRole; label: string }[] = [
@@ -38,7 +37,6 @@ export default function EditarUsuarioDialog({ open, onOpenChange, user }: Props)
 
   const [role, setRole] = useState<UserRole>(user?.role || 'admin_comun');
   const [activo, setActivo] = useState(user?.activo ?? true);
-  const [dniValue, setDniValue] = useState(formatDni(user?.username || ''));
   const [recoveryEmail, setRecoveryEmail] = useState(user?.recovery_email || user?.email || '');
   const [tempPwd, setTempPwd] = useState('');
   const [modules, setModules] = useState<Record<ModuleKey, boolean>>(() => {
@@ -54,13 +52,38 @@ export default function EditarUsuarioDialog({ open, onOpenChange, user }: Props)
     return getDefaultModules(user?.role || 'admin_comun');
   });
 
-  // Delegado linking
-  const [dniSearch, setDniSearch] = useState('');
-  const [jugadorFound, setJugadorFound] = useState<any>(null);
-  const [jugadorError, setJugadorError] = useState('');
-  const [delegadoPosicion, setDelegadoPosicion] = useState<'delegado_1' | 'delegado_2' | ''>('');
-  const [vinculado, setVinculado] = useState(false);
-  const [searching, setSearching] = useState(false);
+  const { data: linkedJugador, isLoading: linkedJugadorLoading } = useQuery({
+    queryKey: ['jugador-vinculado', user?.jugador_id],
+    queryFn: async () => {
+      if (!user?.jugador_id) return null;
+      const { data: jugador, error: jErr } = await supabase
+        .from('jugadores')
+        .select('id, nombre, apellido, dni, estado, es_delegado, equipo_id, categoria_id, equipo:equipos!jugadores_equipo_id_fkey(nombre_equipo, delegado_1, delegado_2)')
+        .eq('id', user.jugador_id)
+        .single();
+      if (jErr) throw jErr;
+
+      let categoriaNombre = null;
+      if (jugador?.categoria_id) {
+        const { data: cat } = await supabase
+          .from('categorias')
+          .select('nombre_categoria')
+          .eq('id', jugador.categoria_id)
+          .single();
+        categoriaNombre = cat?.nombre_categoria || null;
+      }
+
+      return { ...jugador, categoriaNombre };
+    },
+    enabled: !!user?.jugador_id,
+  });
+
+  const delegadoLabel = (() => {
+    if (!linkedJugador?.es_delegado || !linkedJugador.equipo) return 'No';
+    if (linkedJugador.equipo.delegado_1 === linkedJugador.id) return 'Delegado 1';
+    if (linkedJugador.equipo.delegado_2 === linkedJugador.id) return 'Delegado 2';
+    return 'Sí';
+  })();
 
   const handleRoleChange = (newRole: UserRole) => {
     setRole(newRole);
@@ -71,39 +94,15 @@ export default function EditarUsuarioDialog({ open, onOpenChange, user }: Props)
     setModules((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const searchJugador = async () => {
-    if (!dniSearch.trim()) return;
-    setSearching(true);
-    setJugadorError('');
-    setJugadorFound(null);
-    setVinculado(false);
-
-    const digits = dniDigits(dniSearch);
-    const { data } = await supabase
-      .from('jugadores')
-      .select('id, nombre, apellido, dni, estado, equipo_id, equipo:equipos!jugadores_equipo_id_fkey(nombre_equipo)');
-    setSearching(false);
-    const match = (data || []).find((j: any) => (j.dni || '').replace(/\D/g, '') === digits);
-    if (!match) { setJugadorError('Jugador no encontrado'); return; }
-    if (match.estado !== 'habilitado') { setJugadorError('Jugador no habilitado'); return; }
-    if (!match.equipo_id) { setJugadorError('Jugador sin equipo'); return; }
-    setJugadorFound(match);
-  };
-
   const editMutation = useMutation({
     mutationFn: async () => {
       const userId = user.id;
 
-      // Update DNI / recovery email via admin function if changed
-      const dniClean = dniDigits(dniValue);
       const emailClean = recoveryEmail.trim().toLowerCase();
-      const dniChanged = dniClean && dniClean !== (user.username || '');
       const emailChanged = emailClean && emailClean !== (user.recovery_email || user.email || '').toLowerCase();
 
-      if (isAdminGeneral && (dniChanged || emailChanged)) {
-        const body: any = { user_id: userId };
-        if (dniChanged) body.username = dniClean;
-        if (emailChanged) body.recovery_email = emailClean;
+      if (isAdminGeneral && emailChanged) {
+        const body = { user_id: userId, recovery_email: emailClean };
         const { data, error } = await supabase.functions.invoke('admin-update-user-email', { body });
         if (error) throw error;
         if (data?.error) throw new Error(data.error);
@@ -112,9 +111,7 @@ export default function EditarUsuarioDialog({ open, onOpenChange, user }: Props)
       await supabase.from('user_roles').update({ role: role as any }).eq('user_id', userId);
 
       const profileUpdate: any = { activo };
-      if (role === 'delegado' && jugadorFound) {
-        profileUpdate.equipo_id = jugadorFound.equipo_id;
-      } else if (role !== 'delegado') {
+      if (role !== 'delegado') {
         profileUpdate.equipo_id = null;
       }
       await supabase.from('profiles').update(profileUpdate).eq('id', userId);
@@ -122,13 +119,6 @@ export default function EditarUsuarioDialog({ open, onOpenChange, user }: Props)
       await supabase.from('user_module_permissions').delete().eq('user_id', userId);
       const rows = MODULE_KEYS.map((k) => ({ user_id: userId, module_key: k, enabled: modules[k] }));
       await supabase.from('user_module_permissions').insert(rows);
-
-      if (role === 'delegado' && jugadorFound && vinculado && delegadoPosicion) {
-        const updateField = delegadoPosicion === 'delegado_1'
-          ? { delegado_1: jugadorFound.id }
-          : { delegado_2: jugadorFound.id };
-        await supabase.from('equipos').update(updateField).eq('id', jugadorFound.equipo_id);
-      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['usuarios'] });
@@ -179,14 +169,14 @@ export default function EditarUsuarioDialog({ open, onOpenChange, user }: Props)
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Identidad de acceso */}
+          {/* Identidad de Acceso */}
           {isAdminGeneral && (
             <section className="space-y-4">
               <h3 className="text-sm font-semibold border-b pb-1">Identidad de Acceso</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>DNI / Usuario</Label>
-                  <DniInput value={dniValue} onChange={setDniValue} />
+                  <p className="text-sm text-foreground font-medium">{formatDni(user?.username || '')}</p>
                 </div>
                 <div className="space-y-2">
                   <Label>Email de recuperación</Label>
@@ -223,6 +213,48 @@ export default function EditarUsuarioDialog({ open, onOpenChange, user }: Props)
             </div>
           </section>
 
+          {/* Jugador vinculado (solo lectura) */}
+          <section className="space-y-4">
+            <h3 className="text-sm font-semibold border-b pb-1">Jugador vinculado</h3>
+            {user?.jugador_id ? (
+              <div className="border rounded-md p-4 space-y-2 bg-muted/30">
+                {linkedJugadorLoading ? (
+                  <p className="text-sm text-muted-foreground">Cargando...</p>
+                ) : linkedJugador ? (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <p className="font-medium">{linkedJugador.apellido}, {linkedJugador.nombre}</p>
+                      <Badge variant="outline" className={linkedJugador.estado === 'habilitado' ? 'bg-primary/15 text-primary' : 'bg-destructive/15 text-destructive'}>
+                        {linkedJugador.estado === 'habilitado' ? 'Habilitado' : 'No habilitado'}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">DNI: {formatDni(linkedJugador.dni || '')}</p>
+                    <p className="text-sm text-muted-foreground">Equipo: {linkedJugador.equipo?.nombre_equipo || '—'}</p>
+                    {linkedJugador.categoriaNombre && (
+                      <p className="text-sm text-muted-foreground">Categoría: {linkedJugador.categoriaNombre}</p>
+                    )}
+                    <p className="text-sm text-muted-foreground">Delegado: {delegadoLabel}</p>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No se pudo cargar la información del jugador.</p>
+                )}
+              </div>
+            ) : (
+              <div className="border rounded-md p-4 bg-destructive/10 space-y-2">
+                <p className="text-sm text-destructive">Este usuario no tiene jugador vinculado.</p>
+                {isAdminGeneral && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => toast({ title: 'Flujo de vinculación', description: 'Esta función aún no está implementada.' })}
+                  >
+                    Vincular jugador
+                  </Button>
+                )}
+              </div>
+            )}
+          </section>
+
           {/* Modules */}
           <section className="space-y-4">
             <h3 className="text-sm font-semibold border-b pb-1">Módulos Permitidos</h3>
@@ -235,57 +267,6 @@ export default function EditarUsuarioDialog({ open, onOpenChange, user }: Props)
               ))}
             </div>
           </section>
-
-          {/* Delegado linking */}
-          {role === 'delegado' && (
-            <section className="space-y-4">
-              <h3 className="text-sm font-semibold border-b pb-1">Vinculación de Delegado</h3>
-              <div className="flex gap-2">
-                <DniInput
-                  placeholder="DNI del jugador"
-                  value={dniSearch}
-                  onChange={(v) => { setDniSearch(v); setJugadorFound(null); setJugadorError(''); setVinculado(false); }}
-                  onKeyDown={(e) => e.key === 'Enter' && searchJugador()}
-                />
-                <Button variant="outline" onClick={searchJugador} disabled={searching || !dniSearch.trim()}>
-                  <Search className="w-4 h-4 mr-1" /> Buscar
-                </Button>
-              </div>
-
-              {jugadorError && (
-                <div className="flex items-center gap-2 text-destructive text-sm bg-destructive/10 p-3 rounded-md">
-                  <AlertCircle className="w-4 h-4" /> {jugadorError}
-                </div>
-              )}
-
-              {jugadorFound && (
-                <div className="border rounded-md p-4 space-y-3 bg-muted/30">
-                  <div className="flex items-center justify-between">
-                    <p className="font-medium">{jugadorFound.apellido}, {jugadorFound.nombre}</p>
-                    <Badge variant="outline" className="bg-primary/15 text-primary">Habilitado</Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground">Equipo: {jugadorFound.equipo?.nombre_equipo || '—'}</p>
-                  <div className="space-y-2">
-                    <Label>Posición</Label>
-                    <Select value={delegadoPosicion} onValueChange={(v) => setDelegadoPosicion(v as any)}>
-                      <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="delegado_1">Delegado 1</SelectItem>
-                        <SelectItem value="delegado_2">Delegado 2</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {!vinculado ? (
-                    <Button variant="outline" onClick={() => setVinculado(true)} disabled={!delegadoPosicion} className="w-full">
-                      <Link2 className="w-4 h-4 mr-1" /> Vincular
-                    </Button>
-                  ) : (
-                    <p className="text-center text-sm text-primary font-medium">✓ Vinculado</p>
-                  )}
-                </div>
-              )}
-            </section>
-          )}
 
           {/* Admin actions */}
           {isAdminGeneral && (
