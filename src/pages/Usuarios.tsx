@@ -155,6 +155,31 @@ export default function Usuarios() {
           user={editUser}
         />
       )}
+
+      <AlertDialog open={!!deleteUser} onOpenChange={(v) => { if (!v) setDeleteUser(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar usuario</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción eliminará el acceso de <strong>{deleteUser?.apellido}, {deleteUser?.nombre}</strong> al sistema.
+              No se recomienda eliminar usuarios con historial. Para conservar registros, use <strong>Desactivar</strong>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteMutation.isPending}
+              onClick={(e) => {
+                e.preventDefault();
+                if (deleteUser) deleteMutation.mutate(deleteUser.id);
+              }}
+            >
+              {deleteMutation.isPending ? 'Eliminando...' : 'Eliminar definitivamente'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
