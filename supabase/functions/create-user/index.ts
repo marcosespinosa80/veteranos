@@ -125,13 +125,20 @@ Deno.serve(async (req) => {
     };
     const { error: pErr } = await supabaseAdmin.from("profiles").update(profileUpdate).eq("id", userId);
     if (pErr) {
-      // Rollback auth user on failure
-      await supabaseAdmin.auth.admin.deleteUser(userId);
+      if (!existingAuthUserId) await supabaseAdmin.auth.admin.deleteUser(userId);
       throw pErr;
     }
 
-    // Role
+    // Role (clear previous, then insert)
+    await supabaseAdmin.from("user_roles").delete().eq("user_id", userId);
     await supabaseAdmin.from("user_roles").insert({ user_id: userId, role });
+
+    // Module permissions
+    await supabaseAdmin.from("user_module_permissions").delete().eq("user_id", userId);
+    if (modules && modules.length > 0) {
+      const rows = modules.map((m) => ({ user_id: userId, module_key: m.module_key, enabled: m.enabled }));
+      await supabaseAdmin.from("user_module_permissions").insert(rows);
+    }
 
     // Module permissions
     if (modules && modules.length > 0) {
