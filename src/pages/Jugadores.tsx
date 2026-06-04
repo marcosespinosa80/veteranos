@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Switch } from '@/components/ui/switch';
 import { Plus, Pencil, Search, Filter, Upload, X, User, Camera, AlertTriangle, ArrowRightLeft, Trash2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import {
@@ -81,7 +82,7 @@ interface JugadorForm {
 
 const emptyForm: JugadorForm = {
   nombre: '', apellido: '', dni: '', fecha_nacimiento: '', equipo_id: null,
-  telefono_area: '', telefono_numero: '', direccion: '', estado: 'no_habilitado',
+  telefono_area: '', telefono_numero: '', direccion: '', estado: 'habilitado',
   suspendido_fechas: 0, activo_club: true,
 };
 
@@ -733,6 +734,27 @@ export default function Jugadores() {
                 </Select>
               )}
             </div>
+
+            {/* Habilitación */}
+            <div className="space-y-1 sm:col-span-2">
+              <div className="flex items-center justify-between rounded-md border p-3">
+                <div className="space-y-0.5">
+                  <Label htmlFor="estado-habilitado">Jugador habilitado</Label>
+                  <p className="text-xs text-muted-foreground">
+                    {form.estado === 'expulsado'
+                      ? 'Jugador EXPULSADO. No se puede modificar desde aquí.'
+                      : 'Si está activo, el jugador queda habilitado para participar.'}
+                  </p>
+                </div>
+                <Switch
+                  id="estado-habilitado"
+                  checked={form.estado === 'habilitado'}
+                  disabled={form.estado === 'expulsado'}
+                  onCheckedChange={(v) => setForm({ ...form, estado: v ? 'habilitado' : 'no_habilitado' })}
+                />
+              </div>
+            </div>
+
 
 
             {/* Teléfono: 2 campos */}
