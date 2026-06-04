@@ -1,19 +1,52 @@
 import { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Pencil } from 'lucide-react';
+import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { getRoleLabel } from '@/lib/navigation';
 import type { UserRole } from '@/lib/navigation';
 import NuevoUsuarioWizard from '@/components/usuarios/NuevoUsuarioWizard';
 import EditarUsuarioDialog from '@/components/usuarios/EditarUsuarioDialog';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 export default function Usuarios() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editUser, setEditUser] = useState<any>(null);
+  const [deleteUser, setDeleteUser] = useState<any>(null);
+  const { role, user: currentUser } = useAuth();
+  const queryClient = useQueryClient();
+  const isAdminGeneral = role === 'admin_general';
+
+  const deleteMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const { data, error } = await supabase.functions.invoke('delete-user', {
+        body: { user_id: userId },
+      });
+      if (error) throw new Error((data as any)?.error || error.message);
+      if ((data as any)?.error) throw new Error((data as any).error);
+      return data;
+    },
+    onSuccess: () => {
+      toast.success('Usuario eliminado');
+      queryClient.invalidateQueries({ queryKey: ['usuarios'] });
+      setDeleteUser(null);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: ['usuarios'],
@@ -90,9 +123,21 @@ export default function Usuarios() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Button size="icon" variant="ghost" onClick={() => setEditUser(u)}>
-                        <Pencil className="w-4 h-4" />
-                      </Button>
+                      <div className="flex items-center justify-end gap-1">
+                        <Button size="icon" variant="ghost" onClick={() => setEditUser(u)}>
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                        {isAdminGeneral && u.id !== currentUser?.id && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => setDeleteUser(u)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -110,6 +155,31 @@ export default function Usuarios() {
           user={editUser}
         />
       )}
+
+      <AlertDialog open={!!deleteUser} onOpenChange={(v) => { if (!v) setDeleteUser(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar usuario</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción eliminará el acceso de <strong>{deleteUser?.apellido}, {deleteUser?.nombre}</strong> al sistema.
+              No se recomienda eliminar usuarios con historial. Para conservar registros, use <strong>Desactivar</strong>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteMutation.isPending}
+              onClick={(e) => {
+                e.preventDefault();
+                if (deleteUser) deleteMutation.mutate(deleteUser.id);
+              }}
+            >
+              {deleteMutation.isPending ? 'Eliminando...' : 'Eliminar definitivamente'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
