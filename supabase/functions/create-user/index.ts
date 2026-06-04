@@ -140,12 +140,6 @@ Deno.serve(async (req) => {
       await supabaseAdmin.from("user_module_permissions").insert(rows);
     }
 
-    // Module permissions
-    if (modules && modules.length > 0) {
-      const rows = modules.map((m) => ({ user_id: userId, module_key: m.module_key, enabled: m.enabled }));
-      await supabaseAdmin.from("user_module_permissions").insert(rows);
-    }
-
     // Assign delegado position on equipo
     if (role === "delegado" && resolvedEquipoId && delegado_posicion) {
       const updateField: Record<string, string> = {};
