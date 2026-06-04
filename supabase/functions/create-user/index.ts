@@ -71,28 +71,45 @@ Deno.serve(async (req) => {
 
     const authEmail = cleanRecovery || `${dni}@lvfc.local`;
 
-    // Check if an auth user with this email already exists
+    // Check if an auth user with this email already exists (orphan = no linked profile)
+    let userId: string;
+    let existingAuthUserId: string | null = null;
     {
-      const { data: list, error: listErr } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 200 });
+      const { data: list, error: listErr } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 });
       if (listErr) throw listErr;
-      const exists = list?.users?.some((u) => (u.email || "").toLowerCase() === authEmail.toLowerCase());
-      if (exists) {
-        throw new Error(
-          cleanRecovery
-            ? `Ya existe un usuario con el email ${authEmail}`
-            : `Ya existe un usuario con el DNI ${dni}. Si necesitás reasignarlo, eliminá el usuario anterior primero.`
-        );
+      const match = list?.users?.find((u) => (u.email || "").toLowerCase() === authEmail.toLowerCase());
+      if (match) {
+        // Check if that auth user already has a populated profile (jugador_id set)
+        const { data: prof } = await supabaseAdmin
+          .from("profiles").select("id, jugador_id").eq("id", match.id).maybeSingle();
+        if (prof?.jugador_id) {
+          throw new Error(
+            cleanRecovery
+              ? `Ya existe un usuario activo con el email ${authEmail}`
+              : `Ya existe un usuario activo con el DNI ${dni}. Eliminá el usuario anterior primero.`
+          );
+        }
+        existingAuthUserId = match.id;
       }
     }
 
-    // Create auth user
-    const { data: userData, error: userError } = await supabaseAdmin.auth.admin.createUser({
-      email: authEmail,
-      password,
-      email_confirm: true,
-    });
-    if (userError) throw userError;
-    const userId = userData.user.id;
+    if (existingAuthUserId) {
+      // Reuse orphan auth user: update password + confirm
+      const { error: updErr } = await supabaseAdmin.auth.admin.updateUserById(existingAuthUserId, {
+        password,
+        email_confirm: true,
+      });
+      if (updErr) throw updErr;
+      userId = existingAuthUserId;
+    } else {
+      const { data: userData, error: userError } = await supabaseAdmin.auth.admin.createUser({
+        email: authEmail,
+        password,
+        email_confirm: true,
+      });
+      if (userError) throw userError;
+      userId = userData.user.id;
+    }
 
     // Update profile (created by trigger handle_new_user)
     const profileUpdate: Record<string, unknown> = {
