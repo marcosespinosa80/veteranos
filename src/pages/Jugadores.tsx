@@ -735,6 +735,27 @@ export default function Jugadores() {
               )}
             </div>
 
+            {/* Habilitación */}
+            <div className="space-y-1 sm:col-span-2">
+              <div className="flex items-center justify-between rounded-md border p-3">
+                <div className="space-y-0.5">
+                  <Label htmlFor="estado-habilitado">Jugador habilitado</Label>
+                  <p className="text-xs text-muted-foreground">
+                    {form.estado === 'expulsado'
+                      ? 'Jugador EXPULSADO. No se puede modificar desde aquí.'
+                      : 'Si está activo, el jugador queda habilitado para participar.'}
+                  </p>
+                </div>
+                <Switch
+                  id="estado-habilitado"
+                  checked={form.estado === 'habilitado'}
+                  disabled={form.estado === 'expulsado'}
+                  onCheckedChange={(v) => setForm({ ...form, estado: v ? 'habilitado' : 'no_habilitado' })}
+                />
+              </div>
+            </div>
+
+
 
             {/* Teléfono: 2 campos */}
             <div className="space-y-1 sm:col-span-2">
