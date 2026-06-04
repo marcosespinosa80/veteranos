@@ -82,7 +82,7 @@ interface JugadorForm {
 
 const emptyForm: JugadorForm = {
   nombre: '', apellido: '', dni: '', fecha_nacimiento: '', equipo_id: null,
-  telefono_area: '', telefono_numero: '', direccion: '', estado: 'no_habilitado',
+  telefono_area: '', telefono_numero: '', direccion: '', estado: 'habilitado',
   suspendido_fechas: 0, activo_club: true,
 };
 
