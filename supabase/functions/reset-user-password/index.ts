@@ -1,12 +1,13 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, corsHeaders } from "npm:@supabase/supabase-js@2";
+import { z } from "npm:zod@3";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+const BodySchema = z.object({
+  user_id: z.string().uuid(),
+  new_password: z.string().min(8).max(128),
+});
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
     const authHeader = req.headers.get("Authorization");
@@ -16,9 +17,17 @@ Deno.serve(async (req) => {
       });
     }
 
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!supabaseUrl || !serviceRoleKey) {
+      return new Response(JSON.stringify({ error: "Configuración del servidor incompleta" }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const admin = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      supabaseUrl,
+      serviceRoleKey,
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
@@ -44,20 +53,21 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { user_id, new_password } = await req.json();
-    if (!user_id || !new_password || String(new_password).length < 8) {
-      return new Response(JSON.stringify({ error: "Datos inválidos (mínimo 8 caracteres)" }), {
+    const parsed = BodySchema.safeParse(await req.json());
+    if (!parsed.success) {
+      return new Response(JSON.stringify({ error: "Datos inválidos (contraseña de 8 a 128 caracteres)" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    const { user_id, new_password } = parsed.data;
 
     const { error: updErr } = await admin.auth.admin.updateUserById(user_id, { password: new_password });
     if (updErr) {
       const msg = String(updErr.message || "");
       if (/weak|pwned|known|easy to guess/i.test(msg)) {
         return new Response(
-          JSON.stringify({ error: "La contraseña es demasiado débil o figura en filtraciones conocidas. Elegí una más segura (combiná mayúsculas, minúsculas, números y símbolos)." }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          JSON.stringify({ success: false, error: "La contraseña es demasiado débil o figura en filtraciones conocidas. Elegí una más segura (combiná mayúsculas, minúsculas, números y símbolos)." }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
       throw updErr;
