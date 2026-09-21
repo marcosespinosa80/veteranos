@@ -39,6 +39,7 @@ export default function EditarUsuarioDialog({ open, onOpenChange, user }: Props)
   const [activo, setActivo] = useState(user?.activo ?? true);
   const [recoveryEmail, setRecoveryEmail] = useState(user?.recovery_email || user?.email || '');
   const [tempPwd, setTempPwd] = useState('');
+  const [tempPwdError, setTempPwdError] = useState<string | null>(null);
   const [modules, setModules] = useState<Record<ModuleKey, boolean>>(() => {
     if (user?.permissions && user.permissions.length > 0) {
       const m = { ...getDefaultModules(user.role) };
@@ -149,16 +150,38 @@ export default function EditarUsuarioDialog({ open, onOpenChange, user }: Props)
       const { data, error } = await supabase.functions.invoke('reset-user-password', {
         body: { user_id: user.id, new_password: tempPwd },
       });
-      if (error) throw error;
+      // El edge function devuelve el detalle del error en el body incluso con status 400
       if (data?.error) throw new Error(data.error);
+      if (error) throw new Error('No se pudo asignar la contraseña. Probá con una más segura.');
     },
     onSuccess: () => {
       setTempPwd('');
+      setTempPwdError(null);
       queryClient.invalidateQueries({ queryKey: ['usuarios'] });
       toast({ title: 'Contraseña temporal asignada', description: 'El usuario deberá cambiarla al iniciar sesión.' });
     },
-    onError: (err: Error) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
+    onError: (err: Error) => {
+      setTempPwdError(err.message);
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    },
   });
+
+  const generarPassword = () => {
+    const mayus = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+    const minus = 'abcdefghijkmnopqrstuvwxyz';
+    const nums = '23456789';
+    const simbolos = '!@#$%&*?';
+    const all = mayus + minus + nums + simbolos;
+    const pick = (s: string) => s[Math.floor(Math.random() * s.length)];
+    const chars = [pick(mayus), pick(minus), pick(nums), pick(simbolos)];
+    while (chars.length < 14) chars.push(pick(all));
+    for (let i = chars.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [chars[i], chars[j]] = [chars[j], chars[i]];
+    }
+    setTempPwd(chars.join(''));
+    setTempPwdError(null);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
