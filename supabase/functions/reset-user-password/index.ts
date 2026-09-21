@@ -62,16 +62,32 @@ Deno.serve(async (req) => {
     }
     const { user_id, new_password } = parsed.data;
 
+    const rules = [
+      [new_password.length >= 8, "Debe tener al menos 8 caracteres."],
+      [/[A-Z]/.test(new_password), "Debe contener al menos una letra mayúscula."],
+      [/[a-z]/.test(new_password), "Debe contener al menos una letra minúscula."],
+      [/[0-9]/.test(new_password), "Debe contener al menos un número."],
+      [/[^A-Za-z0-9]/.test(new_password), "Debe contener al menos un carácter especial."],
+    ] as const;
+    const faltan = rules.filter(([ok]) => !ok).map(([, m]) => m);
+    if (faltan.length > 0) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: faltan.length === 1
+            ? faltan[0]
+            : "La contraseña debe tener mínimo 8 caracteres, una mayúscula, una minúscula, un número y un carácter especial.",
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const { error: updErr } = await admin.auth.admin.updateUserById(user_id, { password: new_password });
     if (updErr) {
-      const msg = String(updErr.message || "");
-      if (/weak|pwned|known|easy to guess/i.test(msg)) {
-        return new Response(
-          JSON.stringify({ success: false, error: "La contraseña es demasiado débil o figura en filtraciones conocidas. Elegí una más segura (combiná mayúsculas, minúsculas, números y símbolos)." }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      throw updErr;
+      return new Response(
+        JSON.stringify({ success: false, error: updErr.message }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     await admin.from("profiles").update({ must_change_password: true }).eq("id", user_id);
