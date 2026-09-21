@@ -150,9 +150,18 @@ export default function EditarUsuarioDialog({ open, onOpenChange, user }: Props)
       const { data, error } = await supabase.functions.invoke('reset-user-password', {
         body: { user_id: user.id, new_password: tempPwd },
       });
-      // El edge function devuelve el detalle del error en el body incluso con status 400
-      if (data?.error) throw new Error(data.error);
-      if (error) throw new Error('No se pudo asignar la contraseña. Probá con una más segura.');
+      if (data?.success === false || data?.error) {
+        throw new Error(data.error || 'No se pudo asignar la contraseña.');
+      }
+      if (error) {
+        let message = 'No se pudo asignar la contraseña. Probá con una más segura.';
+        const context = 'context' in error ? error.context : null;
+        if (context instanceof Response) {
+          const body = await context.clone().json().catch(() => null);
+          if (body?.error) message = body.error;
+        }
+        throw new Error(message);
+      }
     },
     onSuccess: () => {
       setTempPwd('');
@@ -316,10 +325,11 @@ export default function EditarUsuarioDialog({ open, onOpenChange, user }: Props)
                     value={tempPwd}
                     onChange={(e) => { setTempPwd(e.target.value); setTempPwdError(null); }}
                   />
-                  <Button type="button" variant="outline" onClick={generarPassword}>
+                  <Button type="button" variant="outline" onClick={generarPassword} disabled={tempPwdMutation.isPending}>
                     Generar
                   </Button>
                   <Button
+                    type="button"
                     onClick={() => tempPwdMutation.mutate()}
                     disabled={tempPwdMutation.isPending || tempPwd.length < 8}
                   >
