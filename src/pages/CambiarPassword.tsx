@@ -110,6 +110,7 @@ export default function CambiarPassword() {
                       required
                       disabled={!hasSession}
                     />
+                    <PasswordRequirements password={pwd} />
                   </div>
                   <div className="space-y-2">
                     <Label>Repetir contraseña</Label>
@@ -122,7 +123,7 @@ export default function CambiarPassword() {
                       disabled={!hasSession}
                     />
                   </div>
-                  <Button type="submit" className="w-full" disabled={loading || !hasSession}>
+                  <Button type="submit" className="w-full" disabled={loading || !hasSession || !isPasswordValid(pwd) || pwd !== pwd2}>
                     {loading ? 'Guardando...' : 'Actualizar contraseña'}
                   </Button>
                 </form>
