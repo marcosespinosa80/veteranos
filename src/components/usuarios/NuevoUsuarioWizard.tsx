@@ -15,6 +15,8 @@ import { toast } from '@/hooks/use-toast';
 import { type UserRole } from '@/lib/navigation';
 import { MODULE_KEYS, MODULE_LABELS, getDefaultModules, type ModuleKey } from '@/lib/modules';
 import { dniDigits, formatDni } from '@/lib/dni';
+import { isPasswordValid, generatePassword } from '@/lib/password';
+import { PasswordRequirements } from '@/components/ui/password-requirements';
 
 const roleOptions: { value: UserRole; label: string }[] = [
   { value: 'admin_general', label: 'Administrador General' },

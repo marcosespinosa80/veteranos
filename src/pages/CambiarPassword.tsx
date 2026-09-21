@@ -6,6 +6,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
 import logoLvfc from '@/assets/logo-lvfc.png';
+import { isPasswordValid, passwordErrorMessage } from '@/lib/password';
+import { PasswordRequirements } from '@/components/ui/password-requirements';
 
 export default function CambiarPassword() {
   const [pwd, setPwd] = useState('');
@@ -32,8 +34,9 @@ export default function CambiarPassword() {
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (pwd.length < 8) {
-      toast({ title: 'Contraseña muy corta', description: 'Mínimo 8 caracteres', variant: 'destructive' });
+    const invalid = passwordErrorMessage(pwd);
+    if (invalid) {
+      toast({ title: 'Contraseña inválida', description: invalid, variant: 'destructive' });
       return;
     }
     if (pwd !== pwd2) {
