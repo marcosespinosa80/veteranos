@@ -314,8 +314,11 @@ export default function EditarUsuarioDialog({ open, onOpenChange, user }: Props)
                     type="text"
                     placeholder="Mínimo 8 caracteres"
                     value={tempPwd}
-                    onChange={(e) => setTempPwd(e.target.value)}
+                    onChange={(e) => { setTempPwd(e.target.value); setTempPwdError(null); }}
                   />
+                  <Button type="button" variant="outline" onClick={generarPassword}>
+                    Generar
+                  </Button>
                   <Button
                     onClick={() => tempPwdMutation.mutate()}
                     disabled={tempPwdMutation.isPending || tempPwd.length < 8}
@@ -323,7 +326,13 @@ export default function EditarUsuarioDialog({ open, onOpenChange, user }: Props)
                     {tempPwdMutation.isPending ? 'Aplicando...' : 'Aplicar'}
                   </Button>
                 </div>
-                <p className="text-xs text-muted-foreground">El usuario será forzado a cambiar la contraseña al iniciar sesión.</p>
+                {tempPwdError && (
+                  <p className="text-xs text-destructive">{tempPwdError}</p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Evitá contraseñas comunes (como "12345678" o "password"). Usá "Generar" para una segura.
+                  El usuario será forzado a cambiarla al iniciar sesión.
+                </p>
               </div>
             </section>
           )}
