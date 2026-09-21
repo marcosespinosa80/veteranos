@@ -15,6 +15,8 @@ import { type UserRole } from '@/lib/navigation';
 import { MODULE_KEYS, MODULE_LABELS, getDefaultModules, type ModuleKey } from '@/lib/modules';
 import { formatDni } from '@/lib/dni';
 import { useAuth } from '@/contexts/AuthContext';
+import { isPasswordValid, passwordErrorMessage, generatePassword } from '@/lib/password';
+import { PasswordRequirements } from '@/components/ui/password-requirements';
 
 const roleOptions: { value: UserRole; label: string }[] = [
   { value: 'admin_general', label: 'Administrador General' },
@@ -146,7 +148,8 @@ export default function EditarUsuarioDialog({ open, onOpenChange, user }: Props)
 
   const tempPwdMutation = useMutation({
     mutationFn: async () => {
-      if (tempPwd.length < 8) throw new Error('Mínimo 8 caracteres');
+      const invalid = passwordErrorMessage(tempPwd);
+      if (invalid) throw new Error(invalid);
       const { data, error } = await supabase.functions.invoke('reset-user-password', {
         body: { user_id: user.id, new_password: tempPwd },
       });
@@ -176,19 +179,7 @@ export default function EditarUsuarioDialog({ open, onOpenChange, user }: Props)
   });
 
   const generarPassword = () => {
-    const mayus = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
-    const minus = 'abcdefghijkmnopqrstuvwxyz';
-    const nums = '23456789';
-    const simbolos = '!@#$%&*?';
-    const all = mayus + minus + nums + simbolos;
-    const pick = (s: string) => s[Math.floor(Math.random() * s.length)];
-    const chars = [pick(mayus), pick(minus), pick(nums), pick(simbolos)];
-    while (chars.length < 14) chars.push(pick(all));
-    for (let i = chars.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [chars[i], chars[j]] = [chars[j], chars[i]];
-    }
-    setTempPwd(chars.join(''));
+    setTempPwd(generatePassword());
     setTempPwdError(null);
   };
 
@@ -321,7 +312,7 @@ export default function EditarUsuarioDialog({ open, onOpenChange, user }: Props)
                 <div className="flex gap-2">
                   <Input
                     type="text"
-                    placeholder="Mínimo 8 caracteres"
+                    placeholder="Ej: Daniel.10"
                     value={tempPwd}
                     onChange={(e) => { setTempPwd(e.target.value); setTempPwdError(null); }}
                   />
@@ -331,16 +322,16 @@ export default function EditarUsuarioDialog({ open, onOpenChange, user }: Props)
                   <Button
                     type="button"
                     onClick={() => tempPwdMutation.mutate()}
-                    disabled={tempPwdMutation.isPending || tempPwd.length < 8}
+                    disabled={tempPwdMutation.isPending || !isPasswordValid(tempPwd)}
                   >
                     {tempPwdMutation.isPending ? 'Aplicando...' : 'Aplicar'}
                   </Button>
                 </div>
+                <PasswordRequirements password={tempPwd} />
                 {tempPwdError && (
                   <p className="text-xs text-destructive">{tempPwdError}</p>
                 )}
                 <p className="text-xs text-muted-foreground">
-                  Evitá contraseñas comunes (como "12345678" o "password"). Usá "Generar" para una segura.
                   El usuario será forzado a cambiarla al iniciar sesión.
                 </p>
               </div>
