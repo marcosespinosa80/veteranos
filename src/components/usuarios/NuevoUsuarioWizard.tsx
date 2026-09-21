@@ -142,7 +142,7 @@ export default function NuevoUsuarioWizard({ open, onOpenChange }: Props) {
 
   const canSubmit = () => {
     if (!jugador) return false;
-    if (password.length < 8) return false;
+    if (!isPasswordValid(password)) return false;
     if (!recoveryValid) return false;
     if (role === 'delegado') {
       if (!delegadoPosicion) return false;
@@ -244,8 +244,12 @@ export default function NuevoUsuarioWizard({ open, onOpenChange }: Props) {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Contraseña inicial * (mín. 8 caracteres)</Label>
-                    <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={8} />
+                    <Label>Contraseña inicial *</Label>
+                    <div className="flex gap-2">
+                      <Input type="text" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Ej: Daniel.10" />
+                      <Button type="button" variant="outline" onClick={() => setPassword(generatePassword())}>Generar</Button>
+                    </div>
+                    <PasswordRequirements password={password} />
                   </div>
                   <div className="space-y-2">
                     <Label>Email de recuperación (opcional)</Label>
